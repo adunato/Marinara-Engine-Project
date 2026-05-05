@@ -11,13 +11,6 @@ if not defined SERVER_LOG_FILE set SERVER_LOG_FILE=logs\server-debug.log
 
 cd /d "%~dp0Marinara-Engine"
 
-where pnpm >nul 2>nul
-if %ERRORLEVEL% equ 0 (
-  set "MARINARA_PNPM=pnpm"
-) else (
-  set "MARINARA_PNPM=corepack pnpm"
-)
-
 if not exist logs mkdir logs
 
 echo.
@@ -28,7 +21,7 @@ echo    Log file: %SERVER_LOG_FILE%
 echo  ==========================================
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; cmd /d /s /c \"$env:MARINARA_PNPM dev:server\" 2>&1 | Tee-Object -FilePath $env:SERVER_LOG_FILE -Append; if ($LASTEXITCODE) { exit $LASTEXITCODE }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; pnpm dev:server 2>&1 | Tee-Object -FilePath $env:SERVER_LOG_FILE -Append"
 set EXIT_CODE=%ERRORLEVEL%
 
 echo.
