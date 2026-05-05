@@ -1,0 +1,4 @@
+interface:
+  display_name: "Marinara Branch Maintenance"
+  short_description: "Maintain Marinara app branches and parent tooling"
+  default_prompt: "Use $marinara-branch-maintenance to refresh the nested app main from upstream-main and maintain parent tooling."

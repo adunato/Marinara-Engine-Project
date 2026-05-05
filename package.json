@@ -1,0 +1,15 @@
+{
+  "name": "marinara-engine-project",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "e2e": "playwright test",
+    "e2e:install": "playwright install chromium",
+    "e2e:ui": "playwright test --ui",
+    "e2e:record": "playwright codegen http://127.0.0.1:5173"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  },
+  "packageManager": "pnpm@10.33.3+sha512.a19744364a7e248b92657a4ca5973f9354d21caf982579674b1c539f32c7420c47138ad8b1254df07aba9bc782d9b3029e3db34d5dbff974326eb74dac8ff489"
+}

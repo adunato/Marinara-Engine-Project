@@ -1,0 +1,4 @@
+interface:
+  display_name: "Marinara E2E Validation"
+  short_description: "Create focused Playwright E2E validation"
+  default_prompt: "Use $marinara-e2e-validation to add focused Playwright E2E validation for this Marinara change."
