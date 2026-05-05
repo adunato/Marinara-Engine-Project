@@ -12,7 +12,8 @@ $LogFile = "logs\server-debug.log"
 
 $ErrorActionPreference = "Stop"
 
-$repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$toolsRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$repoRoot = Join-Path $toolsRoot "Marinara-Engine"
 Set-Location $repoRoot
 
 if (-not (Test-Path -LiteralPath $LogFile)) {

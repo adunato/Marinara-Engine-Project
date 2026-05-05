@@ -9,6 +9,8 @@ setlocal
 if not defined LOG_LEVEL set LOG_LEVEL=debug
 if not defined SERVER_LOG_FILE set SERVER_LOG_FILE=logs\server-debug.log
 
+cd /d "%~dp0Marinara-Engine"
+
 if not exist logs mkdir logs
 
 echo.
