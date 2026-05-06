@@ -7,9 +7,9 @@ Date: 2026-05-06
 
 Marinara Engine now persists user data through the file-native `DATA_DIR/storage` table snapshot store by default. The app still exposes a Drizzle-shaped runtime API for compatibility, and several features keep their own storage models, embedding paths, retention rules, and prompt-injection lifecycles.
 
-This CR assesses the current storage landscape and designs a harmonized "library" data layer that can make persisted narrative data easier to reason about, search, migrate, back up, and reuse across features.
+This CR first assesses the current storage landscape so any later harmonization work is grounded in current behavior rather than assumptions from older CRs or the previous SQLite-backed architecture.
 
-The dedicated reader-facing assessment is `ASSESSMENT.md`. This HLD records the CR scope and design boundary; the assessment provides the top-down strategy, diagrams, bottom-up reference tables, and recommended implementation slice.
+The dedicated reader-facing assessment is `ASSESSMENT.md`. This HLD records the CR scope and design boundary; the assessment provides the current-state summary, diagrams, feature behavior maps, and bottom-up reference tables.
 
 ## Goals
 
