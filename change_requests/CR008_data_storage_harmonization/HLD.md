@@ -9,6 +9,8 @@ Marinara Engine now persists user data through the file-native `DATA_DIR/storage
 
 This CR assesses the current storage landscape and designs a harmonized "library" data layer that can make persisted narrative data easier to reason about, search, migrate, back up, and reuse across features.
 
+The dedicated reader-facing assessment is `ASSESSMENT.md`. This HLD records the CR scope and design boundary; the assessment provides the top-down strategy, diagrams, bottom-up reference tables, and recommended implementation slice.
+
 ## Goals
 
 - Inventory current storage surfaces across semantic lorebook search, memory recall, built-in trackers, custom trackers, memory commands, and adjacent persisted narrative data.

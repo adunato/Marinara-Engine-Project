@@ -47,6 +47,7 @@ Date: 2026-05-06
 
 ## Files Expected To Be Affected In This CR
 
+- `change_requests/CR008_data_storage_harmonization/ASSESSMENT.md`
 - `change_requests/CR008_data_storage_harmonization/HLD.md`
 - `change_requests/CR008_data_storage_harmonization/IMPLEMENTATION_PLAN.md`
 - `change_requests/tracker.md`
