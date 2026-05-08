@@ -67,15 +67,15 @@ The proposed record shape is:
 | `updatedAt` | Last update timestamp. |
 | `deletedAt` | Optional soft-delete timestamp. |
 
-The current secret plot agent should continue to work through the enhanced memory system. Its current key-value state can map into enhanced records like this:
+The current secret plot agent should continue to work through the enhanced memory system. Its current key-value rows can map into enhanced records like this:
 
-| Current secret plot data | Enhanced memory mapping |
+| Current `agent_memory` row | Mapped enhanced agent memory record |
 | --- | --- |
-| `overarchingArc` | Store as a keyed `secret_plot` memory record that is preserved when agent runs are cleared. |
-| `sceneDirections` | Store as a keyed `secret_plot` memory record containing the active unfulfilled directions. |
-| `recentlyFulfilled` | Store as a keyed `secret_plot` memory record containing the rolling list of recently fulfilled directions. |
-| `pacing` | Store as a keyed `secret_plot` memory record available to the agent before generation. |
-| `staleDetected` | Store as a keyed `secret_plot` memory record available to the agent before generation. |
+| `key = "overarchingArc"`, `value = object/string` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "overarchingArc"`, `scopeType = "chat_agent"`, `metadata.rawValue = value`, protected from normal clear. |
+| `key = "sceneDirections"`, `value = active direction array` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "sceneDirections"`, `scopeType = "chat_agent"`, `metadata.rawValue = value`. |
+| `key = "recentlyFulfilled"`, `value = string array` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "recentlyFulfilled"`, `scopeType = "chat_agent"`, `metadata.rawValue = value`. |
+| `key = "pacing"`, `value = string/structured value` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "pacing"`, `scopeType = "chat_agent"`, `content = string value when possible`, `metadata.rawValue = value`. |
+| `key = "staleDetected"`, `value = boolean` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "staleDetected"`, `scopeType = "chat_agent"`, `metadata.rawValue = value`. |
 
 This should preserve current behavior while moving secret plot state onto the same enhanced memory framework used by the new tools.
 
