@@ -1,216 +1,125 @@
 # Feature Request: Custom Agent Data Storage Tools
 
-Date: 2026-05-08
+## What problem does this solve?
 
-## Summary
+Custom agents can call tools during generation, but they do not have a clean general-purpose way to save, search, list, and delete their own durable custom data.
 
-Add built-in tools that let custom agents save, search, list, and delete their own durable data without overloading memory recall, lorebooks, chat summaries, tracker snapshots, or character card extension memories.
+The current storage surfaces each solve a different problem:
 
-The feature is about custom agent data storage, not about vectors as the primary product concept. Vector storage and semantic search are optional retrieval capabilities behind the search tool.
+- Memory Recall stores automatic chat-history chunks in `memory_chunks`; it is derived recall, not agent-authored custom data.
+- Lorebooks are user-facing knowledge books; using them as an agent scratchpad would mix agent-managed records with authored world/lore content.
+- Character memory commands write into character card `extensions.characterMemories`; those entries do not have a dedicated tool API, stable record model, or flexible search/list/delete behavior.
+- Agent memory is per-agent key/value state; it is useful for small internal state, but not for many searchable text records with namespaces, scopes, and metadata.
+- Chat metadata already stores many unrelated settings and summaries, so it should not become the generic custom data bucket.
 
-## Problem
+CR008 also confirms that the current durable storage model is file-native table snapshots under `DATA_DIR/storage`, not a default live SQL database. Any new custom agent data store should fit that structure.
 
-Custom agents can call tools during generation, but they do not have a general-purpose data store for durable custom records.
+## Proposed solution
 
-Current storage surfaces do not fit this need cleanly:
+Add built-in tools that let agents manage scoped custom data records:
 
-- Memory recall stores automatic five-message chat chunks in `memory_chunks`. It is derived from chat history and shaped for recall fragments, not tool-written custom records.
-- Lorebooks are user-authored or agent-authored knowledge books. Using them as a scratchpad for agent-managed records would mix different product concepts.
-- Character memories live inside character card `extensions.characterMemories`. They are not stable tool-addressable records and currently have date-pruning behavior in conversation generation.
-- Agent memory is per-agent key/value state. It is useful for structured internal state, but not enough for browsing, searching, metadata-filtering, or storing multiple text records.
-- Chat metadata already carries many responsibilities and should not become a generic custom data bucket.
+- `save_custom_data`
+- `search_custom_data`
+- `list_custom_data`
+- `delete_custom_data`
 
-Agents need a bounded, inspectable, tool-driven store for custom text or JSON-ish data, with explicit scope and retrieval controls.
+The feature should focus on custom agent data, not vectors as the product concept. Vector storage and semantic search should be optional storage/search capabilities behind `search_custom_data`.
 
-## User Value
+`save_custom_data` should let an agent store text content with optional title, namespace, metadata, scope, character selector, and optional semantic indexing request.
 
-This would let custom agents maintain durable working memory and task-specific data without modifying unrelated app features.
+`search_custom_data` should support multiple search modes:
 
-Examples:
+- `literal` for exact or case-insensitive text matching.
+- `fuzzy` for lightweight non-vector approximate matching.
+- `semantic` for embedding-backed search when semantic index data is available.
 
-- A continuity agent saves unresolved promises, decisions, open loops, and recurring facts.
-- A planning agent stores long-running task notes and later searches them.
-- A custom NPC manager stores generated NPC details without writing them to a lorebook unless the user chooses that workflow.
-- A house-rules agent stores reusable rulings for one chat, one character, or one agent.
-- A personal assistant-style custom agent stores checklist items, preferences, and prior decisions.
+`list_custom_data` should browse records by namespace/scope with pagination, without requiring a query.
 
-## Requested Built-In Tools
+`delete_custom_data` should delete or disable a record by ID, while enforcing scope and ownership checks.
 
-### `save_custom_data`
+The model should not pass raw internal IDs. The server should resolve model-facing scopes from tool execution context, including current chat, active characters, and executing agent config.
 
-Creates or updates a custom data record.
-
-Expected inputs:
-
-| Field | Purpose |
-| --- | --- |
-| `content` | Required text content to store. |
-| `namespace` | Optional logical bucket, such as `continuity`, `npc_notes`, or `planning`. |
-| `title` | Optional human-readable label. |
-| `metadata` | Optional structured metadata object. |
-| `scope` | Optional model-facing scope selector. |
-| `characterName` | Optional active character selector when saving character-scoped data. |
-| `recordId` | Optional existing record ID for update/upsert behavior. |
-| `enableSemanticIndex` | Optional boolean to request embedding/indexing for semantic retrieval. |
-
-The model should not provide raw internal chat IDs, character IDs, or agent config IDs. The server should resolve those from tool execution context.
-
-### `search_custom_data`
-
-Searches custom data records.
-
-Expected inputs:
-
-| Field | Purpose |
-| --- | --- |
-| `query` | Required query text. |
-| `namespace` | Optional namespace filter. |
-| `scope` | Optional model-facing scope filter. |
-| `characterName` | Optional active character selector for character-scoped search. |
-| `mode` | Search mode: `literal`, `fuzzy`, or `semantic`. |
-| `topK` | Optional result count. |
-| `similarityThreshold` | Optional semantic threshold when `mode` is `semantic`. |
-| `metadataFilter` | Optional simple metadata filter, if feasible in the first implementation. |
-
-Search modes:
-
-- `literal`: exact or case-insensitive substring matching over content/title/namespace.
-- `fuzzy`: non-vector text matching, such as token overlap or lightweight approximate matching.
-- `semantic`: embedding-backed search over records that have semantic indexes available.
-
-Semantic search should be optional. The tool should return a clear result when semantic search is unavailable or a record has not been indexed.
-
-### `list_custom_data`
-
-Lists records without requiring a query.
-
-Expected inputs:
-
-| Field | Purpose |
-| --- | --- |
-| `namespace` | Optional namespace filter. |
-| `scope` | Optional model-facing scope filter. |
-| `characterName` | Optional active character selector for character-scoped listing. |
-| `limit` | Optional page size. |
-| `cursor` | Optional pagination cursor. |
-| `includeContent` | Optional boolean to include full content or summaries only. |
-
-### `delete_custom_data`
-
-Deletes or disables a custom data record.
-
-Expected inputs:
-
-| Field | Purpose |
-| --- | --- |
-| `recordId` | Required custom data record ID returned by save/search/list. |
-| `hardDelete` | Optional boolean; default should be soft delete if the app wants recovery/audit behavior. |
-
-Deletion must enforce scope and ownership. A custom agent should not be able to delete records outside the allowed scope for the current execution context.
-
-## Storage Expectations
-
-Based on CR008, the durable storage path should align with the current file-native storage model.
-
-The feature should persist through the app's file-backed table store, producing a table snapshot such as:
+Storage should align with the current file-native table structure, for example:
 
 ```text
 DATA_DIR/storage/tables/custom_agent_data.json
 ```
 
-The server may still define a Drizzle-shaped table/schema for compatibility with the existing runtime API, but the feature request should not assume a live SQL database as the primary durable store.
+The server may still use a Drizzle-shaped schema/facade internally to match existing patterns, but the requested durable storage behavior is file-native JSON table storage.
 
-Possible row shape:
+## Alternatives considered
 
-```text
-custom_agent_data
-- id
-- namespace
-- title
-- content
-- metadata
-- scopeType
-- chatId
-- characterId
-- agentConfigId
-- embedding
-- embeddingProvider
-- embeddingModel
-- contentHash
-- enabled
-- createdAt
-- updatedAt
-- deletedAt
-```
+Reuse `memory_chunks`.
 
-The exact schema can change during HLD, but it should support:
+Rejected because Memory Recall stores automatic five-message chat chunks. It is not designed for explicit agent-authored records, namespaces, list/delete tools, or non-semantic browsing.
 
-- stable record IDs
-- namespace filtering
-- model-facing scopes resolved to internal IDs by the server
-- optional semantic index data
-- literal/fuzzy search without embeddings
-- list and delete operations
-- file-native backup/export behavior consistent with other tables
+Use lorebooks.
 
-## Scope Model
+Rejected because lorebooks are user-facing knowledge/lore authoring surfaces. Custom-agent working data should not silently contaminate lorebooks unless the user chooses that workflow.
 
-The tools should support model-facing scope names rather than raw IDs.
+Use character card `extensions.characterMemories`.
 
-Suggested scopes:
+Rejected because current character memories are stored inside character card JSON, lack stable tool-addressable IDs, and have conversation-mode pruning behavior that does not match general custom data storage.
 
-| Scope | Meaning |
-| --- | --- |
-| `chat` | Data belongs to the current chat. |
-| `character` | Data belongs to one active character, selected by `characterName`. |
-| `agent` | Data belongs to the executing agent config. |
-| `chat_agent` | Data belongs to this agent in this chat. |
-| `global_agent` | Data belongs to this agent across chats, if allowed. |
+Use `agent_memory`.
 
-The server should resolve concrete IDs from tool execution context:
+Rejected as the complete solution because current agent memory is key/value state, not a record store with listing, searching, namespaces, metadata, and optional semantic retrieval.
 
-- current chat ID
-- active character IDs and names
-- executing agent config ID
+Use chat metadata.
 
-If the context is missing, the tool should fail clearly rather than letting the model invent IDs.
+Rejected because CR008 already shows chat metadata is broad and overloaded. Adding arbitrary custom-agent data would worsen that.
 
-## Tool Policy Example
+Create a vector-first agent store.
+
+Rejected as the main framing. Semantic search is useful, but the requested feature is custom data storage. Literal and fuzzy search should work without embeddings.
+
+Introduce an external vector database.
+
+Rejected for this feature request. Current app storage is file-native, and semantic search can start as optional JSON-vector support consistent with existing in-process retrieval patterns.
+
+## Additional context
+
+This request replaces the older vector-first framing in `change_requests/CR008_data_storage_harmonization/PREVIOUS_FEATURE_REQUEST.md`.
+
+It depends on the current-behavior assessment in `change_requests/CR008_data_storage_harmonization/ASSESSMENT.md`, especially these findings:
+
+- file-native storage is the default durable backend;
+- semantic retrieval currently exists in separate systems;
+- Memory Recall, lorebooks, character memories, tracker snapshots, agent memory, notes, and chat metadata each have different roles;
+- custom-agent durable records need their own clearer storage surface.
+
+Suggested scope names for tool inputs:
+
+- `chat`
+- `character`
+- `agent`
+- `chat_agent`
+- `global_agent`
+
+Suggested policy language for agents:
 
 ```text
-Use namespace "continuity".
+Use save_custom_data for stable facts, unresolved tasks, promises, decisions, and significant events that should persist beyond the current context.
 
-Call save_custom_data for stable facts, unresolved tasks, promises, decisions, and significant events that should persist beyond the current context.
+Use search_custom_data before answering questions about prior facts, plans, decisions, or continuity.
 
-Use scope "chat" for records that only matter in this chat.
-Use scope "character" plus characterName for records about one active character.
-Use scope "agent" for records owned by this agent workflow.
+Use literal search for exact names or phrases.
+Use fuzzy search when wording may differ.
+Use semantic search when looking for conceptually related records and semantic indexing is available.
 
-Before answering questions about prior facts, plans, decisions, or continuity, call search_custom_data.
-
-Use mode "literal" when looking for exact names or phrases.
-Use mode "fuzzy" when the wording may differ but embeddings are unnecessary.
-Use mode "semantic" when looking for conceptually related records and semantic indexing is available.
-
-Do not save routine small talk, transient emotion, repeated facts, or data already present in active prompt context.
+Do not save routine small talk, transient emotion, repeated facts, or information already present in active prompt context.
 ```
 
-## Out Of Scope
+Open questions:
 
-- Replacing memory recall.
-- Replacing lorebooks.
-- Automatically injecting custom data into prompts without an explicit agent/tool call.
-- Making vector storage the core user-facing concept.
-- Adding an external vector database.
-- Reworking tracker snapshot storage.
-- Migrating existing character memories into this store.
+- Should `save_custom_data` support update by `recordId` only, or upsert by namespace/title/scope?
+- Should semantic indexing happen on save, lazily on first semantic search, or only when explicitly requested?
+- Should semantic indexing use the local embedder, configured embedding connections, or a later setting?
+- Should records be visible through a UI in the first implementation, or only through tools?
+- Should `delete_custom_data` soft-delete by default or hard-delete immediately?
 
-## Open Questions
+## Template check
 
-- Should `save_custom_data` update by `recordId` only, or also support upsert by `namespace` + `title` + `scope`?
-- Should semantic indexing happen eagerly on save, lazily on first semantic search, or only when `enableSemanticIndex` is true?
-- Should semantic indexing use the local embedder by default, configured embedding connections, or a setting per agent/tool call?
-- Should custom data records be visible in a UI immediately, or only through tools in the first implementation?
-- Should soft-deleted records be recoverable or only hidden from tool results?
-- Should metadata filtering be included in the first implementation or deferred until there is a clear query syntax?
+Please **uncheck (untick)** the box below before submitting so we know you read the template. It is intentionally pre-checked:
 
+- [ ] I DID NOT read this template and provide the requested details.
