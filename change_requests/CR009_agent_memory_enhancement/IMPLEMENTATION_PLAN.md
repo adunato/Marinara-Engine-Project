@@ -1,11 +1,11 @@
-# CR009 Implementation Plan
+# CR009 Agent Memory Enhancement Implementation Plan
 
 Status: Draft
 Date: 2026-05-08
 
 ## Prerequisites
 
-- Read `change_requests/CR009_custom_agent_data_tools/FEATURE_REQUEST.md`.
+- Read `change_requests/CR009_agent_memory_enhancement/FEATURE_REQUEST.md`.
 - Read `change_requests/CR008_data_storage_harmonization/ASSESSMENT.md`.
 - Read `AGENTS.md`.
 - If implementation touches client code, read `Marinara-Engine/packages/client/.instructions.md` first.
@@ -18,14 +18,17 @@ Date: 2026-05-08
    - Add argument schemas/descriptions that steer models away from raw internal IDs.
    - Add built-in tool availability mapping for custom agents where appropriate.
 
-2. Add storage schema/table support
-   - Add a Drizzle-shaped `custom_agent_data` table definition.
-   - Ensure the file-native table store persists `storage/tables/custom_agent_data.json`.
+2. Decide the `agent_memory` evolution path
+   - Evaluate whether to supersede, extend, or coexist with the existing `agent_memory` table.
+   - Prefer an enhanced `agent_memory` path unless the table shape makes that too risky.
+   - If adding a successor table, add a Drizzle-shaped table definition and compatibility reads from current `agent_memory`.
+   - If extending/superseding `agent_memory`, document the compatibility strategy for `storage/tables/agent_memory.json`.
+   - Ensure the file-native table store persists the chosen table snapshot.
    - Include default/empty table behavior for fresh installs and existing file stores.
    - Preserve compatibility with any legacy SQLite opt-in path if required by existing storage conventions.
 
 3. Add server storage facade
-   - Create custom agent data storage methods:
+   - Create enhanced agent memory storage methods:
      - create/update record
      - get by ID
      - list by namespace/scope/cursor
@@ -38,7 +41,14 @@ Date: 2026-05-08
    - Populate these fields from generation/agent execution paths.
    - Validate character selectors against active characters.
 
-5. Implement built-in tools
+5. Account for existing `agent_memory`
+   - Audit current `agent_memory` use sites, especially `secret-plot-driver`.
+   - Preserve current keys and behavior: `overarchingArc`, `sceneDirections`, `recentlyFulfilled`, `pacing`, and `staleDetected`.
+   - Preserve the current clear-runs behavior that restores `overarchingArc`.
+   - If rerouting secret plot to the enhanced agent memory service, add compatibility reads for existing `agent_memory` rows or an explicit migration.
+   - If leaving legacy-shaped `agent_memory` in place, document why two agent storage surfaces remain.
+
+6. Implement built-in tools
    - `save_custom_data`
    - `search_custom_data`
    - `list_custom_data`
@@ -46,22 +56,23 @@ Date: 2026-05-08
    - Ensure unknown/missing context produces clear tool results.
    - Never expose raw embeddings in tool responses.
 
-6. Implement search modes
+7. Implement search modes
    - Literal search: deterministic substring matching.
    - Fuzzy search: bounded lightweight non-vector matching.
    - Semantic search: optional embedding-backed scoring.
    - Reuse existing local embedding/cosine approach where practical, but keep semantic search optional.
 
-7. Add tests
+8. Add tests
    - Storage facade tests.
    - Tool executor tests.
    - Scope resolution tests.
    - Search mode tests.
    - Semantic unavailable behavior tests.
+   - Secret plot agent memory regression tests if `agent_memory` is superseded or rerouted.
 
-8. Update documentation as needed
-   - Update relevant docs if custom data tools are user-facing.
-   - Document storage behavior if a new table is added to file storage docs.
+9. Update documentation as needed
+   - Update relevant docs if agent memory tools are user-facing.
+   - Document storage behavior if a new table is added or `agent_memory` changes role.
 
 ## Likely Files Affected
 
@@ -73,6 +84,8 @@ Date: 2026-05-08
 - `Marinara-Engine/packages/server/src/db/schema/index.ts`
 - `Marinara-Engine/packages/server/src/db/file-backed-store.ts`
 - `Marinara-Engine/packages/server/src/services/storage/*`
+- `Marinara-Engine/packages/server/src/services/storage/agents.storage.ts` if `agent_memory` is extended or compatibility adapters are added
+- `Marinara-Engine/packages/server/src/routes/agents.routes.ts` if clear-memory behavior changes
 - `Marinara-Engine/packages/server/test/*`
 - `Marinara-Engine/docs/FILE_STORAGE_MIGRATION.md` if the file table map is updated
 
@@ -88,5 +101,4 @@ Date: 2026-05-08
 - Remove tool definitions and executor cases.
 - Remove custom agent data storage facade and tests.
 - Remove or ignore the new table from file-native store initialization.
-- If records were created in local test data, delete `storage/tables/custom_agent_data.json` only in test fixtures or with explicit user approval for real data.
-
+- If records were created in local test data, delete only test fixture data or explicitly approved local data. Do not delete real `storage/tables/agent_memory.json` data without user approval.

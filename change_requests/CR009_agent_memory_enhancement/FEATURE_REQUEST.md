@@ -1,29 +1,29 @@
-# Feature Request: Custom Agent Data Storage Tools
+# Feature Request: Agent Memory Enhancement
 
 ## What problem does this solve?
 
-Custom agents can call tools during generation, but they do not have a clean general-purpose way to save, search, list, and delete their own durable custom data.
+Agents can persist narrow key/value state today through `agent_memory`, but they do not have a clean general-purpose way to save, search, list, and delete durable agent memory records.
 
 The current storage surfaces each solve a different problem:
 
-- Memory Recall stores automatic chat-history chunks in `memory_chunks`; it is derived recall, not agent-authored custom data.
+- Memory Recall stores automatic chat-history chunks in `memory_chunks`; it is derived recall, not agent-authored memory records.
 - Lorebooks are user-facing knowledge books; using them as an agent scratchpad would mix agent-managed records with authored world/lore content.
 - Character memory commands write into character card `extensions.characterMemories`; those entries do not have a dedicated tool API, stable record model, or flexible search/list/delete behavior.
-- Agent memory is per-agent key/value state; it is useful for small internal state, but not for many searchable text records with namespaces, scopes, and metadata.
-- Chat metadata already stores many unrelated settings and summaries, so it should not become the generic custom data bucket.
+- Existing agent memory is per-agent key/value state in `storage/tables/agent_memory.json`; it is useful for small internal state and is currently used by the secret plot agent, but it is narrow and not a general searchable record store.
+- Chat metadata already stores many unrelated settings and summaries, so it should not become the generic agent memory bucket.
 
-CR008 also confirms that the current durable storage model is file-native table snapshots under `DATA_DIR/storage`, not a default live SQL database. Any new custom agent data store should fit that structure.
+CR008 also confirms that the current durable storage model is file-native table snapshots under `DATA_DIR/storage`, not a default live SQL database. Any agent memory enhancement should fit that structure and should explicitly decide how the current `agent_memory` table evolves.
 
 ## Proposed solution
 
-Add built-in tools that let agents manage scoped custom data records:
+Enhance agent memory into a more capable scoped record store and add built-in tools that let agents manage those records:
 
 - `save_custom_data`
 - `search_custom_data`
 - `list_custom_data`
 - `delete_custom_data`
 
-The feature should focus on custom agent data, not vectors as the product concept. Vector storage and semantic search should be optional storage/search capabilities behind `search_custom_data`.
+The feature should focus on agent memory records, not vectors as the product concept. Vector storage and semantic search should be optional storage/search capabilities behind `search_custom_data`.
 
 `save_custom_data` should let an agent store text content with optional title, namespace, metadata, scope, character selector, and optional semantic indexing request.
 
@@ -39,13 +39,13 @@ The feature should focus on custom agent data, not vectors as the product concep
 
 The model should not pass raw internal IDs. The server should resolve model-facing scopes from tool execution context, including current chat, active characters, and executing agent config.
 
-Storage should align with the current file-native table structure, for example:
+Storage should align with the current file-native table structure. The design should evaluate whether to evolve the existing file:
 
 ```text
-DATA_DIR/storage/tables/custom_agent_data.json
+DATA_DIR/storage/tables/agent_memory.json
 ```
 
-The server may still use a Drizzle-shaped schema/facade internally to match existing patterns, but the requested durable storage behavior is file-native JSON table storage.
+or introduce a replacement/sibling table with a compatibility path. The server may still use a Drizzle-shaped schema/facade internally to match existing patterns, but the requested durable storage behavior is file-native JSON table storage.
 
 ## Alternatives considered
 
@@ -59,11 +59,11 @@ Rejected because lorebooks are user-facing knowledge/lore authoring surfaces. Cu
 
 Use character card `extensions.characterMemories`.
 
-Rejected because current character memories are stored inside character card JSON, lack stable tool-addressable IDs, and have conversation-mode pruning behavior that does not match general custom data storage.
+Rejected because current character memories are stored inside character card JSON, lack stable tool-addressable IDs, and have conversation-mode pruning behavior that does not match general agent memory storage.
 
-Use `agent_memory`.
+Leave `agent_memory` unchanged.
 
-Rejected as the complete solution because current agent memory is key/value state, not a record store with listing, searching, namespaces, metadata, and optional semantic retrieval.
+Rejected because current agent memory is key/value state, not a record store with listing, searching, namespaces, metadata, and optional semantic retrieval. However, it is the incumbent storage surface, so the implementation design should assess whether CR009 supersedes `agent_memory`, extends it, or creates a new store with a compatibility/migration path.
 
 Use chat metadata.
 
@@ -71,7 +71,7 @@ Rejected because CR008 already shows chat metadata is broad and overloaded. Addi
 
 Create a vector-first agent store.
 
-Rejected as the main framing. Semantic search is useful, but the requested feature is custom data storage. Literal and fuzzy search should work without embeddings.
+Rejected as the main framing. Semantic search is useful, but the requested feature is agent memory enhancement. Literal and fuzzy search should work without embeddings.
 
 Introduce an external vector database.
 
@@ -86,7 +86,16 @@ It depends on the current-behavior assessment in `change_requests/CR008_data_sto
 - file-native storage is the default durable backend;
 - semantic retrieval currently exists in separate systems;
 - Memory Recall, lorebooks, character memories, tracker snapshots, agent memory, notes, and chat metadata each have different roles;
-- custom-agent durable records need their own clearer storage surface.
+- agent memory records need a clearer storage surface than narrow per-chat KV alone.
+
+Existing `agent_memory` behavior to account for:
+
+- durable file: `storage/tables/agent_memory.json`;
+- shape: per `agentConfigId` + `chatId` + `key` string value;
+- current visible use: `secret-plot-driver` persists `overarchingArc`, `sceneDirections`, `recentlyFulfilled`, `pacing`, and `staleDetected`;
+- clearing agent runs for a chat currently preserves/restores `secret-plot-driver`'s `overarchingArc`.
+
+The enhanced agent memory work should consider rerouting the secret plot agent to the new storage layer if it can preserve the same behavior while making agent memory more general and inspectable.
 
 Suggested scope names for tool inputs:
 
@@ -117,6 +126,8 @@ Open questions:
 - Should semantic indexing use the local embedder, configured embedding connections, or a later setting?
 - Should records be visible through a UI in the first implementation, or only through tools?
 - Should `delete_custom_data` soft-delete by default or hard-delete immediately?
+- Should CR009 supersede `agent_memory`, extend it, or coexist with it?
+- If it supersedes `agent_memory`, how should existing secret plot memory be migrated or read compatibly?
 
 ## Template check
 
