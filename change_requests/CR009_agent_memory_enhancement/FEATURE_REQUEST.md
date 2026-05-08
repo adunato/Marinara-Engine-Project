@@ -18,24 +18,24 @@ CR008 also confirms that the current durable storage model is file-native table 
 
 Enhance agent memory into a more capable scoped record store and add built-in tools that let agents manage those records:
 
-- `save_custom_data`
-- `search_custom_data`
-- `list_custom_data`
-- `delete_custom_data`
+- `save_agent_memory`
+- `search_agent_memory`
+- `list_agent_memory`
+- `delete_agent_memory`
 
-The feature should focus on agent memory records, not vectors as the product concept. Vector storage and semantic search should be optional storage/search capabilities behind `search_custom_data`.
+The feature should focus on agent memory records, not vectors as the product concept. Vector storage and semantic search should be optional storage/search capabilities behind `search_agent_memory`.
 
-`save_custom_data` should let an agent store text content with optional title, namespace, metadata, scope, character selector, and optional semantic indexing request.
+`save_agent_memory` should let an agent store text content with optional title, namespace, metadata, scope, character selector, and optional semantic indexing request.
 
-`search_custom_data` should support multiple search modes:
+`search_agent_memory` should support multiple search modes:
 
 - `literal` for exact or case-insensitive text matching.
 - `fuzzy` for lightweight non-vector approximate matching.
 - `semantic` for embedding-backed search when semantic index data is available.
 
-`list_custom_data` should browse records by namespace/scope with pagination, without requiring a query.
+`list_agent_memory` should browse records by namespace/scope with pagination, without requiring a query.
 
-`delete_custom_data` should delete or disable a record by ID, while enforcing scope and ownership checks.
+`delete_agent_memory` should delete or disable a record by ID, while enforcing scope and ownership checks.
 
 The model should not pass raw internal IDs. The server should resolve model-facing scopes from tool execution context, including current chat, active characters, and executing agent config.
 
@@ -47,6 +47,16 @@ DATA_DIR/storage/tables/agent_memory.json
 
 or introduce a replacement/sibling table with a compatibility path. The server may still use a Drizzle-shaped schema/facade internally to match existing patterns, but the requested durable storage behavior is file-native JSON table storage.
 
+The current secret plot agent should be rerouted onto the enhanced agent memory framework if the implementation can preserve current behavior. At minimum, the design must specify how its existing memory keys continue to work:
+
+| Current key | Required continuity |
+| --- | --- |
+| `overarchingArc` | Long-term arc persists across agent-run clears and remains injected where it is today. |
+| `sceneDirections` | Active directions continue to update each generation and clear when absent/stale. |
+| `recentlyFulfilled` | Rolling list still prevents repeated fulfilled directions. |
+| `pacing` | Pacing state persists and remains available to the agent. |
+| `staleDetected` | Boolean state persists and remains available to the agent. |
+
 ## Alternatives considered
 
 Reuse `memory_chunks`.
@@ -55,7 +65,7 @@ Rejected because Memory Recall stores automatic five-message chat chunks. It is 
 
 Use lorebooks.
 
-Rejected because lorebooks are user-facing knowledge/lore authoring surfaces. Custom-agent working data should not silently contaminate lorebooks unless the user chooses that workflow.
+Rejected because lorebooks are user-facing knowledge/lore authoring surfaces. Agent working memory should not silently contaminate lorebooks unless the user chooses that workflow.
 
 Use character card `extensions.characterMemories`.
 
@@ -67,7 +77,7 @@ Rejected because current agent memory is key/value state, not a record store wit
 
 Use chat metadata.
 
-Rejected because CR008 already shows chat metadata is broad and overloaded. Adding arbitrary custom-agent data would worsen that.
+Rejected because CR008 already shows chat metadata is broad and overloaded. Adding arbitrary agent memory records would worsen that.
 
 Create a vector-first agent store.
 
@@ -108,9 +118,9 @@ Suggested scope names for tool inputs:
 Suggested policy language for agents:
 
 ```text
-Use save_custom_data for stable facts, unresolved tasks, promises, decisions, and significant events that should persist beyond the current context.
+Use save_agent_memory for stable facts, unresolved tasks, promises, decisions, and significant events that should persist beyond the current context.
 
-Use search_custom_data before answering questions about prior facts, plans, decisions, or continuity.
+Use search_agent_memory before answering questions about prior facts, plans, decisions, or continuity.
 
 Use literal search for exact names or phrases.
 Use fuzzy search when wording may differ.
@@ -121,11 +131,11 @@ Do not save routine small talk, transient emotion, repeated facts, or informatio
 
 Open questions:
 
-- Should `save_custom_data` support update by `recordId` only, or upsert by namespace/title/scope?
+- Should `save_agent_memory` support update by `recordId` only, or upsert by namespace/title/scope?
 - Should semantic indexing happen on save, lazily on first semantic search, or only when explicitly requested?
 - Should semantic indexing use the local embedder, configured embedding connections, or a later setting?
 - Should records be visible through a UI in the first implementation, or only through tools?
-- Should `delete_custom_data` soft-delete by default or hard-delete immediately?
+- Should `delete_agent_memory` soft-delete by default or hard-delete immediately?
 - Should CR009 supersede `agent_memory`, extend it, or coexist with it?
 - If it supersedes `agent_memory`, how should existing secret plot memory be migrated or read compatibly?
 

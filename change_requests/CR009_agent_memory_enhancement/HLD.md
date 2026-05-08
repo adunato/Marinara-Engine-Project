@@ -26,12 +26,12 @@ The assessment also identifies an existing `agent_memory` table backed by `stora
 
 - Add a feature request and implementation design for enhanced agent memory records.
 - Define built-in tools:
-  - `save_custom_data`
-  - `search_custom_data`
-  - `list_custom_data`
-  - `delete_custom_data`
+  - `save_agent_memory`
+  - `search_agent_memory`
+  - `list_agent_memory`
+  - `delete_agent_memory`
 - Persist records through the current file-native table storage model, preferably by evolving or deliberately superseding existing `agent_memory`.
-- Support literal, fuzzy, and semantic search modes in `search_custom_data`.
+- Support literal, fuzzy, and semantic search modes in `search_agent_memory`.
 - Treat vector/embedding storage as optional support for semantic search.
 - Resolve model-facing scopes to server-side chat, character, and agent IDs.
 - Decide whether to supersede, extend, or coexist with existing `agent_memory`.
@@ -41,8 +41,8 @@ The assessment also identifies an existing `agent_memory` table backed by `stora
 ## Non-Goals
 
 - Do not replace Memory Recall or reuse `memory_chunks` as the canonical store.
-- Do not write custom-agent data into lorebooks by default.
-- Do not store custom-agent data in character card `extensions.characterMemories`.
+- Do not write agent memory records into lorebooks by default.
+- Do not store agent memory records in character card `extensions.characterMemories`.
 - Do not use chat metadata as the generic agent memory store.
 - Do not require an external vector database.
 - Do not assume SQL as the durable backend.
@@ -59,7 +59,7 @@ flowchart TD
   Service --> Table["Drizzle-shaped table facade<br/>agent_memory or successor"]
   Table --> File["DATA_DIR/storage/tables/agent_memory.json<br/>or compatible successor"]
 
-  Search["search_custom_data"] --> Literal["literal text search"]
+  Search["search_agent_memory"] --> Literal["literal text search"]
   Search --> Fuzzy["fuzzy text search"]
   Search --> Semantic["semantic search"]
   Semantic --> Embedding["optional embedding field<br/>JSON vector + metadata"]
@@ -96,15 +96,17 @@ CR009 should decide between three implementation directions:
 | Extend | Evolve `agent_memory` into a record-capable table/service. | Reuses existing concept/file, but may overload a KV-shaped table. |
 | Coexist | Add a successor record table and leave `agent_memory` only for narrow internal KV state. | Lowest short-term risk, but leaves two agent storage surfaces. |
 
-Given the user's concern, the HLD should not assume coexistence. It should explicitly evaluate supersession and secret plot rerouting before implementation.
+Given the user's concern, the HLD should not assume coexistence. The preferred direction is to evolve/supersede `agent_memory` into the enhanced record framework and reroute secret plot onto that framework, unless implementation analysis finds a concrete compatibility blocker.
 
 ## Data Model
 
-Draft enhanced record shape:
+Preferred enhanced `agent_memory` shape:
 
 | Field | Purpose |
 | --- | --- |
 | `id` | Stable record ID returned to tools. |
+| `memoryType` | `record` for enhanced records, `kv` for compatibility/internal state if needed. |
+| `key` | Optional stable key for KV-style compatibility and upsert-by-key records. |
 | `namespace` | Optional agent-defined bucket. |
 | `title` | Optional human-readable label. |
 | `content` | Required stored text. |
@@ -126,6 +128,30 @@ Draft enhanced record shape:
 
 The model also needs to represent existing KV-like internal state cleanly. That can be done either as records with `namespace = "internal"` and stable titles/keys, or as a compatibility adapter that maps old `agent_memory` keys onto enhanced memory records.
 
+## Impacted Current Functionality
+
+### Secret Plot Driver
+
+The secret plot agent currently uses `agent_memory` as internal state. CR009 must preserve this behavior exactly before changing storage shape.
+
+| Existing behavior | Required enhanced-memory behavior |
+| --- | --- |
+| `getMemory(secretPlotAgent.id, chatId)` returns an object keyed by memory key. | Compatibility API or adapter must still return equivalent state to existing callers during migration. |
+| `overarchingArc` persists as long-term structure. | Store as keyed internal agent memory and preserve through clear-runs flows. |
+| `sceneDirections` stores only active unfulfilled directions. | Store/update the active direction list with the same lifecycle. |
+| `recentlyFulfilled` keeps the last 10 fulfilled directions. | Preserve rolling-window behavior. |
+| missing `sceneDirections` clears stale directions. | Preserve stale-direction clearing behavior. |
+| `pacing` and `staleDetected` persist between generations. | Preserve persisted values and injection behavior. |
+| `/agents/runs/:chatId` clear route preserves/restores `overarchingArc`. | Keep equivalent behavior, either by preserving the keyed record or excluding long-term memory from the clear operation. |
+
+Implementation should prefer changing the secret plot code to call the enhanced memory service directly. If that is too large for the first slice, add an adapter so existing `getMemory`/`setMemory` calls operate against enhanced rows.
+
+### Existing Agent Memory APIs
+
+The current storage facade exposes `getMemory`, `setMemory`, `deleteMemoryKey`, `clearMemoryForChat`, and `clearMemoryForAgentInChat`. CR009 should define whether these remain compatibility methods, become wrappers over the enhanced record service, or are replaced by record-oriented methods.
+
+At handoff, there should not be two unrelated concepts both called agent memory.
+
 ## Tool Execution Context Requirements
 
 The current `ToolExecutionContext` includes game state, chat metadata, metadata patching, custom tools, lorebook search, and some integration credentials. It does not expose enough identity for custom scoped storage.
@@ -142,7 +168,7 @@ The route/agent pipeline already has these concepts nearby: generation input inc
 
 ## Tool Behavior
 
-### `save_custom_data`
+### `save_agent_memory`
 
 - Validate required `content`.
 - Normalize `namespace`, `title`, and `metadata`.
@@ -151,7 +177,7 @@ The route/agent pipeline already has these concepts nearby: generation input inc
 - Optionally generate/update an embedding if semantic indexing is requested and available.
 - Return record ID, scope summary, namespace, title, and whether semantic index data was created.
 
-### `search_custom_data`
+### `search_agent_memory`
 
 - Validate query and search mode.
 - Resolve scope filters.
@@ -162,14 +188,14 @@ The route/agent pipeline already has these concepts nearby: generation input inc
 - Return record IDs, title/content snippets, metadata, scope summary, and scores when relevant.
 - If semantic search is unavailable, return a clear tool result rather than a generic failure.
 
-### `list_custom_data`
+### `list_agent_memory`
 
 - Resolve scope filters.
 - Return paginated records by updated/created time.
 - Include content conditionally based on `includeContent`.
 - Never expose raw embeddings.
 
-### `delete_custom_data`
+### `delete_agent_memory`
 
 - Resolve current execution scope/ownership.
 - Validate the record exists and is accessible.
@@ -184,11 +210,11 @@ The route/agent pipeline already has these concepts nearby: generation input inc
 | `fuzzy` | Non-vector approximate matching, such as normalized token overlap. |
 | `semantic` | Optional embedding-backed search over indexed records. |
 
-Semantic search is useful, but records should remain valuable without it. `save_custom_data`, `list_custom_data`, `delete_custom_data`, and literal/fuzzy search must not depend on local embedding availability.
+Semantic search is useful, but records should remain valuable without it. `save_agent_memory`, `list_agent_memory`, `delete_agent_memory`, and literal/fuzzy search must not depend on local embedding availability.
 
 ## Risks
 
-- Custom agents could save too much low-value data without clear tool instructions.
+- Agents could save too much low-value memory without clear tool instructions.
 - If scoping is too permissive, one agent could read/delete data meant for another agent or chat.
 - Superseding `agent_memory` could regress the secret plot agent if `overarchingArc` preservation and scene direction lifecycle are not matched exactly.
 - Semantic search can compare incompatible embeddings if provider/model metadata is ignored.

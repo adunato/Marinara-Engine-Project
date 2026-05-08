@@ -14,13 +14,14 @@ Date: 2026-05-08
 ## Atomic Tasks
 
 1. Define shared tool contracts
-   - Add tool definitions for `save_custom_data`, `search_custom_data`, `list_custom_data`, and `delete_custom_data`.
+   - Add tool definitions for `save_agent_memory`, `search_agent_memory`, `list_agent_memory`, and `delete_agent_memory`.
    - Add argument schemas/descriptions that steer models away from raw internal IDs.
    - Add built-in tool availability mapping for custom agents where appropriate.
 
 2. Decide the `agent_memory` evolution path
    - Evaluate whether to supersede, extend, or coexist with the existing `agent_memory` table.
    - Prefer an enhanced `agent_memory` path unless the table shape makes that too risky.
+   - Define the target enhanced `agent_memory` row shape, including how current `key`/`value` rows are represented.
    - If adding a successor table, add a Drizzle-shaped table definition and compatibility reads from current `agent_memory`.
    - If extending/superseding `agent_memory`, document the compatibility strategy for `storage/tables/agent_memory.json`.
    - Ensure the file-native table store persists the chosen table snapshot.
@@ -49,10 +50,10 @@ Date: 2026-05-08
    - If leaving legacy-shaped `agent_memory` in place, document why two agent storage surfaces remain.
 
 6. Implement built-in tools
-   - `save_custom_data`
-   - `search_custom_data`
-   - `list_custom_data`
-   - `delete_custom_data`
+   - `save_agent_memory`
+   - `search_agent_memory`
+   - `list_agent_memory`
+   - `delete_agent_memory`
    - Ensure unknown/missing context produces clear tool results.
    - Never expose raw embeddings in tool responses.
 
@@ -99,6 +100,6 @@ Date: 2026-05-08
 ## Rollback
 
 - Remove tool definitions and executor cases.
-- Remove custom agent data storage facade and tests.
+- Remove enhanced agent memory storage facade changes and tests.
 - Remove or ignore the new table from file-native store initialization.
 - If records were created in local test data, delete only test fixture data or explicitly approved local data. Do not delete real `storage/tables/agent_memory.json` data without user approval.
