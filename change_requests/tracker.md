@@ -1,6 +1,6 @@
 # Change Request Tracker
 
-Last updated: 2026-05-06
+Last updated: 2026-05-08
 
 ## States
 
@@ -22,3 +22,4 @@ Last updated: 2026-05-06
 | CR006 | standalone | E2E Playwright Harness | Adds the Playwright end-to-end smoke harness for application-level validation. | None | Branch: `change/CR006-e2e-playwright-harness`. Placeholder folder tracked under `change_requests/CR006_e2e_playwright_harness/`. |
 | CR007 | standalone | Vector Agent Tools | Placeholder change request for vector agent tools. | None | Branch: `change/CR007-vector-agent-tools`. Placeholder only; no HLD or implementation plan created yet. |
 | CR008 | standalone | Data Storage Harmonization Discovery | Assesses current file-native storage, semantic search, memory recall, trackers, memory commands, and adjacent persisted narrative data to design a cohesive library storage model. | None | Design/discovery only; no application branch opened yet. |
+| CR009 | standalone | Custom Agent Data Storage Tools | Defines custom-agent durable data tools for saving, searching, listing, and deleting scoped records using file-native table storage, with semantic search as an optional search mode. | CR008 | Design/feature request only; no application branch opened yet. |
