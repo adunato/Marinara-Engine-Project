@@ -22,6 +22,8 @@ Date: 2026-05-08
    - Evaluate whether to supersede, extend, or coexist with the existing `agent_memory` table.
    - Prefer an enhanced `agent_memory` path unless the table shape makes that too risky.
    - Define the target enhanced `agent_memory` row shape, including how current `key`/`value` rows are represented.
+   - Collapse classification to `memoryType`; infer ownership from resolved ID columns rather than adding separate classification fields.
+   - Omit `embeddingProvider` and `embeddingModel` unless this CR adds configurable embedding backends for agent memory.
    - If adding a successor table, add a Drizzle-shaped table definition and compatibility reads from current `agent_memory`.
    - If extending/superseding `agent_memory`, document the compatibility strategy for `storage/tables/agent_memory.json`.
    - Ensure the file-native table store persists the chosen table snapshot.
@@ -32,7 +34,7 @@ Date: 2026-05-08
    - Create enhanced agent memory storage methods:
      - create/update record
      - get by ID
-     - list by namespace/scope/cursor
+     - list by memory type/ownership/cursor
      - search candidate loading
      - soft/hard delete
    - Parse and serialize metadata/embedding JSON consistently with existing storage facades.

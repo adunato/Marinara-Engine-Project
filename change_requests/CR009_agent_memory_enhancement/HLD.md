@@ -33,7 +33,7 @@ The assessment also identifies an existing `agent_memory` table backed by `stora
 - Persist records through the current file-native table storage model, preferably by evolving or deliberately superseding existing `agent_memory`.
 - Support literal, fuzzy, and semantic search modes in `search_agent_memory`.
 - Treat vector/embedding storage as optional support for semantic search.
-- Resolve model-facing scopes to server-side chat, character, and agent IDs.
+- Resolve model-facing ownership to server-side chat, character, and agent IDs.
 - Decide whether to supersede, extend, or coexist with existing `agent_memory`.
 - Preserve or deliberately migrate current `secret-plot-driver` memory behavior.
 - Avoid automatic prompt injection in the initial feature; agents retrieve data explicitly by tool call.
@@ -105,19 +105,15 @@ Preferred enhanced `agent_memory` shape:
 | Field | Purpose |
 | --- | --- |
 | `id` | Stable record ID returned to tools. |
-| `memoryType` | `record` for enhanced records, `kv` for compatibility/internal state if needed. |
+| `memoryType` | Categorizes the memory and its behavior, such as `general`, `continuity`, `planning`, or `secret_plot_internal`. |
 | `key` | Optional stable key for KV-style compatibility and upsert-by-key records. |
-| `namespace` | Optional agent-defined bucket. |
 | `title` | Optional human-readable label. |
 | `content` | Required stored text. |
 | `metadata` | JSON object. |
-| `scopeType` | `chat`, `character`, `agent`, `chat_agent`, or `global_agent`. |
-| `chatId` | Resolved server-side chat ID when scope requires it. |
-| `characterId` | Resolved active character ID when scope requires it. |
-| `agentConfigId` | Resolved executing agent config ID when scope requires it. |
+| `chatId` | Resolved server-side chat ID when the memory belongs to a chat. |
+| `characterId` | Resolved active character ID when the memory belongs to a character. |
+| `agentConfigId` | Resolved executing agent config ID that owns the memory. |
 | `embedding` | Optional JSON-serialized vector for semantic search. |
-| `embeddingProvider` | Optional provider/source label. |
-| `embeddingModel` | Optional embedding model label. |
 | `contentHash` | Hash used to detect stale semantic index data. |
 | `enabled` | Soft visibility flag. |
 | `createdAt` | Creation timestamp. |
@@ -126,13 +122,15 @@ Preferred enhanced `agent_memory` shape:
 
 `metadata` should be JSON only. The first implementation should keep filtering conservative to avoid inventing a complex query language.
 
-The model also needs to represent existing KV-like internal state cleanly. That can be done either as records with `namespace = "internal"` and stable titles/keys, or as a compatibility adapter that maps old `agent_memory` keys onto enhanced memory records.
+`memoryType` is the only classification field. Ownership is inferred from populated ID columns: chat-owned records have `chatId`, character-owned records have `characterId`, agent-owned records have `agentConfigId`, and combined ownership uses the relevant combination. The model also needs to represent existing KV-like internal state cleanly through stable `key` values or a compatibility adapter that maps old `agent_memory` keys onto enhanced memory records.
+
+For the first implementation, semantic indexing should use one app-owned embedding path for agent memory records. The schema should not include `embeddingProvider` or `embeddingModel` unless configurable embedding backends are added for this feature. If semantic indexing later supports multiple embedding sources, provider/model metadata can be introduced with that configuration.
 
 ## Impacted Current Functionality
 
 ### Secret Plot Driver
 
-The secret plot agent is the concrete existing consumer of `agent_memory`. Today each data point is stored as a key/value row scoped by `agentConfigId` and `chatId`.
+The secret plot agent is the concrete existing consumer of `agent_memory`. Today each data point is stored as a key/value row keyed by `agentConfigId` and `chatId`.
 
 Current row model:
 
@@ -157,11 +155,11 @@ These values should become individual keyed internal agent memory records in the
 
 | Current `agent_memory` row | Mapped enhanced agent memory record |
 | --- | --- |
-| `key = "overarchingArc"`, `value = object/string` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "overarchingArc"`, `scopeType = "chat_agent"`, `metadata.rawValue = value`, protected from normal clear. |
-| `key = "sceneDirections"`, `value = active direction array` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "sceneDirections"`, `scopeType = "chat_agent"`, `metadata.rawValue = value`. |
-| `key = "recentlyFulfilled"`, `value = string array` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "recentlyFulfilled"`, `scopeType = "chat_agent"`, `metadata.rawValue = value`. |
-| `key = "pacing"`, `value = string/structured value` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "pacing"`, `scopeType = "chat_agent"`, `content = string value when possible`, `metadata.rawValue = value`. |
-| `key = "staleDetected"`, `value = boolean` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "staleDetected"`, `scopeType = "chat_agent"`, `metadata.rawValue = value`. |
+| `key = "overarchingArc"`, `value = object/string` | `memoryType = "secret_plot_internal"`, `key = "overarchingArc"`, `agentConfigId = secret plot agent`, `chatId = current chat`, `metadata.rawValue = value`, protected from normal clear. |
+| `key = "sceneDirections"`, `value = active direction array` | `memoryType = "secret_plot_internal"`, `key = "sceneDirections"`, `agentConfigId = secret plot agent`, `chatId = current chat`, `metadata.rawValue = value`. |
+| `key = "recentlyFulfilled"`, `value = string array` | `memoryType = "secret_plot_internal"`, `key = "recentlyFulfilled"`, `agentConfigId = secret plot agent`, `chatId = current chat`, `metadata.rawValue = value`. |
+| `key = "pacing"`, `value = string/structured value` | `memoryType = "secret_plot_internal"`, `key = "pacing"`, `agentConfigId = secret plot agent`, `chatId = current chat`, `content = string value when possible`, `metadata.rawValue = value`. |
+| `key = "staleDetected"`, `value = boolean` | `memoryType = "secret_plot_internal"`, `key = "staleDetected"`, `agentConfigId = secret plot agent`, `chatId = current chat`, `metadata.rawValue = value`. |
 
 #### How Secret Plot Should Use The Enhanced Framework
 
@@ -171,8 +169,8 @@ Required enhanced service methods:
 
 | Method | Secret plot use |
 | --- | --- |
-| `getAgentMemoryMap(agentConfigId, chatId, namespace)` | Compatibility read that returns `{ [key]: value }` for `secret_plot`. This replaces or backs current `getMemory()`. |
-| `setAgentMemoryKey(agentConfigId, chatId, namespace, key, value, options)` | Upsert one internal keyed record. This replaces or backs current `setMemory()`. |
+| `getAgentMemoryMap(agentConfigId, chatId, memoryType)` | Compatibility read that returns `{ [key]: value }` for `secret_plot_internal`. This replaces or backs current `getMemory()`. |
+| `setAgentMemoryKey(agentConfigId, chatId, memoryType, key, value, options)` | Upsert one internal keyed record. This replaces or backs current `setMemory()`. |
 | `clearAgentMemoryForChat(chatId, options)` | Clear agent memory for a chat while honoring protected keys such as `overarchingArc`. |
 | `listAgentMemoryRecords(filters)` | Optional operational/debug listing; not required for prompt assembly. |
 
@@ -180,8 +178,8 @@ The existing `getMemory()` and `setMemory()` APIs can remain as compatibility wr
 
 #### Search/List/Delete Semantics For Internal Secret Plot Records
 
-- `save_agent_memory`: model-facing agents should not normally overwrite secret plot internal keys unless the tool policy explicitly allows that agent and namespace.
-- `search_agent_memory`: should exclude `memoryType = "internal"` records by default, unless an internal/debug flag or trusted built-in path requests them.
+- `save_agent_memory`: model-facing agents should not normally overwrite secret plot internal keys unless the tool policy explicitly allows that agent and memory type.
+- `search_agent_memory`: should exclude protected internal memory types such as `secret_plot_internal` by default, unless an internal/debug flag or trusted built-in path requests them.
 - `list_agent_memory`: may include internal records only for trusted built-in/admin contexts or when explicitly requested.
 - `delete_agent_memory`: should protect internal records from ordinary model tool calls unless the caller has explicit authority.
 
@@ -207,13 +205,13 @@ At handoff, there should not be two unrelated concepts both called agent memory.
 
 ## Tool Execution Context Requirements
 
-The current `ToolExecutionContext` includes game state, chat metadata, metadata patching, custom tools, lorebook search, and some integration credentials. It does not expose enough identity for custom scoped storage.
+The current `ToolExecutionContext` includes game state, chat metadata, metadata patching, custom tools, lorebook search, and some integration credentials. It does not expose enough identity for agent memory ownership resolution.
 
 The implementation should extend the context with:
 
 | Field | Purpose |
 | --- | --- |
-| `chatId` | Store/search chat-scoped records. |
+| `chatId` | Store/search chat-owned records. |
 | `activeCharacters` | Validate `characterName` and resolve character IDs. |
 | `agentConfigId` | Store/search records owned by the executing agent. |
 
@@ -224,33 +222,33 @@ The route/agent pipeline already has these concepts nearby: generation input inc
 ### `save_agent_memory`
 
 - Validate required `content`.
-- Normalize `namespace`, `title`, and `metadata`.
-- Resolve `scope` into internal IDs.
+- Normalize `memoryType`, `title`, and `metadata`.
+- Resolve model-facing ownership into internal IDs.
 - Create a new record or update an existing `recordId`.
 - Optionally generate/update an embedding if semantic indexing is requested and available.
-- Return record ID, scope summary, namespace, title, and whether semantic index data was created.
+- Return record ID, ownership summary, memory type, title, and whether semantic index data was created.
 
 ### `search_agent_memory`
 
 - Validate query and search mode.
-- Resolve scope filters.
-- Load bounded candidates by namespace/scope/enabled state.
+- Resolve ownership filters.
+- Load bounded candidates by memory type, ownership IDs, and enabled state.
 - For `literal`, perform deterministic text matching.
 - For `fuzzy`, perform lightweight text matching without embeddings.
 - For `semantic`, embed query and score candidates with valid embeddings.
-- Return record IDs, title/content snippets, metadata, scope summary, and scores when relevant.
+- Return record IDs, title/content snippets, metadata, ownership summary, and scores when relevant.
 - If semantic search is unavailable, return a clear tool result rather than a generic failure.
 
 ### `list_agent_memory`
 
-- Resolve scope filters.
+- Resolve ownership filters.
 - Return paginated records by updated/created time.
 - Include content conditionally based on `includeContent`.
 - Never expose raw embeddings.
 
 ### `delete_agent_memory`
 
-- Resolve current execution scope/ownership.
+- Resolve current execution ownership.
 - Validate the record exists and is accessible.
 - Soft-delete by default unless the final implementation chooses hard delete only.
 - Return deletion status.
@@ -259,7 +257,7 @@ The route/agent pipeline already has these concepts nearby: generation input inc
 
 | Mode | Current Requirement |
 | --- | --- |
-| `literal` | Exact/case-insensitive substring search over title/content/namespace. |
+| `literal` | Exact/case-insensitive substring search over title/content/memory type. |
 | `fuzzy` | Non-vector approximate matching, such as normalized token overlap. |
 | `semantic` | Optional embedding-backed search over indexed records. |
 
@@ -278,7 +276,7 @@ Semantic search is useful, but records should remain valuable without it. `save_
 ## Validation
 
 - Unit tests for storage create/update/list/search/delete behavior.
-- Unit tests for scope resolution and access control.
+- Unit tests for ownership resolution and access control.
 - Unit tests for literal and fuzzy search.
 - Semantic search tests should mock embedding generation and verify unavailable-embedding behavior.
 - Regression tests for current secret plot memory behavior if it is rerouted or migrated.
