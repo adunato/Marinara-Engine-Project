@@ -153,15 +153,15 @@ Current call pattern:
 
 #### Current Keys And Required Mapping
 
-These values should become individual keyed internal agent memory records in the enhanced model. They are not ordinary user-authored memory notes; they are structured internal state used by one built-in agent.
+These values should become individual keyed internal agent memory records in the enhanced model.
 
-| Current key | Current shape | Current lifecycle | Enhanced record mapping | Needs tool search? | Needs list? |
-| --- | --- | --- | --- | --- | --- |
-| `overarchingArc` | Object or string. Common object fields include `description`, `protagonistArc`, `completed`. | Long-term per chat. Preserved when agent runs/memory are cleared from `/agents/runs/:chatId`. Injected into prompt after persona/lore positioning. | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "overarchingArc"`, `scopeType = "chat_agent"`, `content` as display text or JSON summary, `metadata.rawValue` as the full object. Mark as protected from normal clear. | No. It is loaded by exact key. | Only for admin/debug or explicit agent-memory listing. |
-| `sceneDirections` | Array of `{ direction, fulfilled }`, persisted as only active unfulfilled directions after processing. | Updated every successful secret plot run. If the agent omits new directions, current code sets it to `[]` to avoid stale direction injection. Injected into context/tracker block. | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "sceneDirections"`, `scopeType = "chat_agent"`, `metadata.rawValue` as the active array. | No. It is loaded by exact key. | Only for admin/debug or explicit agent-memory listing. |
-| `recentlyFulfilled` | Array of strings. | Rolling window of last 10 fulfilled directions, merged when directions become fulfilled. Used to prevent repetition. | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "recentlyFulfilled"`, `scopeType = "chat_agent"`, `metadata.rawValue` as the array. | No. It is loaded by exact key. | Only for admin/debug or explicit agent-memory listing. |
-| `pacing` | String or structured pacing value from secret plot output. | Updated when present in secret plot output; available to next run. | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "pacing"`, `scopeType = "chat_agent"`, `content` as string value, `metadata.rawValue` for original value. | No. It is loaded by exact key. | Only for admin/debug or explicit agent-memory listing. |
-| `staleDetected` | Boolean. | Updated every successful secret plot run, defaulting to `false` when absent. | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "staleDetected"`, `scopeType = "chat_agent"`, `metadata.rawValue` as boolean. | No. It is loaded by exact key. | Only for admin/debug or explicit agent-memory listing. |
+| Current `agent_memory` row | Mapped enhanced agent memory record |
+| --- | --- |
+| `key = "overarchingArc"`, `value = object/string` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "overarchingArc"`, `scopeType = "chat_agent"`, `metadata.rawValue = value`, protected from normal clear. |
+| `key = "sceneDirections"`, `value = active direction array` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "sceneDirections"`, `scopeType = "chat_agent"`, `metadata.rawValue = value`. |
+| `key = "recentlyFulfilled"`, `value = string array` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "recentlyFulfilled"`, `scopeType = "chat_agent"`, `metadata.rawValue = value`. |
+| `key = "pacing"`, `value = string/structured value` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "pacing"`, `scopeType = "chat_agent"`, `content = string value when possible`, `metadata.rawValue = value`. |
+| `key = "staleDetected"`, `value = boolean` | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "staleDetected"`, `scopeType = "chat_agent"`, `metadata.rawValue = value`. |
 
 #### How Secret Plot Should Use The Enhanced Framework
 
