@@ -132,19 +132,72 @@ The model also needs to represent existing KV-like internal state cleanly. That 
 
 ### Secret Plot Driver
 
-The secret plot agent currently uses `agent_memory` as internal state. CR009 must preserve this behavior exactly before changing storage shape.
+The secret plot agent is the concrete existing consumer of `agent_memory`. Today each data point is stored as a key/value row scoped by `agentConfigId` and `chatId`.
 
-| Existing behavior | Required enhanced-memory behavior |
+Current row model:
+
+| Column | Current secret plot use |
 | --- | --- |
-| `getMemory(secretPlotAgent.id, chatId)` returns an object keyed by memory key. | Compatibility API or adapter must still return equivalent state to existing callers during migration. |
-| `overarchingArc` persists as long-term structure. | Store as keyed internal agent memory and preserve through clear-runs flows. |
-| `sceneDirections` stores only active unfulfilled directions. | Store/update the active direction list with the same lifecycle. |
-| `recentlyFulfilled` keeps the last 10 fulfilled directions. | Preserve rolling-window behavior. |
-| missing `sceneDirections` clears stale directions. | Preserve stale-direction clearing behavior. |
-| `pacing` and `staleDetected` persist between generations. | Preserve persisted values and injection behavior. |
-| `/agents/runs/:chatId` clear route preserves/restores `overarchingArc`. | Keep equivalent behavior, either by preserving the keyed record or excluding long-term memory from the clear operation. |
+| `agentConfigId` | Secret plot agent config ID. |
+| `chatId` | Current chat ID. |
+| `key` | One of `overarchingArc`, `sceneDirections`, `recentlyFulfilled`, `pacing`, `staleDetected`. |
+| `value` | JSON string for objects/arrays/booleans, parsed by `getMemory()`. |
 
-Implementation should prefer changing the secret plot code to call the enhanced memory service directly. If that is too large for the first slice, add an adapter so existing `getMemory`/`setMemory` calls operate against enhanced rows.
+Current call pattern:
+
+1. Before pre-generation agent execution, `getMemory(secretPlotAgent.id, chatId)` loads prior state.
+2. The loaded keys are injected into `agentContext.memory._secretPlotState`.
+3. After the secret plot pre-generation result returns, `setMemory()` updates individual keys.
+4. Later prompt assembly calls `getMemory()` again to inject the arc and active directions at their current prompt positions.
+5. Clearing agent runs for a chat clears memory, but preserves and restores `overarchingArc`.
+
+#### Current Keys And Required Mapping
+
+These values should become individual keyed internal agent memory records in the enhanced model. They are not ordinary user-authored memory notes; they are structured internal state used by one built-in agent.
+
+| Current key | Current shape | Current lifecycle | Enhanced record mapping | Needs tool search? | Needs list? |
+| --- | --- | --- | --- | --- | --- |
+| `overarchingArc` | Object or string. Common object fields include `description`, `protagonistArc`, `completed`. | Long-term per chat. Preserved when agent runs/memory are cleared from `/agents/runs/:chatId`. Injected into prompt after persona/lore positioning. | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "overarchingArc"`, `scopeType = "chat_agent"`, `content` as display text or JSON summary, `metadata.rawValue` as the full object. Mark as protected from normal clear. | No. It is loaded by exact key. | Only for admin/debug or explicit agent-memory listing. |
+| `sceneDirections` | Array of `{ direction, fulfilled }`, persisted as only active unfulfilled directions after processing. | Updated every successful secret plot run. If the agent omits new directions, current code sets it to `[]` to avoid stale direction injection. Injected into context/tracker block. | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "sceneDirections"`, `scopeType = "chat_agent"`, `metadata.rawValue` as the active array. | No. It is loaded by exact key. | Only for admin/debug or explicit agent-memory listing. |
+| `recentlyFulfilled` | Array of strings. | Rolling window of last 10 fulfilled directions, merged when directions become fulfilled. Used to prevent repetition. | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "recentlyFulfilled"`, `scopeType = "chat_agent"`, `metadata.rawValue` as the array. | No. It is loaded by exact key. | Only for admin/debug or explicit agent-memory listing. |
+| `pacing` | String or structured pacing value from secret plot output. | Updated when present in secret plot output; available to next run. | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "pacing"`, `scopeType = "chat_agent"`, `content` as string value, `metadata.rawValue` for original value. | No. It is loaded by exact key. | Only for admin/debug or explicit agent-memory listing. |
+| `staleDetected` | Boolean. | Updated every successful secret plot run, defaulting to `false` when absent. | `memoryType = "internal"`, `namespace = "secret_plot"`, `key = "staleDetected"`, `scopeType = "chat_agent"`, `metadata.rawValue` as boolean. | No. It is loaded by exact key. | Only for admin/debug or explicit agent-memory listing. |
+
+#### How Secret Plot Should Use The Enhanced Framework
+
+Secret plot should not call `search_agent_memory` for these internal state values. Its access pattern is deterministic key lookup and update.
+
+Required enhanced service methods:
+
+| Method | Secret plot use |
+| --- | --- |
+| `getAgentMemoryMap(agentConfigId, chatId, namespace)` | Compatibility read that returns `{ [key]: value }` for `secret_plot`. This replaces or backs current `getMemory()`. |
+| `setAgentMemoryKey(agentConfigId, chatId, namespace, key, value, options)` | Upsert one internal keyed record. This replaces or backs current `setMemory()`. |
+| `clearAgentMemoryForChat(chatId, options)` | Clear agent memory for a chat while honoring protected keys such as `overarchingArc`. |
+| `listAgentMemoryRecords(filters)` | Optional operational/debug listing; not required for prompt assembly. |
+
+The existing `getMemory()` and `setMemory()` APIs can remain as compatibility wrappers during migration, but they should delegate to the enhanced memory service so there is one underlying framework.
+
+#### Search/List/Delete Semantics For Internal Secret Plot Records
+
+- `save_agent_memory`: model-facing agents should not normally overwrite secret plot internal keys unless the tool policy explicitly allows that agent and namespace.
+- `search_agent_memory`: should exclude `memoryType = "internal"` records by default, unless an internal/debug flag or trusted built-in path requests them.
+- `list_agent_memory`: may include internal records only for trusted built-in/admin contexts or when explicitly requested.
+- `delete_agent_memory`: should protect internal records from ordinary model tool calls unless the caller has explicit authority.
+
+This keeps the enhanced memory framework shared while avoiding accidental exposure or deletion of built-in agent control state.
+
+#### Compatibility And Migration
+
+Implementation should support existing installs with old `agent_memory` rows.
+
+Acceptable compatibility paths:
+
+1. Lazy adapter: read old `key`/`value` rows and present them as enhanced internal records in service responses, rewriting only when updated.
+2. Startup/file migration: convert old rows to enhanced shape in `storage/tables/agent_memory.json`.
+3. Dual-shape parser: allow both old KV rows and enhanced rows in the same file until a later cleanup.
+
+Whichever path is chosen, tests must prove that a chat with existing secret plot memory produces the same prompt injections before and after the change.
 
 ### Existing Agent Memory APIs
 
