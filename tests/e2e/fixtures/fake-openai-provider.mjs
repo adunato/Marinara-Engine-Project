@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 
 const port = Number(process.env.E2E_FAKE_PROVIDER_PORT ?? "57861");
+let lastAgentMemoryRecordId = "e2e-cr009-memory-record";
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -46,15 +47,155 @@ function hasToolResult(body) {
   return Array.isArray(body.messages) && body.messages.some((message) => message.role === "tool");
 }
 
+function toolResultsText(body) {
+  return Array.isArray(body.messages)
+    ? body.messages
+        .filter((message) => message.role === "tool")
+        .map((message) => message.content ?? "")
+        .join("\n")
+    : "";
+}
+
 function hasTool(body, name) {
   return Array.isArray(body.tools) && body.tools.some((tool) => tool?.function?.name === name);
 }
 
 function selectResponse(body) {
   const text = getText(body).toLowerCase();
+  const toolText = toolResultsText(body);
+  if (toolText) {
+    try {
+      const parsed = JSON.parse(toolText.split(/\n/).filter(Boolean).at(-1) ?? "{}");
+      lastAgentMemoryRecordId = parsed?.record?.id ?? parsed?.records?.[0]?.id ?? parsed?.results?.[0]?.id ?? lastAgentMemoryRecordId;
+    } catch {
+      /* ignore non-JSON tool text */
+    }
+  }
+
+  if (hasToolResult(body) && text.includes("cr009 delete") && hasTool(body, "delete_agent_memory")) {
+    if (lastAgentMemoryRecordId) {
+      return {
+        content: null,
+        toolCalls: [
+          {
+            id: "call_delete_agent_memory",
+            type: "function",
+            function: {
+              name: "delete_agent_memory",
+              arguments: JSON.stringify({ recordId: lastAgentMemoryRecordId }),
+            },
+          },
+        ],
+      };
+    }
+  }
 
   if (hasToolResult(body)) {
     return { content: "Tool work completed.", toolCalls: [] };
+  }
+
+  if (hasTool(body, "delete_agent_memory") && text.includes("cr009 delete") && lastAgentMemoryRecordId) {
+    return {
+      content: null,
+      toolCalls: [
+        {
+          id: "call_delete_agent_memory",
+          type: "function",
+          function: {
+            name: "delete_agent_memory",
+            arguments: JSON.stringify({ recordId: lastAgentMemoryRecordId }),
+          },
+        },
+      ],
+    };
+  }
+
+  if (hasTool(body, "save_agent_memory") && text.includes("cr009 save")) {
+    lastAgentMemoryRecordId = `e2e-cr009-memory-record-${Date.now()}`;
+    return {
+      content: null,
+      toolCalls: [
+        {
+          id: "call_save_agent_memory",
+          type: "function",
+          function: {
+            name: "save_agent_memory",
+            arguments: JSON.stringify({
+              recordId: lastAgentMemoryRecordId,
+              title: "Captain tea preference",
+              memoryType: "continuity",
+              key: "captain-tea-preference",
+              content: "The captain prefers tea before negotiations.",
+              metadata: { source: "cr009-e2e" },
+            }),
+          },
+        },
+      ],
+    };
+  }
+
+  if (hasTool(body, "search_agent_memory") && text.includes("cr009 search")) {
+    return {
+      content: null,
+      toolCalls: [
+        {
+          id: "call_search_agent_memory",
+          type: "function",
+          function: {
+            name: "search_agent_memory",
+            arguments: JSON.stringify({ query: "captain tea", mode: "literal", memoryType: "continuity" }),
+          },
+        },
+      ],
+    };
+  }
+
+  if (hasTool(body, "search_agent_memory") && text.includes("cr009 semantic unavailable")) {
+    return {
+      content: null,
+      toolCalls: [
+        {
+          id: "call_search_agent_memory_semantic",
+          type: "function",
+          function: {
+            name: "search_agent_memory",
+            arguments: JSON.stringify({ query: "captain tea", mode: "semantic", memoryType: "continuity" }),
+          },
+        },
+      ],
+    };
+  }
+
+  if (hasTool(body, "list_agent_memory") && text.includes("cr009 list")) {
+    return {
+      content: null,
+      toolCalls: [
+        {
+          id: "call_list_agent_memory",
+          type: "function",
+          function: {
+            name: "list_agent_memory",
+            arguments: JSON.stringify({ memoryType: "continuity", includeContent: true }),
+          },
+        },
+      ],
+    };
+  }
+
+  if (hasTool(body, "list_agent_memory") && text.includes("cr009 delete")) {
+    return {
+      content: null,
+      toolCalls: [
+        {
+          id: "call_list_before_delete_agent_memory",
+          type: "function",
+          function: {
+            name: "list_agent_memory",
+            arguments: JSON.stringify({ memoryType: "continuity", includeContent: false }),
+          },
+        },
+      ],
+    };
   }
 
   if (
