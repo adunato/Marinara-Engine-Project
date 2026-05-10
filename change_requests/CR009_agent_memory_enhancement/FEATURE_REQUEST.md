@@ -2,7 +2,7 @@
 
 ## What problem does this solve?
 
-Agents can persist narrow key/value state today through `agent_memory`, but they do not have a clean general-purpose way to save, search, list, and delete durable agent memory records.
+Built-in agents can persist narrow key/value state today through `agent_memory`, but they do not have a clean general-purpose way to save, search, list, and delete durable agent memory records. Moreover, there is currently no system to allow custom agents to save arbitrary data.
 
 The current storage surfaces each solve a different problem:
 
@@ -16,7 +16,7 @@ The enhanced storage should fit the current file-native table storage model unde
 
 ## Proposed solution
 
-Enhance agent memory into a typed, owner-aware record store and add built-in tools that let agents manage those records:
+Enhance agent memory into a typed, owner-aware record store and add built-in tools that let both built-in and custom agents manage those records:
 
 - `save_agent_memory`
 - `search_agent_memory`
@@ -83,38 +83,6 @@ This should preserve current behavior while moving secret plot state onto the sa
 - Leave `agent_memory` unchanged: rejected because narrow key/value state does not support listing, searching, memory categorization, metadata, or semantic retrieval.
 - Use chat metadata: rejected because chat metadata is already broad and overloaded.
 - Build an external vector database: rejected because the current file-native storage model can support the first version, with semantic search as an optional capability.
-
-## Additional context
-
-Suggested model-facing ownership options for tool inputs:
-
-- `chat`
-- `character`
-- `agent`
-- `chat_agent`
-- `global_agent`
-
-Suggested policy language for agents:
-
-```text
-Use save_agent_memory for stable facts, unresolved tasks, promises, decisions, and significant events that should persist beyond the current context.
-
-Use search_agent_memory before answering questions about prior facts, plans, decisions, or continuity.
-
-Use literal search for exact names or phrases.
-Use fuzzy search when wording may differ.
-Use semantic search when looking for conceptually related records and semantic indexing is available.
-
-Do not save routine small talk, transient emotion, repeated facts, or information already present in active prompt context.
-```
-
-Open questions:
-
-- Should `save_agent_memory` support update by `recordId` only, or upsert by memory type/title/ownership?
-- Should semantic indexing happen on save, lazily on first semantic search, or only when explicitly requested?
-- Should semantic indexing use the local embedder first, with configurable embedding connections deferred until there is a concrete need?
-- Should records be visible through a UI in the first implementation, or only through tools?
-- Should `delete_agent_memory` soft-delete by default or hard-delete immediately?
 
 ## Template check
 

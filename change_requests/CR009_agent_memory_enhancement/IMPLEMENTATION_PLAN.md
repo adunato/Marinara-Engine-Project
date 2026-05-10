@@ -91,13 +91,26 @@ Date: 2026-05-08
 - `Marinara-Engine/packages/server/src/routes/agents.routes.ts` if clear-memory behavior changes
 - `Marinara-Engine/packages/server/test/*`
 - `Marinara-Engine/docs/FILE_STORAGE_MIGRATION.md` if the file table map is updated
+- `tests/e2e/specs/change-requests/CR009/*`
+- `tests/e2e/macros/*` for reusable agent-memory and secret-plot validation operations
+- `tests/e2e/fixtures/*` if deterministic fake-provider behavior or persisted table inspection needs extending
 
 ## Verification
 
-- Run focused server tests for storage and tools.
+- Expand the parent Playwright E2E library with focused CR009 validation before handoff.
+- Add `[api]` E2E specs for:
+  - `save_agent_memory`, `search_agent_memory`, `list_agent_memory`, and `delete_agent_memory` tool execution.
+  - persistence to file-native `agent_memory` storage across request boundaries.
+  - ownership isolation by chat, character, and executing agent config.
+  - literal and fuzzy search behavior.
+  - semantic search unavailable/fallback behavior when no embedding path is configured.
+  - secret plot compatibility, including preservation of `overarchingArc` and mapped keys such as `sceneDirections`, `recentlyFulfilled`, `pacing`, and `staleDetected`.
+- Add reusable macros for setup and evidence capture so later CRs can reuse agent-memory tool execution and persisted-table assertions.
+- Attach Playwright evidence for tool result payloads, persisted table snapshots, parsed SSE/tool events where relevant, and server-log snippets.
+- Keep focused server tests for low-level edge cases where the E2E path would be slow or brittle.
 - Run `cd Marinara-Engine && pnpm check`.
 - If server/storage schema behavior changes trigger the existing workflow requirement, run `cd Marinara-Engine && pnpm db:push`.
-- After implementation is complete, agree with the user whether focused Playwright E2E validation is useful for this CR.
+- Run `pnpm exec playwright test tests/e2e/specs/change-requests/CR009` from the project root.
 
 ## Rollback
 

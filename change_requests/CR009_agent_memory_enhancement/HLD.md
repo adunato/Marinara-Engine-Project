@@ -266,20 +266,21 @@ Semantic search is useful, but records should remain valuable without it. `save_
 ## Risks
 
 - Agents could save too much low-value memory without clear tool instructions.
-- If scoping is too permissive, one agent could read/delete data meant for another agent or chat.
+- If ownership resolution is too permissive, one agent could read/delete data meant for another agent or chat.
 - Superseding `agent_memory` could regress the secret plot agent if `overarchingArc` preservation and scene direction lifecycle are not matched exactly.
-- Semantic search can compare incompatible embeddings if provider/model metadata is ignored.
+- Semantic search can return misleading results if embeddings become stale or if the app later changes embedding source without reindexing records.
 - Metadata filtering can become complex quickly if the first implementation attempts a broad query language.
 - Soft delete behavior may create user-visible confusion if there is no UI or recovery path.
 - File-native table snapshots may grow large if agents write aggressively; initial limits and pagination are required.
 
 ## Validation
 
-- Unit tests for storage create/update/list/search/delete behavior.
-- Unit tests for ownership resolution and access control.
-- Unit tests for literal and fuzzy search.
-- Semantic search tests should mock embedding generation and verify unavailable-embedding behavior.
-- Regression tests for current secret plot memory behavior if it is rerouted or migrated.
-- Tool executor tests for all four built-in tools.
+- Expand the project-root Playwright harness under `tests/e2e` with focused CR009 coverage rather than treating validation as unit-only or manual.
+- Add CR-specific specs under `tests/e2e/specs/change-requests/CR009/`.
+- Add reusable macros under `tests/e2e/macros/` for deterministic agent-memory operations, including save, search, list, delete, and secret plot compatibility checks.
+- Use `[api]` tests for tool execution, persistence, ownership enforcement, literal/fuzzy search, semantic-unavailable behavior, and secret plot key migration/compatibility.
+- Add `[ui]` coverage only where implementation exposes user-visible management or status surfaces.
+- Attach reviewer evidence in Playwright results: tool result payloads, parsed SSE events where applicable, persisted `agent_memory` snapshots, and filtered server-log snippets.
+- Keep lower-level server tests where useful for edge cases, but make the CR acceptance evidence the focused Playwright E2E suite plus app validation.
 - `pnpm check` from `Marinara-Engine/`.
-- Focused API/tool tests should be enough for the first implementation unless the user requests E2E validation.
+- Run focused CR009 E2E specs with `pnpm exec playwright test tests/e2e/specs/change-requests/CR009`.
