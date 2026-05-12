@@ -284,3 +284,54 @@ Semantic search is useful, but records should remain valuable without it. `save_
 - Keep lower-level server tests where useful for edge cases, but make the CR acceptance evidence the focused Playwright E2E suite plus app validation.
 - `pnpm check` from `Marinara-Engine/`.
 - Run focused CR009 E2E specs with `pnpm exec playwright test tests/e2e/specs/change-requests/CR009`.
+
+## Appendix: Tool Parameters
+
+The tool schemas expose model-facing parameters only. Server-owned values such as `chatId`, `agentConfigId`, and internal character IDs are resolved from `ToolExecutionContext` and are not accepted as tool arguments.
+
+### `save_agent_memory`
+
+Saves a durable memory record for the current chat and executing agent. The tool can create a new record or update a previously returned record ID, subject to ownership checks.
+
+| Parameter | Required | Type | Purpose |
+| --- | --- | --- | --- |
+| `content` | Yes | string | Durable memory text to store. This is the primary searchable body and should be concise and self-contained. |
+| `title` | No | string | Short human-readable label returned by list/search results. |
+| `memoryType` | No | string | Category for the memory, such as `general`, `continuity`, `planning`, `preference`, or an agent-specific type. Defaults to `general` when omitted. |
+| `key` | No | string | Stable logical key for upsert-style records and compatibility with existing keyed agent memory. |
+| `characterName` | No | string | Active character name when the memory belongs to a specific active character. The server resolves this to `characterId`. |
+| `metadata` | No | object | Optional structured JSON for agent-owned details. Tool callers should not include raw database IDs. |
+| `semanticIndex` | No | boolean | Requests semantic indexing for the record when local embeddings are available. Literal/fuzzy storage still succeeds if embeddings are unavailable. |
+| `recordId` | No | string | Existing record ID returned by save/list/search when intentionally updating a record. The server verifies ownership before updating. |
+
+### `search_agent_memory`
+
+Searches durable memory records owned by the current chat and executing agent.
+
+| Parameter | Required | Type | Purpose |
+| --- | --- | --- | --- |
+| `query` | Yes | string | Search text used by literal, fuzzy, or semantic matching. |
+| `mode` | No | string enum | Search mode: `literal`, `fuzzy`, or `semantic`. Defaults to literal behavior when omitted or normalized by implementation. |
+| `memoryType` | No | string | Restricts results to a specific memory category. |
+| `characterName` | No | string | Restricts results to records associated with the named active character. |
+| `limit` | No | number | Maximum number of results to return. The implementation applies a bounded default and cap. |
+
+### `list_agent_memory`
+
+Lists durable memory records owned by the current chat and executing agent without requiring a search query.
+
+| Parameter | Required | Type | Purpose |
+| --- | --- | --- | --- |
+| `memoryType` | No | string | Restricts listed records to a specific memory category. |
+| `characterName` | No | string | Restricts listed records to records associated with the named active character. |
+| `includeContent` | No | boolean | Controls whether full memory content is included in the response. Defaults to including content unless explicitly disabled. |
+| `limit` | No | number | Maximum number of records to return. The implementation applies a bounded default and cap. |
+
+### `delete_agent_memory`
+
+Deletes a durable memory record if it belongs to the current chat and executing agent. The implemented behavior is soft delete.
+
+| Parameter | Required | Type | Purpose |
+| --- | --- | --- | --- |
+| `recordId` | Yes | string | Record ID returned by `save_agent_memory`, `search_agent_memory`, or `list_agent_memory`. |
+| `characterName` | No | string | Optional ownership check requiring the target record to belong to the named active character. |
