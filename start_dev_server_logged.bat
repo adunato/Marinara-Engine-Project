@@ -21,7 +21,7 @@ echo    Log file: %SERVER_LOG_FILE%
 echo  ==========================================
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; pnpm dev:server 2>&1 | Tee-Object -FilePath $env:SERVER_LOG_FILE -Append"
+pnpm dev:server
 set EXIT_CODE=%ERRORLEVEL%
 
 echo.
