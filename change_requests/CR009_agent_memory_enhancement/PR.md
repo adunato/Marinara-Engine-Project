@@ -9,6 +9,8 @@ Agents currently have only narrow per-agent key/value memory, which works for in
 - Added server-side ownership resolution from the current chat, executing agent config, and active character list, without accepting raw internal IDs from tool callers.
 - Added literal, fuzzy, and optional semantic search behavior; semantic search returns a clear unavailable result when embeddings are not available.
 - Updated existing agent memory compatibility so current key/value use, including secret plot state, continues through the enhanced storage model.
+- Added `settings.memoryScope` as an explicit opt-in for multi-agent cooperation, so writer/retriever custom agents can share records without making all agent memory chat-global.
+- Treat omitted `characterName` as no character filter during search/list, while explicit character names still resolve against active characters.
 
 ## Validation
 

@@ -113,6 +113,7 @@ Preferred enhanced `agent_memory` shape:
 | `chatId` | Resolved server-side chat ID when the memory belongs to a chat. |
 | `characterId` | Resolved active character ID when the memory belongs to a character. |
 | `agentConfigId` | Resolved executing agent config ID that owns the memory. |
+| `memoryScope` | Optional shared cooperation scope stored in `metadata.memoryScope`, not a table column. When absent, memory remains private to `agentConfigId`; when present, agents with the same scope share records within the same chat. |
 | `embedding` | Optional JSON-serialized vector for semantic search. |
 | `contentHash` | Hash used to detect stale semantic index data. |
 | `enabled` | Soft visibility flag. |
@@ -123,6 +124,10 @@ Preferred enhanced `agent_memory` shape:
 `metadata` should be JSON only. The first implementation should keep filtering conservative to avoid inventing a complex query language.
 
 `memoryType` is the only classification field. Ownership is inferred from populated ID columns: chat-owned records have `chatId`, character-owned records have `characterId`, agent-owned records have `agentConfigId`, and combined ownership uses the relevant combination. The model also needs to represent existing KV-like internal state cleanly through stable `key` values or a compatibility adapter that maps old `agent_memory` keys onto enhanced memory records.
+
+For custom-agent cooperation, an agent config may opt into a shared `settings.memoryScope` value. Tool execution copies that setting into `metadata.memoryScope` for new records and uses it as the access boundary for save/search/list/delete. This makes multi-agent workflows such as a writer agent plus a retriever agent possible without making all agent memory chat-global. Agents without `memoryScope` keep the original per-agent isolation behavior.
+
+If a tool call omits `characterName`, character ownership is not used as a search/list filter. If `characterName` is supplied, it must resolve to an active character and narrows access to that character's records.
 
 For the first implementation, semantic indexing should use one app-owned embedding path for agent memory records. The schema should not include `embeddingProvider` or `embeddingModel` unless configurable embedding backends are added for this feature. If semantic indexing later supports multiple embedding sources, provider/model metadata can be introduced with that configuration.
 
@@ -214,6 +219,7 @@ The implementation should extend the context with:
 | `chatId` | Store/search chat-owned records. |
 | `activeCharacters` | Validate `characterName` and resolve character IDs. |
 | `agentConfigId` | Store/search records owned by the executing agent. |
+| `agentMemoryScope` | Optional shared memory scope from agent settings. When populated, tool access is constrained by `metadata.memoryScope` instead of private `agentConfigId`. |
 
 The route/agent pipeline already has these concepts nearby: generation input includes the chat, active characters are loaded for prompt context, and each resolved agent has a config ID.
 

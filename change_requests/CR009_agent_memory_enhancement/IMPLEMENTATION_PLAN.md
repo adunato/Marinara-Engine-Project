@@ -3,6 +3,8 @@
 Status: Implemented
 Date: 2026-05-08
 
+Update 2026-05-19: CR009 follow-up adds `settings.memoryScope` for explicit multi-agent cooperation. Records remain private to `agentConfigId` by default; agents with the same non-empty `memoryScope` share records in the same chat via `metadata.memoryScope`.
+
 ## Prerequisites
 
 - Read `change_requests/CR009_agent_memory_enhancement/FEATURE_REQUEST.md`.
@@ -43,6 +45,8 @@ Date: 2026-05-08
    - Add `chatId`, active character identity, and `agentConfigId` to `ToolExecutionContext`.
    - Populate these fields from generation/agent execution paths.
    - Validate character selectors against active characters.
+   - Add optional `agentMemoryScope` from agent settings. When present, use it for tool access boundaries instead of private `agentConfigId`.
+   - Treat omitted `characterName` as no character filter for search/list. Only narrow by character when the tool call explicitly supplies a valid active character name.
 
 5. Account for existing `agent_memory`
    - Audit current `agent_memory` use sites, especially `secret-plot-driver`.
@@ -58,6 +62,8 @@ Date: 2026-05-08
    - `delete_agent_memory`
    - Ensure unknown/missing context produces clear tool results.
    - Never expose raw embeddings in tool responses.
+   - Preserve current per-agent isolation when `memoryScope` is absent.
+   - Allow writer/retriever custom-agent cooperation when both agents have the same `settings.memoryScope` value.
 
 7. Implement search modes
    - Literal search: deterministic substring matching.
@@ -102,6 +108,7 @@ Date: 2026-05-08
   - `save_agent_memory`, `search_agent_memory`, `list_agent_memory`, and `delete_agent_memory` tool execution.
   - persistence to file-native `agent_memory` storage across request boundaries.
   - ownership isolation by chat, character, and executing agent config.
+  - shared scoped ownership by `settings.memoryScope`, including a writer/retriever pair.
   - literal and fuzzy search behavior.
   - semantic search unavailable/fallback behavior when no embedding path is configured.
   - secret plot compatibility, including preservation of `overarchingArc` and mapped keys such as `sceneDirections`, `recentlyFulfilled`, `pacing`, and `staleDetected`.

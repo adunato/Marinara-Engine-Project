@@ -101,6 +101,7 @@ Create a custom agent with these settings:
 | Trigger Cadence | `3` user messages for normal testing, or `1` for fast testing |
 | Enabled tools | `save_agent_memory` |
 | Max tool calls | `2` or higher |
+| Advanced setting | `memoryScope: "character-memory"` |
 
 Prompt:
 
@@ -152,6 +153,7 @@ Create a second custom agent with these settings:
 | Trigger Cadence | `1` / `Every run` |
 | Enabled tools | `search_agent_memory` |
 | Max tool calls | `2` or higher |
+| Advanced setting | `memoryScope: "character-memory"` |
 
 Prompt:
 
@@ -197,6 +199,7 @@ Use a chat with two named characters if possible. The exact names do not matter,
 3. Inspect server logs or the agent debug output and confirm `save_agent_memory` was called.
 4. Inspect `storage/tables/agent_memory.json` and confirm a record exists with:
    - `memoryType` / `memory_type`: `character_memory`
+   - `metadata.memoryScope`: `character-memory`
    - content about Mira, Jonas, honesty, the mentor betrayal, or the lighthouse promise
    - `metadata.source`: `manual-cr009`
    - `embedding` present when local embeddings are available
@@ -209,6 +212,8 @@ Use a chat with two named characters if possible. The exact names do not matter,
 6. Confirm the retriever calls `search_agent_memory`.
 7. Confirm the retriever output injects the saved memory, such as Mira's hatred of lies or Jonas's promise.
 8. Confirm the main assistant response uses the retrieved memory naturally.
+
+System note: `memoryScope` is required for this two-agent scenario. Without it, records remain private to the writer agent's `agentConfigId` and the retriever is expected not to see them. If the retriever omits `characterName`, it should search all character-scoped records in the shared scope for the current chat; specifying `characterName` should narrow results to that active character.
 
 ### Semantic Search Checks
 
@@ -231,6 +236,8 @@ Pass criteria:
 3. Confirm the retriever does not return memories from the first chat.
 4. Create or enable a different custom agent and give it `search_agent_memory`.
 5. Confirm it does not see records owned by the writer/retriever agent unless the intended ownership model explicitly allows that agent to access them.
+6. Give that different agent a different `memoryScope` and confirm it still cannot see writer/retriever records.
+7. Give it the same `memoryScope` only when intentionally testing a shared-memory agent team, and confirm it can see records in that scope.
 
 ## Evidence To Capture
 
@@ -251,3 +258,5 @@ Pass criteria:
 - Semantic search is unavailable because no local embedding path is configured; fuzzy fallback should still work.
 - The main generation sees agent-memory tools directly. It should not; only the custom agent execution context should use them.
 - Secret plot records are returned by ordinary custom-agent searches. They should remain internal/protected unless explicitly included by trusted paths.
+- Writer/retriever agents do not share `memoryScope`, causing the retriever to find no records despite successful writer saves.
+- Search/list calls without `characterName` accidentally filter to `characterId = null`; omitted character selectors should mean no character filter.
