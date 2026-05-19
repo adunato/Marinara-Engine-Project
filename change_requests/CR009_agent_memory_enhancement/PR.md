@@ -15,21 +15,23 @@ Agents currently have only narrow per-agent key/value memory, which works for in
 ## Validation
 
 - [x] `cd Marinara-Engine && pnpm check`
-- [ ] Manual verification completed (describe below)
+- [x] Manual verification completed (describe below)
 
 Additional validation run:
 
 - [x] `cd Marinara-Engine && pnpm db:push`
 - [x] `MARINARA_ENGINE_DIR=Marinara-Engine-CR009 pnpm exec playwright test tests/e2e/specs/change-requests/CR009 --reporter=line`
+- [x] Follow-up `cd Marinara-Engine && pnpm check` after adding `settings.memoryScope`
 
 ### Manual verification notes
 
 - No separate manual UI verification was performed. The focused CR009 Playwright suite exercised save, search, list, delete, and semantic-unavailable behavior through deterministic API/tool execution and attached tool-result/server-log evidence.
+- Follow-up local session verification confirmed the CR009 writer/retriever custom agents can be configured with the same `memoryScope` and that existing writer-owned `character_memory` records can be tagged with `metadata.memoryScope` for shared retrieval. The patch preserves per-agent isolation when `memoryScope` is absent.
 
 ## Docs and release impact
 
-- [x] No docs changes needed
-- [ ] Updated docs (README / CONTRIBUTING / android/README / CHANGELOG) as needed
+- [ ] No docs changes needed
+- [x] Updated CR009 design, implementation, and manual verification docs for `settings.memoryScope`
 - [ ] Version/release files updated (only if this PR includes a version bump)
 
 ## UI evidence (if applicable)
