@@ -5,9 +5,11 @@
 #   $Pattern = "\[agent"                         # default: all [agent* lines
 #   $Pattern = "\[agent|\[agents|\[agent-tools"  # common agent diagnostics
 #   $Pattern = "cadence|Custom Summarisation"    # custom cadence debugging
+#   $Pattern = "\["                         	 # all [* lines
 #   $LogFile = "logs\server-debug.log"           # default logged server output
 
-$Pattern = "\[agent"
+#   $Pattern = "\[agent"
+$Pattern = "\["
 $LogFile = "logs\server-debug.log"
 
 $ErrorActionPreference = "Stop"
