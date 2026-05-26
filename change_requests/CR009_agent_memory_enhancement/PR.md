@@ -14,7 +14,7 @@ Agents currently have only narrow per-agent key/value memory, which works for in
 
 ## Validation
 
-- [x] `cd Marinara-Engine && pnpm check`
+- [x] `pnpm check`
 - [x] Manual verification completed (describe below)
 - [x] playwright testing to cover regression and new test (playtest files not included in the PR)
 
