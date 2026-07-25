@@ -1,6 +1,6 @@
 # Change Request Tracker
 
-Last updated: 2026-05-08
+Last updated: 2026-07-25
 
 ## States
 
@@ -23,3 +23,4 @@ Last updated: 2026-05-08
 | CR007 | standalone | Vector Agent Tools | Placeholder change request for vector agent tools. | None | Branch: `change/CR007-vector-agent-tools`. Placeholder only; no HLD or implementation plan created yet. |
 | CR008 | standalone | Data Storage Harmonization Discovery | Assesses current file-native storage, semantic search, memory recall, trackers, memory commands, and adjacent persisted narrative data to design a cohesive library storage model. | None | Design/discovery only; no application branch opened yet. |
 | CR009 | implementation | Agent Memory Enhancement | Enhances existing agent memory beyond narrow per-chat key/value storage with save, search, list, and delete tools, while evaluating whether to supersede or extend `agent_memory`. | CR008 | Application branch `change/CR009-agent-memory-enhancement` opened; implementation and focused E2E validation added. |
+| CR010 | standalone | Roleplay Context Sources | Lets a Roleplay use multiple Conversation, Roleplay, or Game chats as read-only summary and recent-message context. | None | Application branch `change/CR010-roleplay-context-sources`, based on current `upstream-main`. |
