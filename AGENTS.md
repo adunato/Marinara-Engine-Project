@@ -7,6 +7,7 @@ This file is a thin maintainer note for contributors using Codex. The applicatio
 - Run app development commands from `Marinara-Engine/`.
 - Start app work with `cd Marinara-Engine && pnpm install`.
 - Run `cd Marinara-Engine && pnpm check` as the baseline app validation command.
+- Keep validation proportional and efficient. For a small isolated frontend change, run the affected package's focused checks from that package directory first (for example, `cd packages/client && pnpm exec eslint src/path/to/file.ts` plus the client TypeScript check). Do not invoke package-owned binaries from the workspace root, repeatedly rerun a broad check that already timed out, or reinstall dependencies merely to validate an unchanged package. Run the full baseline check once when proportionate; if it times out, report that clearly and use focused evidence instead of looping.
 - After application changes are merged or checked out in the primary `Marinara-Engine/` folder for manual validation, run `cd Marinara-Engine && pnpm build` there before starting the app. Build artifacts created in a temporary worktree do not carry into the primary checkout.
 - Never leave a server instance started by Codex running after the task or validation turn. Stop its launcher and child processes, then verify its port is no longer listening before handing work back to the user.
 - Run local tool commands, including Playwright E2E harness commands, from this parent repo.
