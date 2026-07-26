@@ -34,4 +34,5 @@ The source material remains untrusted historical context: the prompt will explic
 - Corrected in `d1c7cb1a` to retain the original shared-character boundary while keeping CR014's complete summaries and transcripts; fast-forward merged into local application `main`.
 - `pnpm regression:cross-chat-awareness` passed.
 - Sequential server TypeScript validation (`pnpm --filter @marinara-engine/server lint`) passed.
+- Full primary-checkout application build (`pnpm build`) passed after the shared-character boundary correction.
 - The repository-wide `pnpm check` exceeded its two-minute command window and was not repeated, per proportional-validation guidance.
