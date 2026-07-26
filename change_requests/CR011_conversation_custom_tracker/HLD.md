@@ -1,7 +1,9 @@
 # CR011 Conversation Custom Tracker HLD
 
-Status: Draft — awaiting approval
+Status: Approved — implementation in progress
 Date: 2026-07-26
+
+Approved by the user on 2026-07-26.
 
 ## Problem Statement
 
