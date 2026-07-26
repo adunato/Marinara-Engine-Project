@@ -7,6 +7,8 @@ This file is a thin maintainer note for contributors using Codex. The applicatio
 - Run app development commands from `Marinara-Engine/`.
 - Start app work with `cd Marinara-Engine && pnpm install`.
 - Run `cd Marinara-Engine && pnpm check` as the baseline app validation command.
+- After application changes are merged or checked out in the primary `Marinara-Engine/` folder for manual validation, run `cd Marinara-Engine && pnpm build` there before starting the app. Build artifacts created in a temporary worktree do not carry into the primary checkout.
+- Never leave a server instance started by Codex running after the task or validation turn. Stop its launcher and child processes, then verify its port is no longer listening before handing work back to the user.
 - Run local tool commands, including Playwright E2E harness commands, from this parent repo.
 - After a change request implementation is complete, agree with the user whether to generate and run focused Playwright E2E validation for that CR. Do not add broad regression coverage unless explicitly requested.
 - Run `pnpm db:push` when server or database changes need schema verification.
