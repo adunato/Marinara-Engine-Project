@@ -7,7 +7,7 @@
 
 ## Atomic Tasks
 
-1. Refactor `awareness.service.ts` to select every other cross-chat-enabled Conversation.
+1. Refactor `awareness.service.ts` to select every other cross-chat-enabled Conversation sharing at least one current character.
 2. Load source-chat metadata, persona names, and all source character names.
 3. Format weekly/daily summaries and the complete visible transcript in clearly named structural sections.
 4. Update the generation route call site and settings copy to describe the expanded scope.
@@ -30,6 +30,7 @@
 ## Verification
 
 - Focused cross-chat awareness regression.
+- Verify a multi-character current chat includes sources shared through either current character and excludes unrelated or disabled sources.
 - `pnpm check` from the temporary application worktree.
 - Clean Git status before worktree removal.
 
