@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed; awaiting HLD approval.
+Implemented on `change/CR013-scene-conversation-context`; focused validation passed.
 
 ## Goals
 
@@ -58,4 +58,10 @@ Because the character-initiated scene flow uses the same plan/create endpoints, 
 - Route tests proving `/scene/plan` receives the compiled snapshot and `/scene/create` persists that exact snapshot rather than independently selecting a different history slice.
 - Compatibility coverage for create callers that omit the new snapshot field.
 - Prompt regression coverage proving `injectSceneContextMessages` exposes the richer history once and scene forks preserve it once.
-- Run the focused prompt/server tests, then `pnpm check` because this crosses shared types and server prompt assembly.
+- Run the dedicated scene-context regression, shared contract build, and a server-only TypeScript check.
+
+## Validation Result
+
+- `pnpm regression:scene-context` passed. This builds `@marinara-engine/shared` and runs the dedicated CR013 regression.
+- A server-only `tsc --noEmit` check passed against the worktree's generated shared declarations.
+- Whole-project validation, client build, database checks, and E2E were intentionally not run because CR013 changes only the shared scene plan type and server-side context selection/injection.

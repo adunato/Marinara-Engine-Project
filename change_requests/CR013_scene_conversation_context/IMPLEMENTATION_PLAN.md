@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Base `change/CR013-scene-conversation-context` on local application `main`.
-- Obtain HLD approval before implementation.
+- HLD approved by the user on 2026-07-26.
 - Perform all application edits from a dedicated temporary worktree.
 - Preserve prompt-leaf content verbatim and keep scene context compilation read-only.
 
@@ -17,7 +17,7 @@
 6. Make `/scene/create` persist the exact planned snapshot in `sceneConversationContext`; recompile only for compatible callers that omit it.
 7. Update scene prompt framing and fork-continuity wording so the value is treated as structured historical context rather than only a recent transcript.
 8. Add route and prompt regression coverage for snapshot parity, deduplication, fallback behavior, and edge cases.
-9. Run focused validation followed by `pnpm check`.
+9. Run the dedicated scene-context regression and server-only TypeScript validation.
 
 ## Expected Files
 
@@ -39,7 +39,13 @@
 - Verify summarized history is not duplicated when daily summaries are covered by a weekly summary.
 - Verify hidden-from-AI messages remain excluded and prompt leaf content remains unescaped.
 - Run the focused prompt/server regression command(s).
-- Run `pnpm check` once as baseline validation.
+- Run a server-only TypeScript check against the updated shared declarations.
+
+## Result
+
+- Implemented in application commit `d62923e8`.
+- `pnpm regression:scene-context` passed.
+- Server-only TypeScript validation passed.
 
 ## Rollback
 
