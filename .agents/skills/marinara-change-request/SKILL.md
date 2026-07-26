@@ -44,7 +44,9 @@ Keep these files in the parent repo. Remove any copied CR docs from upstream PR 
 7. Update `change_requests/tracker.md` with the new CR title, `standalone` state, short description, dependencies, and notes.
 8. Commit the CR docs and tracker update in the parent repo with a message like `docs: init CRXXX short title`.
 9. Remove the temporary worktree after the successful commit and validation unless the user is continuing directly into approved implementation work there.
-10. Ask for HLD approval before writing implementation code when starting a brand-new change.
+10. Ask for HLD approval before writing implementation code when the design is unresolved. A direct user instruction to implement a clear change counts as approval; do not pause again merely because the CR is new.
+
+For a trivial change that the user directly instructed Codex to implement, collapse CR initialization and completion bookkeeping into one minimal parent-repo commit after implementation. Do not create a separate documentation-only checkpoint or approval round.
 
 ## Tracker Rules
 
@@ -59,9 +61,9 @@ Keep `change_requests/tracker.md` current when a CR is created, archived, supers
 
 - Read `AGENTS.md` first.
 - Read `Marinara-Engine/packages/client/.instructions.md` before editing client code.
-- Use `cd Marinara-Engine && pnpm check` as the baseline validation command.
+- Use `cd Marinara-Engine && pnpm check` as the baseline validation command for substantive or cross-cutting changes. For trivial, constants-only, or narrowly visual edits, follow the `AGENTS.md` trivial-change fast path and use only proportionate validation.
 - Use `cd Marinara-Engine && pnpm db:push` when server or database schema behavior changes.
 - Use `cd Marinara-Engine && pnpm version:check` when touching release metadata or version-bearing files.
-- After implementation work is complete, agree with the user whether to generate and run focused Playwright E2E validation for the CR using `$marinara-e2e-validation`.
+- After behavior-bearing implementation work is complete, agree with the user whether to generate and run focused Playwright E2E validation for the CR using `$marinara-e2e-validation`. Do not force that discussion for trivial visual/constants-only edits unless the user requests it.
 - Do not add broad regression E2E coverage unless the user explicitly asks for it.
 - If E2E validation is agreed, keep CR-specific specs under `tests/e2e/specs/change-requests/CRXXX/`, use `[api]` or `[ui]` test-name prefixes, expose reusable macros as `test.step()` entries, and attach reviewer evidence through annotations, JSON payloads, screenshots where practical, and server-log snippets.

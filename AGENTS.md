@@ -5,13 +5,13 @@ This file is a thin maintainer note for contributors using Codex. The applicatio
 ## Preferred Workflow
 
 - Run app development commands from `Marinara-Engine/`.
-- Start app work with `cd Marinara-Engine && pnpm install`.
-- Run `cd Marinara-Engine && pnpm check` as the baseline app validation command.
-- Keep validation proportional and efficient. For a small isolated frontend change, run the affected package's focused checks from that package directory first (for example, `cd packages/client && pnpm exec eslint src/path/to/file.ts` plus the client TypeScript check). Do not invoke package-owned binaries from the workspace root, repeatedly rerun a broad check that already timed out, or reinstall dependencies merely to validate an unchanged package. Run the full baseline check once when proportionate; if it times out, report that clearly and use focused evidence instead of looping.
+- Run `cd Marinara-Engine && pnpm install` only when dependencies are missing or dependency manifests/lockfiles changed. Do not reinstall dependencies as routine validation.
+- Run `cd Marinara-Engine && pnpm check` as the baseline validation for substantive or cross-cutting app changes, not automatically for every trivial edit.
+- Keep validation proportional. Use the smallest check that can catch a plausible failure, run it once, and stop. Do not repeat broad checks after a timeout or stack lint, typecheck, build, and E2E when they provide redundant evidence.
 - After application changes are merged or checked out in the primary `Marinara-Engine/` folder for manual validation, run `cd Marinara-Engine && pnpm build` there before starting the app. Build artifacts created in a temporary worktree do not carry into the primary checkout.
 - Never leave a server instance started by Codex running after the task or validation turn. Stop its launcher and child processes, then verify its port is no longer listening before handing work back to the user.
 - Run local tool commands, including Playwright E2E harness commands, from this parent repo.
-- After a change request implementation is complete, agree with the user whether to generate and run focused Playwright E2E validation for that CR. Do not add broad regression coverage unless explicitly requested.
+- After a behavior-bearing change request is complete, agree with the user whether to generate focused Playwright E2E validation. Skip this discussion for trivial visual/constants-only changes unless the user requests E2E.
 - Run `pnpm db:push` when server or database changes need schema verification.
 - Run `pnpm version:check` when you touch release metadata, version-bearing files, or README release references.
 
@@ -25,6 +25,19 @@ This file is a thin maintainer note for contributors using Codex. The applicatio
 - Prefer focused patches that keep code, docs, and release metadata aligned in the same change.
 - When preparing a PR, make the why explicit in the description so reviewers can see the user problem or rationale, not just the file changes.
 - Check `Marinara-Engine/README.md`, `Marinara-Engine/android/README.md`, `Marinara-Engine/CONTRIBUTING.md`, `Marinara-Engine/CHANGELOG.md`, `Marinara-Engine/docs/CONFIGURATION.md`, `Marinara-Engine/docs/TROUBLESHOOTING.md`, and `Marinara-Engine/docs/FAQ.md` together when install, update, or release behavior changes.
+
+## Trivial Change Fast Path
+
+Use this path for an explicitly requested, well-understood change confined to a few lines with no API, database, persistence, security, dependency, or release impact.
+
+1. Do not pause for design approval when the user has already directly instructed implementation.
+2. Create the required branch/worktree and minimal CR bookkeeping without turning it into a separate design phase or separate pre-implementation commit.
+3. Make the edit and inspect the focused diff.
+4. Run at most one focused check when it can catch a realistic mistake. A constants-only styling change may need no pre-merge command beyond diff inspection.
+5. Commit, merge to the requested local branch, update the tracker, and clean up the worktree.
+6. Build the primary checkout only when needed to place artifacts there for the user's manual validation.
+
+Target elapsed time is minutes, not tens of minutes. Process is a safety mechanism, not the deliverable.
 
 ## Branch Purpose
 
@@ -81,4 +94,4 @@ Android-specific rule:
 ## Frontend Changes
 
 - **Read `Marinara-Engine/packages/client/.instructions.md` before editing any client code.** It is the authoritative reference for architecture, patterns, conventions, and common-mistake avoidance.
-- Validate with `cd Marinara-Engine && pnpm check` (TypeScript + ESLint).
+- For substantive frontend changes, validate with `cd Marinara-Engine && pnpm check` (TypeScript + ESLint). For trivial changes, follow the fast path above.
