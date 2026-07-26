@@ -237,6 +237,21 @@ function selectResponse(body) {
     };
   }
 
+  if (text.includes("track only the user's custom fields") && text.includes("customtrackerfields")) {
+    const committedFieldsPresent = text.includes("trust") && text.includes("promise") && text.includes("kept");
+    console.log(`[fake-openai] custom tracker committed fields present=${committedFieldsPresent}`);
+    return {
+      content: JSON.stringify({
+        fields: [
+          { name: "Trust", value: "High" },
+          { name: "Promise", value: "Changed by model" },
+        ],
+        reasoning: "E2E tracker update",
+      }),
+      toolCalls: [],
+    };
+  }
+
   return { content: "E2E assistant response.", toolCalls: [] };
 }
 

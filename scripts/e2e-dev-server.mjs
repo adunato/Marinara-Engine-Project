@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { createWriteStream, mkdirSync, rmSync } from "node:fs";
+import { cpSync, createWriteStream, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const toolsRoot = process.cwd();
@@ -15,6 +15,41 @@ const dataDir = join(runtimeRoot, "data");
 rmSync(runtimeRoot, { recursive: true, force: true });
 mkdirSync(logsRoot, { recursive: true });
 mkdirSync(dataDir, { recursive: true });
+
+const capabilityFixtureRoot = join(toolsRoot, "tests", "e2e", "fixtures", "capability-packages", "custom-tracker");
+const capabilityManifest = JSON.parse(readFileSync(join(capabilityFixtureRoot, "manifest.json"), "utf8"));
+const capabilityPackagesRoot = join(dataDir, "capability-packages");
+const installedPackageRoot = join(
+  capabilityPackagesRoot,
+  "versions",
+  capabilityManifest.id,
+  capabilityManifest.version,
+);
+mkdirSync(installedPackageRoot, { recursive: true });
+cpSync(capabilityFixtureRoot, installedPackageRoot, { recursive: true });
+writeFileSync(
+  join(capabilityPackagesRoot, "installed.json"),
+  JSON.stringify(
+    {
+      schemaVersion: 1,
+      packages: [
+        {
+          id: capabilityManifest.id,
+          version: capabilityManifest.version,
+          manifest: capabilityManifest,
+          installedAt: "2026-01-01T00:00:00.000Z",
+          status: "active",
+          error: null,
+          readiness: "ready",
+          readinessError: null,
+          legacy: false,
+        },
+      ],
+    },
+    null,
+    2,
+  ),
+);
 
 const children = new Set();
 let shuttingDown = false;

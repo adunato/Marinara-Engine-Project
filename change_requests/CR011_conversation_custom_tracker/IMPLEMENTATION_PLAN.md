@@ -109,6 +109,8 @@ Add and run the focused regression command selected during implementation. `pnpm
 
 - Application implementation commit: `21351e48`
 - Nested `main` merge commit: `fe50fb5a`
+- Conversation settings picker fix: `cf05f215`; merged into nested `main` after validation.
 - Focused validation: `pnpm regression:conversation-custom-tracker` — passed
 - Baseline validation: `pnpm check` — passed
-- Focused Playwright E2E was not added; user validation is being performed from the updated main checkout.
+- Production validation: `pnpm build` from the updated nested `main` checkout — passed
+- Focused Playwright E2E: 2 passed, covering selection through Chat Settings, multiple editable fields, desktop/mobile persistence, removal, model updates, lock preservation, committed-context injection, and disabled-agent behavior.

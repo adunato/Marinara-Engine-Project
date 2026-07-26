@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "custom-tracker",
+  "name": "Custom Tracker",
+  "version": "99.0.0-e2e",
+  "description": "Tracks user-defined fields in Conversation and Roleplay chats.",
+  "engine": {
+    "min": "2.3.0",
+    "maxExclusive": "3.0.0"
+  },
+  "kind": ["agent"],
+  "entrypoints": {
+    "agents": "agents.json"
+  },
+  "files": [
+    {
+      "path": "agents.json",
+      "sha256": "7481b2ada93358a5e859f46423f0c68dd7d89e35b1ea23cc3fc469cdf79bc54f",
+      "bytes": 1354
+    }
+  ],
+  "permissions": ["agent-runtime", "chat-read", "prompt-context", "storage", "ui"],
+  "restartRequired": false
+}

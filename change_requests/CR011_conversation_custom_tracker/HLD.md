@@ -5,7 +5,7 @@ Date: 2026-07-26
 
 Approved by the user on 2026-07-26.
 
-Implemented by application commit `21351e48` and merged into nested `main` by `fe50fb5a` on 2026-07-26.
+Implemented by application commit `21351e48` and merged into nested `main` by `fe50fb5a` on 2026-07-26. Follow-up validation found that the Conversation picker still excluded tracker-category agents; fix `cf05f215` exposes the official Custom Tracker in Chat Settings.
 
 ## Problem Statement
 
@@ -76,6 +76,7 @@ The Custom Tracker definition belongs to the separate `Pasta-Devs/Marinara-Agent
 - The existing multi-field editor, add/remove/rename/value editing, locks, snapshot patching, agent result application, and committed prompt context are reused.
 - An empty Conversation can create its first tracker field before any game-state snapshot exists; the existing manual patch route creates that first snapshot.
 - Deterministic coverage is available as `pnpm regression:conversation-custom-tracker`.
+- Focused Playwright coverage validates the user-facing Conversation setup flow and persisted/model-updated tracker behavior on desktop and mobile.
 
 ## Data Flow
 
