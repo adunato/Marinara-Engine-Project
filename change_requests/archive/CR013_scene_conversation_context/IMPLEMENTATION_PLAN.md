@@ -43,6 +43,7 @@
 
 ## Result
 
+- Closed and archived on 2026-07-26.
 - Implemented in application commit `d62923e8`.
 - Fast-forwarded into local application `main` at `d62923e8`.
 - `pnpm regression:scene-context` passed.

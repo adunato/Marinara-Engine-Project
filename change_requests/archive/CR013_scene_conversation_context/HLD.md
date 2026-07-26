@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented and merged into local application `main`; focused validation passed.
+Closed on 2026-07-26. Implemented, validated, built, and merged into local application `main`.
 
 ## Goals
 
