@@ -1,9 +1,11 @@
 # CR011 Conversation Custom Tracker HLD
 
-Status: Approved — implementation in progress
+Status: Implemented — merged into application main
 Date: 2026-07-26
 
 Approved by the user on 2026-07-26.
+
+Implemented by application commit `21351e48` and merged into nested `main` by `fe50fb5a` on 2026-07-26.
 
 ## Problem Statement
 
@@ -64,7 +66,16 @@ The main gaps are official-package mode eligibility and a Conversation-appropria
 
 ### Official agent package dependency
 
-The Custom Tracker definition and supported-mode manifest belong to the separate `Pasta-Devs/Marinara-Agents` repository. A companion package change must add `conversation` to the official Custom Tracker's supported modes and confirm that its existing prompt/output contract is mode-neutral. CR011's Engine changes provide the host integration and UI; they must not duplicate the official agent definition inside Engine.
+The Custom Tracker definition belongs to the separate `Pasta-Devs/Marinara-Agents` repository. The installed 1.0.1 package used for local validation has no restrictive mode allowlist and its prompt/output contract is mode-neutral, so Engine can run it in Conversation without duplicating the definition. A companion package metadata follow-up should update its Roleplay-only description and may declare the supported modes explicitly.
+
+## Implementation Result
+
+- Conversation mode permits only the official `custom-tracker` pipeline agent; other Roleplay agents remain excluded.
+- The existing responsive Tracker Panel is available in Conversation only while Custom Tracker is active.
+- Conversation gets a compact **Custom Tracker** toolbar entry point on desktop and mobile.
+- The existing multi-field editor, add/remove/rename/value editing, locks, snapshot patching, agent result application, and committed prompt context are reused.
+- An empty Conversation can create its first tracker field before any game-state snapshot exists; the existing manual patch route creates that first snapshot.
+- Deterministic coverage is available as `pnpm regression:conversation-custom-tracker`.
 
 ## Data Flow
 

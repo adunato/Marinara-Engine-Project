@@ -1,6 +1,6 @@
 # CR011 Conversation Custom Tracker Implementation Plan
 
-Status: Implementation in progress
+Status: Implemented — merged into application main
 Date: 2026-07-26
 
 ## Prerequisites
@@ -104,3 +104,11 @@ Add and run the focused regression command selected during implementation. `pnpm
 - Revert the Engine commit and the companion official-agent manifest change.
 - Existing `customTrackerFields` snapshots remain compatible with Roleplay and do not require destructive cleanup.
 - Do not delete user tracker data during rollback.
+
+## Completion
+
+- Application implementation commit: `21351e48`
+- Nested `main` merge commit: `fe50fb5a`
+- Focused validation: `pnpm regression:conversation-custom-tracker` — passed
+- Baseline validation: `pnpm check` — passed
+- Focused Playwright E2E was not added; user validation is being performed from the updated main checkout.
