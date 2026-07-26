@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented on `change/CR013-scene-conversation-context`; focused validation passed.
+Implemented and merged into local application `main`; focused validation passed.
 
 ## Goals
 
