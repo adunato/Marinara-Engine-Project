@@ -1,6 +1,6 @@
 # CR012 Expanded Tracker Panel Implementation Plan
 
-Status: Proposed — awaiting HLD approval
+Status: Implemented — merged into application main
 Date: 2026-07-26
 
 ## Prerequisites
@@ -43,3 +43,10 @@ Date: 2026-07-26
 - Restore the expanded profile target to 420px.
 - No data migration or cleanup is required.
 
+## Completion
+
+- Application commit: `6a4d94cf`
+- Nested `main` merge: `df1d4a11`
+- Focused client TypeScript and changed-file ESLint: passed
+- Primary-checkout production build: passed
+- Full `pnpm check`: timed out during the repository-wide client ESLint scan without reporting a code failure

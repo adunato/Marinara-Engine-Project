@@ -1,7 +1,9 @@
 # CR012 Expanded Tracker Panel HLD
 
-Status: Proposed — awaiting user approval
+Status: Implemented — merged into application main
 Date: 2026-07-26
+
+Approved by the user and implemented on 2026-07-26. Application commit `6a4d94cf` changes the expanded desktop target from 420px to 840px; merge commit `df1d4a11` includes it in custom application `main`.
 
 ## Problem Statement
 
@@ -45,4 +47,3 @@ The Tracker panel offers compact, standard, and expanded desktop size profiles, 
 - Verify switching among all three profiles still persists correctly.
 - Run `pnpm check` from the application repository.
 - After implementation, agree whether focused Playwright E2E validation is needed for CR012.
-
