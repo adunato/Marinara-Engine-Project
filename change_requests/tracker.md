@@ -1,6 +1,6 @@
 # Change Request Tracker
 
-Last updated: 2026-07-25
+Last updated: 2026-07-26
 
 ## States
 
@@ -24,3 +24,4 @@ Last updated: 2026-07-25
 | CR008 | standalone | Data Storage Harmonization Discovery | Assesses current file-native storage, semantic search, memory recall, trackers, memory commands, and adjacent persisted narrative data to design a cohesive library storage model. | None | Design/discovery only; no application branch opened yet. |
 | CR009 | implementation | Agent Memory Enhancement | Enhances existing agent memory beyond narrow per-chat key/value storage with save, search, list, and delete tools, while evaluating whether to supersede or extend `agent_memory`. | CR008 | Application branch `change/CR009-agent-memory-enhancement` opened; implementation and focused E2E validation added. |
 | CR010 | merged into main | Roleplay Context Sources | Lets a Roleplay use multiple Conversation, Roleplay, or Game chats as read-only summary and recent-message context. | None | Implemented in `681e8ce6`; merged into application `main` by `cd14732a`. |
+| CR011 | standalone | Conversation Custom Tracker | Extends the existing Roleplay Custom Tracker to Conversation mode with multiple user-defined fields, existing snapshot persistence, committed prompt context, and a Conversation-appropriate editor. | None | Branch: `change/CR011-conversation-custom-tracker`. Requires a companion supported-mode manifest change in `Pasta-Devs/Marinara-Agents`; HLD awaiting approval. |
