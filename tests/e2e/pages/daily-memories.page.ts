@@ -39,7 +39,11 @@ export class DailyMemoriesPage {
       await editor.getByRole("textbox", { name: `Memory 3 for ${date}` }).fill(
         "Mira agreed to revisit their hiking plans after tea.",
       );
+      const saveResponse = this.page.waitForResponse(
+        (response) => response.request().method() === "PUT" && response.url().includes("/daily-memories/"),
+      );
       await editor.getByRole("button", { name: "Save changes" }).click();
+      expect((await saveResponse).ok()).toBe(true);
       await expect(editor.getByRole("button", { name: "Save changes" })).toBeDisabled();
     });
   }

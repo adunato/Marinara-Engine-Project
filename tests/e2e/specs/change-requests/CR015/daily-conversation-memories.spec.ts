@@ -195,6 +195,67 @@ test("[ui] previews the current ranked memory extraction from Conversation setti
   });
 });
 
+test("[ui] scrolls the Daily Memories editor over editable text on desktop and mobile", async ({ page }) => {
+  test.info().annotations.push({
+    type: "evidence",
+    description:
+      "Wheel input over an editable memory textarea scrolls the editor's single dialog scroll surface on desktop and mobile layouts.",
+  });
+  const { chat, day } = await seedDailyMemoryScenario(page.request);
+  await generateDailyMemoryDay(page.request, chat.id, day.date);
+  await page.route(`**/api/chats/${chat.id}/daily-memories`, async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const response = await route.fetch();
+    const body = await response.json();
+    const sourceMemory = body.days[0].memories[0];
+    await route.fulfill({
+      response,
+      json: {
+        ...body,
+        days: body.days.map((candidate: { date: string }) =>
+          candidate.date === day.date
+            ? {
+                ...candidate,
+                memories: Array.from({ length: 10 }, (_, index) => ({
+                  ...sourceMemory,
+                  id: `scroll-memory-${index}`,
+                  memory: `Editable daily memory ${index + 1} with enough detail to occupy the card body.`,
+                })),
+              }
+            : candidate,
+        ),
+      },
+    });
+  });
+
+  const dailyMemoriesPage = new DailyMemoriesPage(page);
+  await dailyMemoriesPage.openChat(chat.id);
+  await dailyMemoriesPage.openEditor();
+  const editor = dailyMemoriesPage.editor();
+  await editor.getByRole("button", { name: new RegExp(day.date.replaceAll(".", "\\.")) }).click();
+
+  const scrollSurface = page.getByTestId("daily-memories-editor-scroll");
+  const firstMemory = editor.getByRole("textbox", { name: `Memory 1 for ${day.date}` });
+  const assertCardSurfaceScrolls = async () => {
+    await scrollSurface.evaluate((element) => {
+      element.scrollTop = 0;
+    });
+    await expect.poll(() => scrollSurface.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+    const memoryBox = await firstMemory.boundingBox();
+    expect(memoryBox).not.toBeNull();
+    const point = { x: memoryBox!.x + memoryBox!.width / 2, y: memoryBox!.y + memoryBox!.height / 2 };
+    await page.mouse.move(point.x, point.y);
+    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName, point)).toBe("TEXTAREA");
+    const scrollTopBefore = await scrollSurface.evaluate((element) => element.scrollTop);
+    await page.mouse.wheel(0, 500);
+    await expect.poll(() => scrollSurface.evaluate((element) => element.scrollTop)).toBeGreaterThan(scrollTopBefore);
+  };
+
+  await assertCardSurfaceScrolls();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await assertCardSurfaceScrolls();
+});
+
 test("[ui] reviews and edits memories grouped by completed day", async ({ page }) => {
   test.info().annotations.push({
     type: "evidence",
