@@ -1,6 +1,6 @@
 # CR015 Implementation Plan
 
-Status: Draft — requirements captured, awaiting HLD approval
+Status: Complete — implemented, validated, and merged into local application `main`
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ Status: Draft — requirements captured, awaiting HLD approval
 10. Add a Conversation-level Daily Memories editor modeled on `SummariesEditorModal`, with expandable days, editable text and score controls, add/delete actions, day deletion, missing-day generation, destructive regeneration confirmation, save/cancel, and complete loading/error/empty states.
 11. Add focused server/shared/client tests for formation, lifecycle operations, ranking, feature combinations, and UI behavior.
 12. Run schema verification if applicable and the repository baseline `pnpm check`; document the outcome.
-13. Decide with the user whether to add focused Playwright E2E validation for CR015.
+13. Add the user-requested focused Playwright API and browser validation for CR015.
 14. Commit the completed application branch, merge it into the requested local branch, update the tracker, and clean up the temporary worktree.
 
 ## Expected Files and Areas
@@ -55,7 +55,15 @@ Exact paths should be finalized after implementation analysis. Expected areas in
 - Run focused automated coverage, `pnpm db:push` when applicable, and `pnpm check` from the temporary application worktree.
 - Verify clean Git status before worktree removal.
 
+## Completion Record
+
+- Application commits: `5ff1fbcb` and `8da9b278`, fast-forwarded into nested application `main`.
+- Shared/server/client TypeScript validation passed; focused ESLint passed for every changed client file.
+- `pnpm build` passed in the primary nested checkout and produced current server and client artifacts.
+- Focused Playwright validation passed: 2 tests covering formation, embedding persistence, edited lifecycle data, ranked injection, and the day-grouped Conversation editor.
+- The broad `pnpm check` could not complete because the full client ESLint process exhausted several gigabytes and timed out; its constituent server check, focused changed-file client lint, source typechecks, and production build passed.
+- `pnpm db:push` is not defined by this file-native-storage checkout; the new tables are registered in the schema, file-backed table catalog, and chat cascade graph instead.
+
 ## Rollback
 
 Revert the CR015 application commits and disable/remove the built-in agent registration and generation hook. Preserve or migrate persisted daily-memory records safely if rollback crosses a schema boundary; do not leave orphaned vector entries.
-

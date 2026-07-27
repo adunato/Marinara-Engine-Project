@@ -1,6 +1,6 @@
 # CR015: Daily Conversation Memories
 
-Status: Proposed — requirements captured, awaiting HLD approval
+Status: Implemented and merged into local application `main`
 
 ## Goals
 
@@ -110,4 +110,3 @@ The editor should make it possible to replace the complete contents of a day thr
 - Run `pnpm db:push` if the implementation adds or changes database schema.
 - Run `pnpm check` for the substantive cross-cutting application change.
 - Agree whether to add focused CR015 Playwright E2E validation once implementation is complete.
-

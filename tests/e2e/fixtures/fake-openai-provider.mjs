@@ -72,6 +72,31 @@ function selectResponse(body) {
     }
   }
 
+  if (text.includes("you create durable memories from one completed day")) {
+    return {
+      content: JSON.stringify({
+        memories: [
+          {
+            memory: "The user strongly prefers jasmine tea during important conversations.",
+            importance: 5,
+          },
+          {
+            memory: "The participants discussed taking a relaxed hiking trip together.",
+            importance: 2,
+          },
+        ],
+      }),
+      toolCalls: [],
+    };
+  }
+
+  if (
+    (text.includes("daily conversation memories") || text.includes("daily_conversation_memories")) &&
+    text.includes("importance 5/5")
+  ) {
+    console.log("[fake-openai] daily memory injected=true");
+  }
+
   if (hasToolResult(body) && text.includes("cr009 delete") && hasTool(body, "delete_agent_memory")) {
     if (lastAgentMemoryRecordId) {
       return {
@@ -341,6 +366,22 @@ const server = createServer(async (req, res) => {
         return;
       }
       writeJson(res, 200, completionPayload(body));
+      return;
+    }
+
+    if (req.method === "POST" && req.url === "/embeddings") {
+      const body = await readBody(req);
+      const inputs = Array.isArray(body.input) ? body.input : [body.input ?? ""];
+      writeJson(res, 200, {
+        object: "list",
+        model: body.model ?? "e2e-embedding",
+        data: inputs.map((input, index) => {
+          const value = String(input).toLowerCase();
+          const embedding = value.includes("tea") ? [1, 0] : value.includes("hiking") ? [0, 1] : [0.5, 0.5];
+          return { object: "embedding", index, embedding };
+        }),
+        usage: { prompt_tokens: inputs.length, total_tokens: inputs.length },
+      });
       return;
     }
 
