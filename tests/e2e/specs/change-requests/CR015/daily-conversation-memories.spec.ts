@@ -116,10 +116,7 @@ test("[api] forms, persists, edits, and retrieves ranked daily memories", async 
   const preview = await previewDailyMemoryRetrieval(page.request, chat.id);
   expect(preview).toMatchObject({
     retrievalMessageCount: 4,
-    queryMessages: [
-      "user: I strongly prefer jasmine tea when we discuss important plans.",
-      "assistant: Mira promises to remember, and suggests a relaxed hiking trip.",
-    ],
+    messagesConsidered: 2,
   });
   expect(preview.memories).toHaveLength(2);
   expect(preview.memories[0]).toMatchObject({
@@ -140,7 +137,7 @@ test("[ui] previews the current ranked memory extraction from Conversation setti
   test.info().annotations.push({
     type: "evidence",
     description:
-      "Conversation settings preview the exact recent-message query and ranked day-grouped memories without running generation.",
+      "Conversation settings preview only ranked day-grouped daily memories without exposing the source conversation text.",
   });
   const { chat, day } = await seedDailyMemoryScenario(page.request);
   await generateDailyMemoryDay(page.request, chat.id, day.date);
@@ -151,13 +148,15 @@ test("[ui] previews the current ranked memory extraction from Conversation setti
   await page.getByRole("button", { name: /^Agents Show help/ }).click();
   await page.getByTestId("preview-daily-memory-retrieval").click();
 
-  const preview = page.getByRole("dialog", { name: "Current Memory Extraction Preview" });
+  const preview = page.getByRole("dialog", { name: "Current Daily Memories" });
   await expect(preview).toBeVisible();
-  await expect(preview.getByText("Context used (2 of up to 4 messages)")).toBeVisible();
-  await expect(preview.getByText("Memories that would be injected (2)")).toBeVisible();
+  await expect(preview.getByText("Daily memories that would be injected (2)")).toBeVisible();
+  await expect(preview.getByText("Based on 2 recent messages")).toBeVisible();
   await expect(preview.getByText("The user strongly prefers jasmine tea during important conversations.")).toBeVisible();
   await expect(preview.getByText(/Importance 5\/5/)).toBeVisible();
   await expect(preview.getByText(/Rank \d+%/).first()).toBeVisible();
+  await expect(preview).not.toContainText("user: I strongly prefer jasmine tea");
+  await expect(preview).not.toContainText("assistant: Mira promises to remember");
 
   await test.info().attach("daily-memory-retrieval-preview.png", {
     body: await page.screenshot(),

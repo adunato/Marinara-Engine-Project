@@ -52,7 +52,6 @@ Each stored memory needs a stable identifier, Conversation identifier, date, tex
 - It performs no LLM inference. It embeds the configured last `N` messages as the retrieval query and searches the Conversation's pre-indexed daily memories.
 - Retrieval must be designed for low latency: stored memories are embedded on write, vector search bounds the candidate set, and deterministic reranking operates only on candidates.
 - Candidate ranking combines:
-
   - Semantic similarity between the recent-message query and stored memory.
   - The stored 1–5 importance score.
   - Recency, favoring memories from more recent completed windows.
@@ -81,7 +80,7 @@ Add a Daily Memories editor for Conversation mode using the existing Automatic S
 - Preserve explicit save/cancel behavior for manual edits and clear pending, success, empty, and error states.
 - Show an animated progress indicator and in-progress label while a day is being generated or regenerated, consistent with Automatic Summarization feedback.
 - When the agent is active for a Conversation, expose its formation connection, handover time, retrieval message count, ranking weights, and prompt-template selection directly in that Conversation's Agents settings, with a route to the full prompt editor.
-- Provide a read-only preview from those settings that applies the saved recent-message and vector-ranking configuration to the current Conversation, then shows the exact query context and day-grouped memories that would be injected without forming or modifying memories.
+- Provide a read-only preview from those settings that applies the saved recent-message and vector-ranking configuration to the current Conversation, then shows only the day-grouped daily memories that would be injected without exposing source conversation text or modifying memories.
 - Refresh embeddings for changed or added memories and remove deleted memories from the retrieval index.
 
 The editor should make it possible to replace the complete contents of a day through any combination of editing, adding, deleting, or regeneration.
