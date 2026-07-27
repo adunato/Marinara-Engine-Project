@@ -36,6 +36,38 @@ test("[ui] lists and configures the built-in Daily Conversation Memories agent",
   });
 });
 
+test("[ui] adds Daily Conversation Memories from Conversation settings", async ({ page }) => {
+  test.info().annotations.push({
+    type: "evidence",
+    description: "Conversation settings list the built-in agent and allow it to be attached to the current chat.",
+  });
+  const { chat } = await seedDailyMemoryScenario(page.request);
+  const disableResponse = await page.request.patch(`/api/chats/${chat.id}/metadata`, {
+    data: { enableAgents: false, activeAgentIds: [] },
+  });
+  await expect(disableResponse).toBeOK();
+
+  const dailyMemoriesPage = new DailyMemoriesPage(page);
+  await dailyMemoriesPage.openChat(chat.id);
+  await page.getByTitle("Chat Settings").click();
+  await page.getByRole("button", { name: /^Agents Show help/ }).click();
+  await page.getByRole("button", { name: /^Misc Agents/ }).click();
+
+  const agentEntry = page.locator('[data-chat-agent-entry="daily-memory"]');
+  await expect(agentEntry).toContainText("Daily Conversation Memories");
+  await agentEntry.click();
+  const addDialog = page.getByRole("dialog", { name: "Add Daily Conversation Memories" });
+  await expect(addDialog).toBeVisible();
+  await addDialog.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.locator('[data-chat-agent-entry="daily-memory"]')).toContainText("Daily Conversation Memories");
+  await expect(page.getByRole("button", { name: /^Daily Memories Show help/ })).toBeVisible();
+
+  await test.info().attach("daily-memory-conversation-agent-picker.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
 test("[api] forms, persists, edits, and retrieves ranked daily memories", async ({ page }) => {
   test.info().annotations.push({
     type: "evidence",
