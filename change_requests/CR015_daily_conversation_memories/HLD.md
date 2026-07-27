@@ -70,6 +70,7 @@ Add a Daily Memories editor for Conversation mode using the existing Automatic S
 - Open it as Conversation functionality from the same general area as summary management, not from the agent editor.
 - Group all memories by date and show completed days in a clear chronological structure.
 - Display each memory's editable text and editable importance score from 1 through 5.
+- Use a wide, compact editor layout: short-paragraph text areas should not consume unnecessary vertical space, and the importance control should remain narrow, centered, and theme-aware.
 - Allow users to add a memory to any completed day.
 - Allow users to edit or delete each individual memory.
 - Allow users to delete all memories for a selected day.
@@ -78,6 +79,8 @@ Add a Daily Memories editor for Conversation mode using the existing Automatic S
 - Show missing completed days and allow the user to generate a specific past day that has not yet been formed.
 - Do not allow manual generation or regeneration for the current 24-hour window until its configured handover has passed.
 - Preserve explicit save/cancel behavior for manual edits and clear pending, success, empty, and error states.
+- Show an animated progress indicator and in-progress label while a day is being generated or regenerated, consistent with Automatic Summarization feedback.
+- When the agent is active for a Conversation, expose its formation connection, handover time, retrieval message count, ranking weights, and prompt-template selection directly in that Conversation's Agents settings, with a route to the full prompt editor.
 - Refresh embeddings for changed or added memories and remove deleted memories from the retrieval index.
 
 The editor should make it possible to replace the complete contents of a day through any combination of editing, adding, deleting, or regeneration.
@@ -109,4 +112,4 @@ The editor should make it possible to replace the complete contents of a day thr
 - Verify the Conversation editor's persistence, confirmation, loading, empty, error, and accessibility behavior.
 - Run `pnpm db:push` if the implementation adds or changes database schema.
 - Run `pnpm check` for the substantive cross-cutting application change.
-- Agree whether to add focused CR015 Playwright E2E validation once implementation is complete.
+- Run focused CR015 Playwright E2E validation for global and Conversation-scoped configuration, lifecycle behavior, retrieval, and the editor's responsive/loading presentation.

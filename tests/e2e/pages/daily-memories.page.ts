@@ -29,8 +29,10 @@ export class DailyMemoriesPage {
   async editFirstMemoryAndAddAnother(date: string) {
     await test.step("Edit importance and add a memory for the completed day", async () => {
       const editor = this.editor();
-      await editor.getByRole("button", { name: new RegExp(date.replaceAll(".", "\\.")) }).click();
       const firstMemory = editor.getByRole("textbox", { name: `Memory 1 for ${date}` });
+      if (!(await firstMemory.isVisible().catch(() => false))) {
+        await editor.getByRole("button", { name: new RegExp(date.replaceAll(".", "\\.")) }).click();
+      }
       await firstMemory.fill("The user treasures jasmine tea for serious planning conversations.");
       await editor.getByRole("combobox", { name: `Importance for memory 1 on ${date}` }).selectOption("4");
       await editor.getByRole("button", { name: "Add memory" }).click();

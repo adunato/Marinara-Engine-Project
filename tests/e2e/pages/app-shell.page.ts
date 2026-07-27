@@ -21,12 +21,16 @@ export class AppShellPage {
     const skipTutorial = this.page.getByRole("button", { name: "Skip Tutorial" });
     if (await skipTutorial.isVisible().catch(() => false)) {
       await skipTutorial.click();
-      return;
     }
 
     const skip = this.page.getByRole("button", { name: "Skip" });
     if (await skip.isVisible().catch(() => false)) {
       await skip.click();
+    }
+
+    const closeWhatsNew = this.page.getByRole("button", { name: "Close What's New?" });
+    if (await closeWhatsNew.isVisible().catch(() => false)) {
+      await closeWhatsNew.click();
     }
   }
 

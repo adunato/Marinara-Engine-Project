@@ -60,6 +60,22 @@ test("[ui] adds Daily Conversation Memories from Conversation settings", async (
   await expect(addDialog).toBeVisible();
   await addDialog.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.locator('[data-chat-agent-entry="daily-memory"]')).toContainText("Daily Conversation Memories");
+  await expect(page.getByLabel("Daily memory formation connection")).toBeVisible();
+  await expect(page.getByLabel("Conversation daily memory handover time")).toHaveValue("0");
+  await expect(page.getByLabel("Conversation daily memory retrieval messages")).toHaveValue("4");
+  await expect(page.getByLabel("Conversation daily memory semantic weight")).toHaveValue("50");
+  await expect(page.getByLabel("Conversation daily memory importance weight")).toHaveValue("35");
+  await expect(page.getByLabel("Conversation daily memory recency weight")).toHaveValue("15");
+  await page.getByLabel("Conversation daily memory handover time").selectOption("5");
+  await expect
+    .poll(async () => {
+      const response = await page.request.get("/api/agents");
+      const agents = await response.json();
+      const dailyMemory = agents.find((agent: { type: string }) => agent.type === "daily-memory");
+      const settings = typeof dailyMemory?.settings === "string" ? JSON.parse(dailyMemory.settings) : dailyMemory?.settings;
+      return settings?.handoverHour;
+    })
+    .toBe(5);
   await expect(page.getByRole("button", { name: /^Daily Memories Show help/ })).toBeVisible();
 
   await test.info().attach("daily-memory-conversation-agent-picker.png", {
@@ -113,6 +129,31 @@ test("[ui] reviews and edits memories grouped by completed day", async ({ page }
   const dailyMemoriesPage = new DailyMemoriesPage(page);
   await dailyMemoriesPage.openChat(chat.id);
   await dailyMemoriesPage.openEditor();
+  const editorBox = await dailyMemoriesPage.editor().boundingBox();
+  expect(editorBox?.width).toBeGreaterThan(900);
+  await dailyMemoriesPage
+    .editor()
+    .getByRole("button", { name: new RegExp(day.date.replaceAll(".", "\\.")) })
+    .click();
+  const importanceSelect = dailyMemoriesPage
+    .editor()
+    .getByRole("combobox", { name: `Importance for memory 1 on ${day.date}` });
+  const importanceBox = await importanceSelect.boundingBox();
+  expect(importanceBox?.width).toBeLessThan(100);
+  await expect(importanceSelect.locator("option").first()).not.toHaveCSS("background-color", "rgb(255, 255, 255)");
+
+  await page.route(`**/api/chats/${chat.id}/daily-memories/*/generate`, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 750));
+    await route.continue();
+  });
+  await dailyMemoriesPage.editor().getByRole("button", { name: "Regenerate day" }).click();
+  await page.getByRole("dialog", { name: new RegExp(`Regenerate memories for ${day.date.replaceAll(".", "\\.")}`) })
+    .getByRole("button", { name: "Regenerate", exact: true })
+    .click();
+  const regenerating = dailyMemoriesPage.editor().getByRole("button", { name: "Regenerating..." });
+  await expect(regenerating).toHaveAttribute("aria-busy", "true");
+  await expect(regenerating.locator("svg")).toHaveClass(/animate-spin/);
+  await expect(dailyMemoriesPage.editor().getByRole("button", { name: "Regenerate day" })).toBeEnabled();
   await dailyMemoriesPage.editFirstMemoryAndAddAnother(day.date);
 
   const persisted = await readDailyMemories(page.request, chat.id);
