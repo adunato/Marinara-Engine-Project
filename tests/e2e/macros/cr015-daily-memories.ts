@@ -62,48 +62,95 @@ export async function seedDailyMemoryScenario(request: APIRequestContext) {
     });
     await expect(agentResponse).toBeOK();
 
-    const metadataResponse = await request.patch(`/api/chats/${chat.id}/metadata`, {
-      data: { enableAgents: true, activeAgentIds: ["daily-memory"] },
-    });
+    const metadataResponse = await request.patch(
+      `/api/chats/${chat.id}/metadata`,
+      {
+        data: { enableAgents: true, activeAgentIds: ["daily-memory"] },
+      },
+    );
     await expect(metadataResponse).toBeOK();
 
     const oldTime = new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString();
     for (const [role, content] of [
-      ["user", "I strongly prefer jasmine tea when we discuss important plans."],
-      ["assistant", "Mira promises to remember, and suggests a relaxed hiking trip."],
+      [
+        "user",
+        "I strongly prefer jasmine tea when we discuss important plans.",
+      ],
+      [
+        "assistant",
+        "Mira promises to remember, and suggests a relaxed hiking trip.",
+      ],
     ] as const) {
-      const messageResponse = await request.post(`/api/chats/${chat.id}/messages`, {
-        data: { role, content, characterId: role === "assistant" ? character.id : null, createdAt: oldTime },
-      });
+      const messageResponse = await request.post(
+        `/api/chats/${chat.id}/messages`,
+        {
+          data: {
+            role,
+            content,
+            characterId: role === "assistant" ? character.id : null,
+            createdAt: oldTime,
+          },
+        },
+      );
       await expect(messageResponse).toBeOK();
     }
 
-    const listResponse = await request.get(`/api/chats/${chat.id}/daily-memories`);
+    const listResponse = await request.get(
+      `/api/chats/${chat.id}/daily-memories`,
+    );
     await expect(listResponse).toBeOK();
     const list = await listResponse.json();
-    const day = list.days.find((candidate: { formed: boolean }) => !candidate.formed);
+    const day = list.days.find(
+      (candidate: { formed: boolean }) => !candidate.formed,
+    );
     expect(day).toBeTruthy();
     return { chat, connection, day };
   });
 }
 
-export async function generateDailyMemoryDay(request: APIRequestContext, chatId: string, date: string) {
+export async function generateDailyMemoryDay(
+  request: APIRequestContext,
+  chatId: string,
+  date: string,
+) {
   return test.step(`Generate Daily Memories for ${date}`, async () => {
-    const response = await request.post(`/api/chats/${chatId}/daily-memories/${encodeURIComponent(date)}/generate`);
+    const response = await request.post(
+      `/api/chats/${chatId}/daily-memories/${encodeURIComponent(date)}/generate`,
+    );
     await expect(response).toBeOK();
     return response.json();
   });
 }
 
-export async function readDailyMemories(request: APIRequestContext, chatId: string) {
+export async function readDailyMemories(
+  request: APIRequestContext,
+  chatId: string,
+) {
   const response = await request.get(`/api/chats/${chatId}/daily-memories`);
   await expect(response).toBeOK();
   return response.json();
 }
 
-export async function runDailyMemoryRetrieval(request: APIRequestContext, chatId: string) {
+export async function previewDailyMemoryRetrieval(
+  request: APIRequestContext,
+  chatId: string,
+) {
+  return test.step("Preview the current Daily Memories retrieval", async () => {
+    const response = await request.get(
+      `/api/chats/${chatId}/daily-memories/preview`,
+    );
+    await expect(response).toBeOK();
+    return response.json();
+  });
+}
+
+export async function runDailyMemoryRetrieval(
+  request: APIRequestContext,
+  chatId: string,
+) {
   return runGenerationAndCaptureEvents(request, chatId, {
-    userMessage: "What tea should we have while revisiting our important plans?",
+    userMessage:
+      "What tea should we have while revisiting our important plans?",
   });
 }
 
