@@ -57,10 +57,10 @@ Exact paths should be finalized after implementation analysis. Expected areas in
 
 ## Completion Record
 
-- Application commits: `5ff1fbcb`, `8da9b278`, Conversation picker fix `3dd20d49`, UI/configuration refinement `15f12f2b`, retrieval preview `33519ceb`, and daily-memory-only preview correction `59f10e4c`, fast-forwarded into nested application `main`.
+- Application commits: `5ff1fbcb`, `8da9b278`, Conversation picker fix `3dd20d49`, UI/configuration refinement `15f12f2b`, retrieval preview `33519ceb`, daily-memory-only preview correction `59f10e4c`, and chronological/uncapped preview refinement `355a522c`, fast-forwarded into nested application `main`.
 - Shared/server/client TypeScript validation passed; focused ESLint passed for every changed client file.
 - `pnpm build` passed in the primary nested checkout and produced current server and client artifacts.
-- Focused Playwright validation passed: 5 tests covering global Agent Settings visibility/configuration, adding and configuring the agent from Conversation settings, formation, embedding persistence, edited lifecycle data, ranked injection, the read-only daily-memory-only retrieval preview, and the day-grouped Conversation editor including its compact layout, themed importance control, and animated regeneration state.
+- Focused Playwright validation passed: 5 tests covering global Agent Settings visibility/configuration, adding and configuring the agent from Conversation settings, formation, embedding persistence, uncapped retrieval of ten qualifying memories, ranked injection, the chronological daily-memory-only retrieval preview, scrolling directly over preview cards, and the day-grouped Conversation editor including its compact layout, themed importance control, and animated regeneration state.
 - The broad `pnpm check` could not complete because the full client ESLint process exhausted several gigabytes and timed out; its constituent server check, focused changed-file client lint, source typechecks, and production build passed.
 - `pnpm db:push` is not defined by this file-native-storage checkout; the new tables are registered in the schema, file-backed table catalog, and chat cascade graph instead.
 

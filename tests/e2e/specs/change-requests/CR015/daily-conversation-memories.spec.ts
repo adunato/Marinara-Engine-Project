@@ -99,18 +99,21 @@ test("[api] forms, persists, edits, and retrieves ranked daily memories", async 
     data: {
       memories: [
         { ...formed.memories[0], memory: "The user always chooses jasmine tea for important planning.", importance: 5 },
-        { memory: "Mira proposed a future hiking trip together.", importance: 3 },
+        ...Array.from({ length: 9 }, (_, index) => ({
+          memory: `The user values jasmine tea detail ${index + 1} during important planning.`,
+          importance: 5,
+        })),
       ],
     },
   });
   await expect(editedResponse).toBeOK();
   const persisted = await readDailyMemories(page.request, chat.id);
-  expect(persisted.days.find((candidate: { date: string }) => candidate.date === day.date)).toMatchObject({
-    formed: true,
-    memories: [
-      { memory: "The user always chooses jasmine tea for important planning.", importance: 5 },
-      { memory: "Mira proposed a future hiking trip together.", importance: 3 },
-    ],
+  const persistedDay = persisted.days.find((candidate: { date: string }) => candidate.date === day.date);
+  expect(persistedDay.formed).toBe(true);
+  expect(persistedDay.memories).toHaveLength(10);
+  expect(persistedDay.memories[0]).toMatchObject({
+    memory: "The user always chooses jasmine tea for important planning.",
+    importance: 5,
   });
 
   const preview = await previewDailyMemoryRetrieval(page.request, chat.id);
@@ -118,7 +121,7 @@ test("[api] forms, persists, edits, and retrieves ranked daily memories", async 
     retrievalMessageCount: 4,
     messagesConsidered: 2,
   });
-  expect(preview.memories).toHaveLength(2);
+  expect(preview.memories).toHaveLength(10);
   expect(preview.memories[0]).toMatchObject({
     memory: "The user always chooses jasmine tea for important planning.",
     importance: 5,
@@ -144,16 +147,44 @@ test("[ui] previews the current ranked memory extraction from Conversation setti
 
   const dailyMemoriesPage = new DailyMemoriesPage(page);
   await dailyMemoriesPage.openChat(chat.id);
+  await page.route(`**/api/chats/${chat.id}/daily-memories/preview`, async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    const memory = body.memories[0];
+    await route.fulfill({
+      response,
+      json: {
+        ...body,
+        memories: Array.from({ length: 8 }, (_, index) => ({
+          ...memory,
+          id: `preview-memory-${index}`,
+          date: `${String(26 - index).padStart(2, "0")}.07.2026`,
+          memory: index === 0 ? "A newer daily memory." : index === 7 ? "An older daily memory." : `Daily memory ${index}.`,
+        })),
+      },
+    });
+  });
   await page.getByTitle("Chat Settings").click();
   await page.getByRole("button", { name: /^Agents Show help/ }).click();
   await page.getByTestId("preview-daily-memory-retrieval").click();
 
   const preview = page.getByRole("dialog", { name: "Current Daily Memories" });
   await expect(preview).toBeVisible();
-  await expect(preview.getByText("Daily memories that would be injected (2)")).toBeVisible();
+  await expect(preview.getByText("Daily memories that would be injected (8)")).toBeVisible();
   await expect(preview.getByText("Based on 2 recent messages")).toBeVisible();
-  await expect(preview.getByText("The user strongly prefers jasmine tea during important conversations.")).toBeVisible();
-  await expect(preview.getByText(/Importance 5\/5/)).toBeVisible();
+  const previewDays = preview.getByTestId("daily-memory-preview-day");
+  await expect(previewDays).toHaveCount(8);
+  await expect(previewDays.nth(0)).toHaveAttribute("data-date", "19.07.2026");
+  await expect(previewDays.nth(7)).toHaveAttribute("data-date", "26.07.2026");
+  await expect(preview.getByText("An older daily memory.")).toBeVisible();
+  const scrollSurface = page.getByTestId("daily-memory-preview-scroll");
+  await expect.poll(() => scrollSurface.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  const scrollTopBefore = await scrollSurface.evaluate((element) => element.scrollTop);
+  await previewDays.nth(3).hover();
+  await page.mouse.wheel(0, 500);
+  await expect.poll(() => scrollSurface.evaluate((element) => element.scrollTop)).toBeGreaterThan(scrollTopBefore);
+  await expect(preview.getByText("A newer daily memory.")).toBeVisible();
+  await expect(preview.getByText(/Importance 5\/5/).first()).toBeVisible();
   await expect(preview.getByText(/Rank \d+%/).first()).toBeVisible();
   await expect(preview).not.toContainText("user: I strongly prefer jasmine tea");
   await expect(preview).not.toContainText("assistant: Mira promises to remember");

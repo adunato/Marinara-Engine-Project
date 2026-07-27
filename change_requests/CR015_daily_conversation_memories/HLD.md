@@ -56,7 +56,7 @@ Each stored memory needs a stable identifier, Conversation identifier, date, tex
   - The stored 1–5 importance score.
   - Recency, favoring memories from more recent completed windows.
 
-An initial balanced default is 50% semantic similarity, 35% importance, and 15% recency, with recency using an approximately 30-day half-life. These defaults should be centralized and covered by ranking tests so they can be calibrated without changing the data model.
+An initial balanced default is 50% semantic similarity, 35% importance, and 15% recency, with recency using an approximately 30-day half-life. A minimum combined relevance score selects every qualifying memory; retrieval must not impose a fixed result-count cap. These defaults should be centralized and covered by ranking tests so they can be calibrated without changing the data model.
 
 Importance is a ranking boost, not an unconditional pin. A score-5 memory should receive the maximum importance contribution and therefore rank strongly by default. Increasing the importance control should make the most important memories effectively dominate selection; reducing it should allow semantic fit and recency to dominate. No memory is included solely because its importance is 5.
 
@@ -80,7 +80,7 @@ Add a Daily Memories editor for Conversation mode using the existing Automatic S
 - Preserve explicit save/cancel behavior for manual edits and clear pending, success, empty, and error states.
 - Show an animated progress indicator and in-progress label while a day is being generated or regenerated, consistent with Automatic Summarization feedback.
 - When the agent is active for a Conversation, expose its formation connection, handover time, retrieval message count, ranking weights, and prompt-template selection directly in that Conversation's Agents settings, with a route to the full prompt editor.
-- Provide a read-only preview from those settings that applies the saved recent-message and vector-ranking configuration to the current Conversation, then shows only the day-grouped daily memories that would be injected without exposing source conversation text or modifying memories.
+- Provide a read-only preview from those settings that applies the saved recent-message and vector-ranking configuration to the current Conversation, then shows only the day-grouped daily memories in chronological order without exposing source conversation text or modifying memories. The preview body is one scroll surface so wheel and trackpad scrolling works directly over memory cards as well as surrounding space.
 - Refresh embeddings for changed or added memories and remove deleted memories from the retrieval index.
 
 The editor should make it possible to replace the complete contents of a day through any combination of editing, adding, deleting, or regeneration.
