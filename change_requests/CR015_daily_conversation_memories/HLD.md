@@ -56,7 +56,7 @@ Each stored memory needs a stable identifier, Conversation identifier, date, tex
   - The stored 1–5 importance score.
   - Recency, favoring memories from more recent completed windows.
 
-An initial balanced default is 50% semantic similarity, 35% importance, and 15% recency, with recency using an approximately 30-day half-life. A minimum combined relevance score selects every qualifying memory; retrieval must not impose a fixed result-count cap. These defaults should be centralized and covered by ranking tests so they can be calibrated without changing the data model.
+An initial balanced default is 50% semantic similarity, 35% importance, and 15% recency, with recency using an approximately 30-day half-life. A user-configurable minimum-rank percentage selects every qualifying memory and defaults to 30%; retrieval must not impose a fixed result-count cap. The minimum applies identically to preview and runtime context injection. These defaults should be centralized and covered by ranking tests so they can be calibrated without changing the data model.
 
 Importance is a ranking boost, not an unconditional pin. A score-5 memory should receive the maximum importance contribution and therefore rank strongly by default. Increasing the importance control should make the most important memories effectively dominate selection; reducing it should allow semantic fit and recency to dominate. No memory is included solely because its importance is 5.
 
@@ -79,7 +79,7 @@ Add a Daily Memories editor for Conversation mode using the existing Automatic S
 - Do not allow manual generation or regeneration for the current 24-hour window until its configured handover has passed.
 - Preserve explicit save/cancel behavior for manual edits and clear pending, success, empty, and error states.
 - Show an animated progress indicator and in-progress label while a day is being generated or regenerated, consistent with Automatic Summarization feedback.
-- When the agent is active for a Conversation, expose its formation connection, handover time, retrieval message count, ranking weights, and prompt-template selection directly in that Conversation's Agents settings, with a route to the full prompt editor.
+- When the agent is active for a Conversation, expose its formation connection, handover time, retrieval message count, ranking weights, minimum-rank slider, and prompt-template selection directly in that Conversation's Agents settings, with a route to the full prompt editor. Save rapid consecutive setting changes in order so one control cannot overwrite another with stale values.
 - Provide a read-only preview from those settings that applies the saved recent-message and vector-ranking configuration to the current Conversation, then shows only the day-grouped daily memories in chronological order without exposing source conversation text or modifying memories. Both the preview and editable Daily Memories dialog use one scroll surface so wheel and trackpad scrolling works directly over memory cards and editable memory text as well as surrounding space.
 - Refresh embeddings for changed or added memories and remove deleted memories from the retrieval index.
 
@@ -106,7 +106,7 @@ The editor should make it possible to replace the complete contents of a day thr
 - Cover exact rolling 24-hour window boundaries at the configured handover and Conversation timezone.
 - Cover structured formation output, zero-to-ten default behavior, date assignment, score validation, persistence, and embedding refresh.
 - Cover manual add, edit, individual delete, day delete, regeneration, and generation of missing completed days while rejecting the current incomplete window.
-- Cover weighted retrieval ordering, importance-score effects, recency decay, configurable recent-message count, and deterministic tie behavior.
+- Cover weighted retrieval ordering, importance-score effects, recency decay, configurable recent-message count, configurable minimum-rank filtering, and deterministic tie behavior.
 - Verify retrieval performs no LLM call and degrades safely when embedding or vector search fails.
 - Verify context is grouped by day and remains distinct when summaries and current memory recall are also enabled.
 - Verify the Conversation editor's persistence, confirmation, loading, empty, error, and accessibility behavior.

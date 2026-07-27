@@ -28,6 +28,7 @@ test("[ui] lists and configures the built-in Daily Conversation Memories agent",
   await expect(page.getByText("Daily Memory Schedule & Retrieval", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Daily memory handover time")).toHaveValue("4");
   await expect(page.getByLabel("Daily memory retrieval messages")).toHaveValue("6");
+  await expect(page.getByLabel("Daily memory minimum rank")).toHaveValue("30");
   await expect(page.getByText("Prompt Template", { exact: true })).toBeVisible();
   await expect(page.getByText("Using built-in default", { exact: true })).toBeVisible();
 
@@ -67,6 +68,10 @@ test("[ui] adds Daily Conversation Memories from Conversation settings", async (
   await expect(page.getByLabel("Conversation daily memory semantic weight")).toHaveValue("50");
   await expect(page.getByLabel("Conversation daily memory importance weight")).toHaveValue("35");
   await expect(page.getByLabel("Conversation daily memory recency weight")).toHaveValue("15");
+  const minimumRank = page.getByLabel("Conversation daily memory minimum rank");
+  await expect(minimumRank).toHaveValue("30");
+  await minimumRank.press("End");
+  await expect(minimumRank).toHaveValue("100");
   await page.getByLabel("Conversation daily memory handover time").selectOption("5");
   await expect
     .poll(async () => {
@@ -74,9 +79,9 @@ test("[ui] adds Daily Conversation Memories from Conversation settings", async (
       const agents = await response.json();
       const dailyMemory = agents.find((agent: { type: string }) => agent.type === "daily-memory");
       const settings = typeof dailyMemory?.settings === "string" ? JSON.parse(dailyMemory.settings) : dailyMemory?.settings;
-      return settings?.handoverHour;
+      return { handoverHour: settings?.handoverHour, minimumRank: settings?.minimumRank };
     })
-    .toBe(5);
+    .toEqual({ handoverHour: 5, minimumRank: 100 });
   await expect(page.getByRole("button", { name: /^Daily Memories Show help/ })).toBeVisible();
 
   await test.info().attach("daily-memory-conversation-agent-picker.png", {
@@ -128,6 +133,24 @@ test("[api] forms, persists, edits, and retrieves ranked daily memories", async 
   });
   expect(preview.memories[0].rankingScore).toBeGreaterThan(0);
   await attachDailyMemoryEvidence("daily-memory-retrieval-preview", preview);
+
+  const agentsResponse = await page.request.get("/api/agents");
+  await expect(agentsResponse).toBeOK();
+  const agents = await agentsResponse.json();
+  const dailyMemoryAgent = agents.find((agent: { type: string }) => agent.type === "daily-memory");
+  const dailyMemorySettings =
+    typeof dailyMemoryAgent.settings === "string" ? JSON.parse(dailyMemoryAgent.settings) : dailyMemoryAgent.settings;
+  const setMinimumRank = async (minimumRank: number) => {
+    const response = await page.request.patch("/api/agents/type/daily-memory", {
+      data: { settings: { ...dailyMemorySettings, minimumRank } },
+    });
+    await expect(response).toBeOK();
+  };
+  await setMinimumRank(100);
+  const filteredPreview = await previewDailyMemoryRetrieval(page.request, chat.id);
+  expect(filteredPreview.memories).toHaveLength(0);
+  await attachDailyMemoryEvidence("daily-memory-minimum-rank-filter", filteredPreview);
+  await setMinimumRank(30);
 
   await runDailyMemoryRetrieval(page.request, chat.id);
   await expect
