@@ -36,6 +36,6 @@ export class AppShellPage {
 
   async openRightPanel(name: RightPanelName) {
     await this.panelButton(name).click();
-    await expect(this.page.getByLabel(name)).toBeVisible();
+    await expect(this.page.getByRole("region", { name, exact: true })).toBeVisible();
   }
 }

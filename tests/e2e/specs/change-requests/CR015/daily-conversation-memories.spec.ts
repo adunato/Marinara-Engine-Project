@@ -10,6 +10,32 @@ import {
 } from "../../../macros/cr015-daily-memories";
 import { DailyMemoriesPage } from "../../../pages/daily-memories.page";
 
+test("[ui] lists and configures the built-in Daily Conversation Memories agent", async ({ page, app }) => {
+  test.info().annotations.push({
+    type: "evidence",
+    description: "The built-in agent is visible in Agent Settings and exposes its required formation and retrieval controls.",
+  });
+  await app.dismissOnboarding();
+  await app.openRightPanel("Agents");
+
+  const card = page.locator('[data-agent-card][data-agent-name="Daily Conversation Memories"]');
+  await expect(card).toBeVisible();
+  await card.getByRole("button", { name: "Daily Conversation Memories" }).click();
+
+  await expect(page.getByPlaceholder("Agent name…")).toHaveValue("Daily Conversation Memories");
+  await expect(page.getByText("Connection Override", { exact: true })).toBeVisible();
+  await expect(page.getByText("Daily Memory Schedule & Retrieval", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Daily memory handover time")).toHaveValue("4");
+  await expect(page.getByLabel("Daily memory retrieval messages")).toHaveValue("6");
+  await expect(page.getByText("Prompt Template", { exact: true })).toBeVisible();
+  await expect(page.getByText("Using built-in default", { exact: true })).toBeVisible();
+
+  await test.info().attach("daily-memory-agent-settings.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
 test("[api] forms, persists, edits, and retrieves ranked daily memories", async ({ page }) => {
   test.info().annotations.push({
     type: "evidence",
