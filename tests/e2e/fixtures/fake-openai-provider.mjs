@@ -92,10 +92,14 @@ function selectResponse(body) {
 
   if (text.includes("<daily_intention_context>")) {
     const contextMarkerPresent = text.includes("cr016 current context marker");
+    const recentWindowPresent = text.includes("cr016 recent 24-hour message marker");
+    const expiredWindowPresent = text.includes("cr016 older-than-24-hours marker");
+    const summaryPresent = text.includes("cr016 summary marker");
+    const dailyMemoryPresent = text.includes("cr016 daily memory marker");
     const priorIntentionPresent = text.includes("cr016 prior intention must be excluded");
     const earlierAreaPresent = text.includes("i will turn the unfinished proposal");
     console.log(
-      `[fake-openai] daily intention context marker=${contextMarkerPresent} prior intention=${priorIntentionPresent} earlier area=${earlierAreaPresent}`,
+      `[fake-openai] daily intention context marker=${contextMarkerPresent} recent 24h=${recentWindowPresent} expired 24h=${expiredWindowPresent} summary=${summaryPresent} daily memory=${dailyMemoryPresent} prior intention=${priorIntentionPresent} earlier area=${earlierAreaPresent}`,
     );
     if (text.includes("cr016 force area failure")) {
       console.log("[fake-openai] daily intention area=friendships result=empty");

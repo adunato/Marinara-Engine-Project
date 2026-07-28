@@ -60,7 +60,9 @@ test("[api] runs fixed areas independently, preserves failures, and injects only
 
   await expect
     .poll(async () => readFile(fakeProviderLog, "utf8"))
-    .toContain("daily intention context marker=true prior intention=false earlier area=false");
+    .toContain(
+      "daily intention context marker=true recent 24h=true expired 24h=false summary=true daily memory=true prior intention=false earlier area=false",
+    );
 
   await runConversationWithDailyIntentions(page.request, chat.id);
   await expect.poll(async () => readFile(fakeProviderLog, "utf8")).toContain("daily intentions injected=true");

@@ -73,7 +73,7 @@ The area-specific defaults then tailor attention to work/study responsibilities 
 
 ## Context Input
 
-Every area run receives a comprehensive snapshot of the context normally available to the eligible Conversation at that moment, subject to the application's existing context budgets and enabled sources. This includes applicable character and persona information, current Conversation history, summaries, Daily Memories, recalled memories, lore/context sources, schedules, and other established Conversation context.
+Every area run receives an explicit offline snapshot consisting of character/persona identity, persisted Conversation summaries, all persisted Daily Memories, and visible Conversation messages from the rolling 24 hours immediately preceding the snapshot. Message selection is timestamp-based and must never use a last-N-message limit or inherit the normal chat prompt's tail setting. Messages before the latest Conversation restart marker, hidden-from-AI messages, future-dated messages, and messages older than 24 hours are excluded.
 
 The generation path must:
 
@@ -81,6 +81,7 @@ The generation path must:
 - Distinguish intended actions from memories and events in the remaining sources.
 - Use the same immutable context snapshot for every area in one Run All operation.
 - Never pass a newly generated area's output into a later area's input.
+- Read persisted Daily Memories directly so they remain available even when the Daily Conversation Memories agent is not currently active.
 
 Excluding previous intentions forces each run to reassess the character from what actually happened and what is currently known rather than paraphrasing an earlier plan.
 

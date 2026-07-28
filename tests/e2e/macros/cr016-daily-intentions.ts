@@ -46,21 +46,56 @@ export async function seedDailyIntentionsScenario(request: APIRequestContext) {
     const metadataResponse = await request.patch(`/api/chats/${chat.id}/metadata`, {
       data: {
         enableAgents: true,
-        activeAgentIds: ["daily-intentions"],
-        summary: "Mira needs to finish a proposal and is unsure why Rowan has become distant.",
+        activeAgentIds: ["daily-intentions", "daily-memory"],
+        summary:
+          "CR016 summary marker: Mira needs to finish a proposal and is unsure why Rowan has become distant.",
       },
     });
     await expect(metadataResponse).toBeOK();
 
-    const messageResponse = await request.post(`/api/chats/${chat.id}/messages`, {
-      data: {
-        role: "assistant",
-        characterId: character.id,
+    const messageFixtures = [
+      {
+        content: "CR016 older-than-24-hours marker: this message must not reach Daily Intentions.",
+        createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        content: "CR016 recent 24-hour message marker: this early message must reach Daily Intentions.",
+        createdAt: new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString(),
+      },
+      {
         content:
           "CR016 current context marker: I left the proposal unfinished and decided I should speak to Rowan rather than speculate.",
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    for (const fixture of messageFixtures) {
+      const messageResponse = await request.post(`/api/chats/${chat.id}/messages`, {
+        data: {
+          role: "assistant",
+          characterId: character.id,
+          content: fixture.content,
+          createdAt: fixture.createdAt,
+        },
+      });
+      await expect(messageResponse).toBeOK();
+    }
+
+    const dailyMemoryResponse = await request.put(`/api/chats/${chat.id}/daily-memories/27.07.2026`, {
+      data: {
+        memories: [
+          {
+            memory: "CR016 daily memory marker: Mira previously promised to send Rowan an honest note.",
+            importance: 5,
+          },
+        ],
       },
     });
-    await expect(messageResponse).toBeOK();
+    await expect(dailyMemoryResponse).toBeOK();
+
+    const intentionsOnlyResponse = await request.patch(`/api/chats/${chat.id}/metadata`, {
+      data: { enableAgents: true, activeAgentIds: ["daily-intentions"] },
+    });
+    await expect(intentionsOnlyResponse).toBeOK();
 
     return { chat, character, connection };
   });

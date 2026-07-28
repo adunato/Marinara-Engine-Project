@@ -5,6 +5,7 @@ Status: Completed
 ## Implementation Outcome
 
 - Implemented on `change/CR016-daily-intentions` in application commit `24de9d16` and fast-forwarded into local application `main`.
+- Corrected the offline context contract in `ece0465c` so transcript input is a rolling 24-hour timestamp window plus summaries and persisted Daily Memories, rather than prompt-preview or last-N context.
 - Stored Conversation-scoped settings and current-only outputs in existing chat metadata, so no database schema change or `db:push` was required.
 - Added the built-in manifest, fixed-area normalization, single-character eligibility, clean comprehensive context snapshots, sequential independent generation, immediate replace-on-success persistence, normal Conversation context injection, and Conversation configuration/editor UI.
 - Added focused CR016 Playwright API/UI coverage under `tests/e2e/specs/change-requests/CR016/`.
@@ -14,6 +15,7 @@ Status: Completed
 - `pnpm check` passed in the CR016 application worktree (shared/server type checks, full client ESLint, and production builds). The only lint warning was pre-existing in `HomeProfessorMariChat.tsx`.
 - `MARINARA_ENGINE_DIR=.worktrees/CR016-daily-intentions pnpm exec playwright test tests/e2e/specs/change-requests/CR016/daily-intentions.spec.ts` passed: 3 tests.
 - Playwright evidence verified fixed ordering, disabled-area skipping, sequential partial success, failed-value preservation, prior-intention exclusion, immutable Run All context, current enabled-output injection, multi-character blocking with data preservation, and the configuration/run/edit UI flow.
+- The amended Playwright evidence additionally verified inclusion of a 23-hour message, exclusion of a 25-hour message, and inclusion of summary and persisted Daily Memory markers after the Daily Memories agent was deactivated.
 - `pnpm build` passed in the primary application checkout after the local-main merge.
 
 ## Prerequisites
