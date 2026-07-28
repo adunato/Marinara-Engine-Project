@@ -1,6 +1,20 @@
 # CR016 Implementation Plan
 
-Status: Proposed — awaiting HLD approval
+Status: Completed
+
+## Implementation Outcome
+
+- Implemented on `change/CR016-daily-intentions` in application commit `24de9d16` and fast-forwarded into local application `main`.
+- Stored Conversation-scoped settings and current-only outputs in existing chat metadata, so no database schema change or `db:push` was required.
+- Added the built-in manifest, fixed-area normalization, single-character eligibility, clean comprehensive context snapshots, sequential independent generation, immediate replace-on-success persistence, normal Conversation context injection, and Conversation configuration/editor UI.
+- Added focused CR016 Playwright API/UI coverage under `tests/e2e/specs/change-requests/CR016/`.
+
+## Recorded Validation
+
+- `pnpm check` passed in the CR016 application worktree (shared/server type checks, full client ESLint, and production builds). The only lint warning was pre-existing in `HomeProfessorMariChat.tsx`.
+- `MARINARA_ENGINE_DIR=.worktrees/CR016-daily-intentions pnpm exec playwright test tests/e2e/specs/change-requests/CR016/daily-intentions.spec.ts` passed: 3 tests.
+- Playwright evidence verified fixed ordering, disabled-area skipping, sequential partial success, failed-value preservation, prior-intention exclusion, immutable Run All context, current enabled-output injection, multi-character blocking with data preservation, and the configuration/run/edit UI flow.
+- `pnpm build` passed in the primary application checkout after the local-main merge.
 
 ## Prerequisites
 
@@ -29,7 +43,7 @@ Status: Proposed — awaiting HLD approval
 14. Ensure a full run updates each successful area in the UI before continuing, leaves failed values visible, and permits failed areas to be retried individually.
 15. Add focused shared/server/client tests for eligibility, normalization, context exclusion, sequential partial success, current-only replacement, manual editing, disabled areas, injection, persistence, concurrency, and failure degradation.
 16. Run schema verification when applicable and `pnpm check`; record the results in this plan.
-17. After behavior-bearing implementation is complete, agree with the user whether to create focused CR016 Playwright E2E validation through `$marinara-e2e-validation`.
+17. Add the user-approved focused CR016 Playwright E2E validation through `$marinara-e2e-validation`.
 18. Commit the completed application branch, merge it into the requested local branch after approval and validation, update `change_requests/tracker.md`, and clean up the temporary worktree.
 
 ## Expected Files and Areas

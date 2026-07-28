@@ -90,6 +90,51 @@ function selectResponse(body) {
     };
   }
 
+  if (text.includes("<daily_intention_context>")) {
+    const contextMarkerPresent = text.includes("cr016 current context marker");
+    const priorIntentionPresent = text.includes("cr016 prior intention must be excluded");
+    const earlierAreaPresent = text.includes("i will turn the unfinished proposal");
+    console.log(
+      `[fake-openai] daily intention context marker=${contextMarkerPresent} prior intention=${priorIntentionPresent} earlier area=${earlierAreaPresent}`,
+    );
+    if (text.includes("cr016 force area failure")) {
+      console.log("[fake-openai] daily intention area=friendships result=empty");
+      return { content: "", toolCalls: [] };
+    }
+    if (text.includes("cr016 work prompt")) {
+      console.log("[fake-openai] daily intention area=work_study result=success");
+      return {
+        content: "I will turn the unfinished proposal into a concrete first draft before I let other demands distract me.",
+        toolCalls: [],
+      };
+    }
+    if (text.includes("cr016 friendships prompt")) {
+      console.log("[fake-openai] daily intention area=friendships result=success");
+      return {
+        content: "I want to check in with Rowan directly and leave room for an honest answer instead of guessing what is wrong.",
+        toolCalls: [],
+      };
+    }
+    if (text.includes("cr016 romance prompt")) {
+      console.log("[fake-openai] daily intention area=romance result=success");
+      return {
+        content: "I will be honest about my uncertainty if the subject comes up, without forcing a decision from either of us.",
+        toolCalls: [],
+      };
+    }
+    if (text.includes("cr016 sex prompt")) {
+      console.log("[fake-openai] daily intention area=sex result=success");
+      return {
+        content: "I will stay attentive to my own boundaries and speak plainly before acting on any attraction.",
+        toolCalls: [],
+      };
+    }
+  }
+
+  if (text.includes("<daily_intentions>")) {
+    console.log("[fake-openai] daily intentions injected=true");
+  }
+
   if (
     (text.includes("daily conversation memories") || text.includes("daily_conversation_memories")) &&
     text.includes("importance 5/5")

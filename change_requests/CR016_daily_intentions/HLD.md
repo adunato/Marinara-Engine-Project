@@ -1,6 +1,6 @@
 # CR016: Daily Intentions
 
-Status: Proposed — awaiting HLD approval
+Status: Implemented and merged into local application `main`
 
 ## Goals
 
