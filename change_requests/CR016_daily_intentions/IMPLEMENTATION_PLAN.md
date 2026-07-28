@@ -6,6 +6,7 @@ Status: Completed
 
 - Implemented on `change/CR016-daily-intentions` in application commit `24de9d16` and fast-forwarded into local application `main`.
 - Corrected the offline context contract in `ece0465c` so transcript input is a rolling 24-hour timestamp window plus summaries and persisted Daily Memories, rather than prompt-preview or last-N context.
+- Corrected the managed add flow and global editor in `3bee031f` so Daily Intentions explains its fixed context contract and no longer exposes generic last-N-message, output-budget, shared-connection, or shared-prompt controls.
 - Stored Conversation-scoped settings and current-only outputs in existing chat metadata, so no database schema change or `db:push` was required.
 - Added the built-in manifest, fixed-area normalization, single-character eligibility, clean comprehensive context snapshots, sequential independent generation, immediate replace-on-success persistence, normal Conversation context injection, and Conversation configuration/editor UI.
 - Added focused CR016 Playwright API/UI coverage under `tests/e2e/specs/change-requests/CR016/`.
@@ -13,9 +14,11 @@ Status: Completed
 ## Recorded Validation
 
 - `pnpm check` passed in the CR016 application worktree (shared/server type checks, full client ESLint, and production builds). The only lint warning was pre-existing in `HomeProfessorMariChat.tsx`.
-- `MARINARA_ENGINE_DIR=.worktrees/CR016-daily-intentions pnpm exec playwright test tests/e2e/specs/change-requests/CR016/daily-intentions.spec.ts` passed: 3 tests.
+- `pnpm e2e -- tests/e2e/specs/change-requests/CR016/daily-intentions.spec.ts --project=chromium` passed in the primary checkout: 4 tests.
 - Playwright evidence verified fixed ordering, disabled-area skipping, sequential partial success, failed-value preservation, prior-intention exclusion, immutable Run All context, current enabled-output injection, multi-character blocking with data preservation, and the configuration/run/edit UI flow.
 - The amended Playwright evidence additionally verified inclusion of a 23-hour message, exclusion of a 25-hour message, and inclusion of summary and persisted Daily Memory markers after the Daily Memories agent was deactivated.
+- The mobile Playwright regression verified the add dialog explains the fixed context and omits `Agent Budget`, `Context Size`, and `Max Output Tokens` controls.
+- `pnpm --filter @marinara-engine/client lint` passed with one pre-existing `HomeProfessorMariChat.tsx` hook-dependency warning.
 - `pnpm build` passed in the primary application checkout after the local-main merge.
 
 ## Prerequisites
@@ -34,7 +37,7 @@ Status: Completed
 3. Add and test the canonical eligibility rule for Conversations containing exactly one character; preserve data but stop runtime behavior when a chat becomes multi-character.
 4. Add Conversation-scoped persistence for connection selection, informational cutoff time, four area configurations, one current output per area, and minimal operational timestamps/state. Register new file-native tables and chat cascade relationships if dedicated tables are used.
 5. Implement configuration normalization and migration-safe defaults so existing chats can activate the four fixed areas without stored data and invalid settings cannot add, remove, or reorder area keys.
-6. Extract or reuse comprehensive Conversation context assembly for offline generation, retaining current context budgets and enabled sources while excluding Daily Intentions from every area call.
+6. Extract or reuse comprehensive Conversation context assembly for offline generation, using the preceding 24 hours of visible messages plus summaries and persisted Daily Memories while excluding Daily Intentions from every area call.
 7. Implement single-area generation with the selected connection/fallback behavior, self-contained area prompt, first-person free-text validation, timeout/error handling, and replace-on-success persistence.
 8. Implement Run All as a sequential orchestrator over enabled areas using one immutable context snapshot; persist and report each success immediately, continue after failures, and retain each failed area's previous value.
 9. Add concurrency protection so overlapping full and per-area runs cannot race to replace the same output.

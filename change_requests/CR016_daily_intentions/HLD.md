@@ -123,6 +123,11 @@ Use the Daily Memories editor and Conversation settings integration as the prima
 
 ### Agent Settings
 
+The Conversation agent picker must treat Daily Intentions as a managed feature. Its add dialog explains the fixed
+context contract (preceding 24 hours of visible messages, Conversation summaries, and saved Daily Memories) and does
+not expose generic `Context Size`, `Max Output Tokens`, or last-N-message budget controls. The global agent editor
+likewise directs users to per-Conversation configuration instead of showing a shared connection, budget, or prompt.
+
 When Daily Intentions is active for an eligible Conversation, its settings expose:
 
 - Generation connection.
@@ -188,6 +193,7 @@ When the agent is active, the Conversation is eligible, and saved outputs exist,
 - Verify a single-area rerun changes only that area.
 - Verify previous Daily Intentions and earlier results in the same Run All are absent from every area input.
 - Verify first-person, free-text output and area-specific prompts are passed without a shared editable base prompt.
+- Verify the mobile add dialog describes the fixed context contract and omits generic agent budget controls.
 - Verify manual edits persist and unsaved edits are protected from accidental regeneration.
 - Verify only current outputs are stored and no prior-day history or backfill UI exists.
 - Verify disabled and empty areas are omitted from context while older successful enabled outputs remain injected after failed or absent reruns.

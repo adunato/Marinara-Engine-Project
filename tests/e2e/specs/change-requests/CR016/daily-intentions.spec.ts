@@ -98,6 +98,50 @@ test("[api] blocks multi-character generation without deleting configuration or 
   await attachDailyIntentionsEvidence("multi-character-ineligible-state", ineligible);
 });
 
+test("[ui] explains fixed context without generic budget controls when adding Daily Intentions", async ({ page }) => {
+  test.info().annotations.push({
+    type: "evidence",
+    description:
+      "The mobile add dialog describes the fixed 24-hour context contract and does not expose last-N-message or generic output-budget controls.",
+  });
+  const { chat } = await seedDailyIntentionsScenario(page.request);
+  const disableResponse = await page.request.patch(`/api/chats/${chat.id}/metadata`, {
+    data: { enableAgents: false, activeAgentIds: [] },
+  });
+  await expect(disableResponse).toBeOK();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const dailyIntentions = new DailyIntentionsPage(page);
+  await dailyIntentions.openChat(chat.id);
+  await expect(page.getByText("Achievement unlocked", { exact: true })).toBeHidden({ timeout: 10_000 });
+  await page.getByRole("button", { name: "More options" }).click();
+  await page.locator('button[title="Chat Settings"]:visible').click();
+  await page.getByRole("button", { name: /^Agents Show help/ }).click();
+  await page.getByRole("button", { name: /^Misc Agents/ }).click();
+
+  const agentEntry = page.locator('[data-chat-agent-entry="daily-intentions"]');
+  await expect(agentEntry).toContainText("Daily Intentions");
+  await agentEntry.click();
+
+  const addDialog = page.getByRole("dialog", { name: "Add Daily Intentions" });
+  await expect(addDialog).toBeVisible();
+  await expect(addDialog).toContainText("uses the preceding 24 hours of visible messages");
+  await expect(addDialog).toContainText("Conversation summaries");
+  await expect(addDialog).toContainText("saved Daily Memories");
+  await expect(addDialog.getByText("Agent Budget", { exact: true })).toHaveCount(0);
+  await expect(addDialog.getByText("Context Size", { exact: true })).toHaveCount(0);
+  await expect(addDialog.getByText("Max Output Tokens", { exact: true })).toHaveCount(0);
+
+  await test.info().attach("daily-intentions-mobile-add-dialog.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+
+  await addDialog.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(addDialog).toHaveCount(0);
+  await expect(page.getByTestId("configure-daily-intentions")).toBeVisible();
+});
+
 test("[ui] configures, runs, and manually edits current Daily Intentions", async ({ page }) => {
   test.info().annotations.push({
     type: "evidence",
