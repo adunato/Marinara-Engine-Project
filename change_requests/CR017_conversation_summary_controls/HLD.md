@@ -1,6 +1,6 @@
 # CR017: Conversation Auto-Summary Controls
 
-Status: Implemented and E2E validated on `change/CR017-conversation-summary-controls`; awaiting local integration
+Status: Implemented, E2E validated, and merged into local application `main`
 
 ## Goals
 

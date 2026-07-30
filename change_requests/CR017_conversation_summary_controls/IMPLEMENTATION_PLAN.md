@@ -1,6 +1,6 @@
 # CR017 Implementation Plan
 
-Status: Implementation and focused E2E validation complete on the CR branch; awaiting local integration
+Status: Complete and merged into local application `main`
 
 ## Prerequisites
 
@@ -65,7 +65,7 @@ Status: Implementation and focused E2E validation complete on the CR branch; awa
 - No database schema or release metadata changed, so `pnpm db:push` and `pnpm version:check` were not applicable.
 - Added focused Playwright coverage under `tests/e2e/specs/change-requests/CR017/`. The UI scenario verifies both controls persist across reload, and the API scenario verifies manual backfill uses the dedicated summary model while prompt exclusion retains summary prose and omits stored key details.
 - `MARINARA_ENGINE_DIR=<CR017 worktree> pnpm exec playwright test tests/e2e/specs/change-requests/CR017` passed 2/2 tests in Chromium. Reviewer evidence includes the persisted metadata snapshot, stored day-summary JSON, UI screenshot, SSE events, and deterministic provider-log markers.
-- The application branch has not yet been merged into local `main`.
+- Fast-forwarded local application `main` to implementation commit `076b1acda` after focused E2E validation, then successfully rebuilt the shared, server, and client packages from the primary checkout.
 
 ## Rollback
 
