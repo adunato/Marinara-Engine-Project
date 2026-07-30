@@ -1,6 +1,6 @@
 # CR018: Scene Daily Memory Snapshot Continuity
 
-Status: Proposed — awaiting HLD approval
+Status: Implemented and focused validation passed on the CR branch; awaiting E2E decision and local `main` integration
 
 ## Goals
 
@@ -88,3 +88,11 @@ Daily Memories retrieval remains fail-open. If the agent is disabled, its settin
 - Verify disabled/unconfigured agents, empty queries, no qualifying rows, missing embedding sources, and retrieval errors leave existing scene context intact and do not block `/scene`.
 - Verify scene compilation performs no Daily Memory formation or persistence writes.
 - Extend the focused scene-context regression and run a server-only TypeScript check. Decide separately after implementation whether focused Playwright E2E adds useful evidence for the `/scene` acceptance path.
+
+## Validation Result
+
+- Implemented in application commit `afbb2398f` on `change/CR018-scene-daily-memory-context`.
+- `pnpm regression:scene-context` passed after extending the CR013 regression with Daily Memories query filtering, chronological formatting, summary-memory separation, verbatim leaf preservation, and read-only settings resolution.
+- `pnpm --filter @marinara-engine/server exec tsc --noEmit` passed against the generated shared declarations.
+- No client, database schema, dependency manifest, or release metadata changed, so client validation, `pnpm db:push`, and `pnpm version:check` were not applicable.
+- Focused Playwright E2E remains a user decision before local `main` integration.

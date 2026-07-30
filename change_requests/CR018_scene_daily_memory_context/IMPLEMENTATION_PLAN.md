@@ -1,6 +1,6 @@
 # CR018 Implementation Plan
 
-Status: Proposed — awaiting HLD approval
+Status: Implemented and focused validation passed on the CR branch; awaiting E2E decision and local `main` integration
 
 ## Prerequisites
 
@@ -48,7 +48,15 @@ No client or database-schema changes are expected. If implementation analysis sh
 
 ## Completion Record
 
-Not implemented.
+- Implemented in application commit `afbb2398f` on `change/CR018-scene-daily-memory-context`.
+- Added a read-only Daily Memories settings resolver that never creates agent configuration or resolves the formation provider.
+- Reused the existing CR015 retrieval query, embedding, ranking, minimum-threshold, and uncapped result behavior from `/scene` planning.
+- Added a dedicated chronological `<daily_memories>` section to CR013's captured context while preserving memory text verbatim and keeping CR017 automatic-summary controls independent.
+- Kept retrieval fail-open and preserved exact plan/create snapshot behavior, including the legacy create fallback.
+- Extended `regression:scene-context`; it passed.
+- Server-only `tsc --noEmit` passed.
+- No client, schema, dependency-manifest, or release-metadata validation was required.
+- Focused Playwright E2E and local `main` integration remain pending user agreement.
 
 ## Rollback
 
