@@ -1,6 +1,6 @@
 # CR017 Implementation Plan
 
-Status: Proposed — awaiting HLD approval
+Status: Implementation complete on the CR branch; awaiting E2E decision and local integration
 
 ## Prerequisites
 
@@ -52,6 +52,18 @@ Status: Proposed — awaiting HLD approval
 - Confirm Chat Settings controls persist sequential changes without stale metadata overwrites and remain usable on narrow layouts.
 - Run focused automated coverage and one baseline `pnpm check`; do not add redundant broad checks.
 - Verify clean Git status before removing the implementation worktree.
+
+## Completion Record
+
+- Implemented in application commit `076b1acda` on `change/CR017-conversation-summary-controls`.
+- Added Conversation Chat Settings controls for the summary connection and prompt inclusion of auto-summary memories, with backward-compatible defaults and missing-connection visibility.
+- Added shared Conversation summary connection resolution for automatic generation and manual backfill. An unusable explicit selection skips automatic summary work without blocking the chat response and returns an actionable backfill error.
+- Kept summary prose unconditional while gating auto-summary `keyDetails` across normal Conversation generation, cross-chat awareness, scene context, explicit Roleplay context sources, and schedule-continuity prompts.
+- Added `regression:conversation-summary-controls` and extended the existing scene-context, cross-chat-awareness, and context-source regression suites. All four focused regression commands passed.
+- Shared/server and client TypeScript checks passed, focused ESLint passed for `ChatSettingsDrawer.tsx`, and the production `pnpm build` passed for shared/server/client packages.
+- The single broad `pnpm check` attempt reached repository-wide client ESLint but exceeded the 120-second command limit without a diagnostic. Its surviving ESLint child was stopped; the broad command was not repeated under the proportional-validation rule.
+- No database schema or release metadata changed, so `pnpm db:push` and `pnpm version:check` were not applicable.
+- The application branch has not yet been merged into local `main`; focused Playwright E2E remains a user decision.
 
 ## Rollback
 
