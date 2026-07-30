@@ -1,6 +1,6 @@
 # CR018: Scene Daily Memory Snapshot Continuity
 
-Status: Implemented and focused validation passed on the CR branch; awaiting E2E decision and local `main` integration
+Status: Implemented, focused validation passed, and merged into local application `main`
 
 ## Goals
 
@@ -95,4 +95,6 @@ Daily Memories retrieval remains fail-open. If the agent is disabled, its settin
 - `pnpm regression:scene-context` passed after extending the CR013 regression with Daily Memories query filtering, chronological formatting, summary-memory separation, verbatim leaf preservation, and read-only settings resolution.
 - `pnpm --filter @marinara-engine/server exec tsc --noEmit` passed against the generated shared declarations.
 - No client, database schema, dependency manifest, or release metadata changed, so client validation, `pnpm db:push`, and `pnpm version:check` were not applicable.
-- Focused Playwright E2E remains a user decision before local `main` integration.
+- The user chose local `main` integration without additional focused Playwright E2E.
+- Local application `main` was fast-forwarded to `afbb2398f`.
+- A primary-checkout `pnpm build` generated server metadata stamped for `afbb2398f161` and fresh client assets. The top-level command wrapper reached its 120-second limit after writing those artifacts; no build process remained, and the broad build was not repeated under the proportional-validation rule.

@@ -1,6 +1,6 @@
 # CR018 Implementation Plan
 
-Status: Implemented and focused validation passed on the CR branch; awaiting E2E decision and local `main` integration
+Status: Implemented, focused validation passed, and merged into local application `main`
 
 ## Prerequisites
 
@@ -56,7 +56,9 @@ No client or database-schema changes are expected. If implementation analysis sh
 - Extended `regression:scene-context`; it passed.
 - Server-only `tsc --noEmit` passed.
 - No client, schema, dependency-manifest, or release-metadata validation was required.
-- Focused Playwright E2E and local `main` integration remain pending user agreement.
+- The user chose local `main` integration without additional focused Playwright E2E.
+- Fast-forwarded local application `main` to `afbb2398f`.
+- Ran `pnpm build` from the primary checkout. Server build metadata was written for `afbb2398f161` and client assets were refreshed before the top-level wrapper reached its 120-second limit. No child process remained, and the broad build was not repeated.
 
 ## Rollback
 
