@@ -72,6 +72,37 @@ function selectResponse(body) {
     }
   }
 
+  if (text.includes("you are a conversation memory assistant")) {
+    console.log(`[fake-openai] cr017 summary model=${body.model ?? "unknown"}`);
+    return {
+      content: JSON.stringify({
+        keyDetails: ["CR017 SUMMARY MEMORY MARKER"],
+        summary: "CR017 SUMMARY PROSE MARKER",
+      }),
+      toolCalls: [],
+    };
+  }
+
+  const latestUserContent = Array.isArray(body.messages)
+    ? ([...body.messages]
+        .reverse()
+        .find((message) => message?.role === "user")
+        ?.content?.toString()
+        .toLowerCase() ?? "")
+    : "";
+  const cr017Probe = latestUserContent.includes("cr017 include probe")
+    ? "include"
+    : latestUserContent.includes("cr017 exclude probe")
+      ? "exclude"
+      : null;
+  if (cr017Probe) {
+    const summaryPresent = text.includes("cr017 summary prose marker");
+    const memoryPresent = text.includes("cr017 summary memory marker");
+    console.log(
+      `[fake-openai] cr017 probe=${cr017Probe} model=${body.model ?? "unknown"} summary=${summaryPresent} memory=${memoryPresent}`,
+    );
+  }
+
   if (text.includes("you create durable memories from one completed day")) {
     return {
       content: JSON.stringify({

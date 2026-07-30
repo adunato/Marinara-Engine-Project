@@ -1,6 +1,6 @@
 # CR017 Implementation Plan
 
-Status: Implementation complete on the CR branch; awaiting E2E decision and local integration
+Status: Implementation and focused E2E validation complete on the CR branch; awaiting local integration
 
 ## Prerequisites
 
@@ -63,7 +63,9 @@ Status: Implementation complete on the CR branch; awaiting E2E decision and loca
 - Shared/server and client TypeScript checks passed, focused ESLint passed for `ChatSettingsDrawer.tsx`, and the production `pnpm build` passed for shared/server/client packages.
 - The single broad `pnpm check` attempt reached repository-wide client ESLint but exceeded the 120-second command limit without a diagnostic. Its surviving ESLint child was stopped; the broad command was not repeated under the proportional-validation rule.
 - No database schema or release metadata changed, so `pnpm db:push` and `pnpm version:check` were not applicable.
-- The application branch has not yet been merged into local `main`; focused Playwright E2E remains a user decision.
+- Added focused Playwright coverage under `tests/e2e/specs/change-requests/CR017/`. The UI scenario verifies both controls persist across reload, and the API scenario verifies manual backfill uses the dedicated summary model while prompt exclusion retains summary prose and omits stored key details.
+- `MARINARA_ENGINE_DIR=<CR017 worktree> pnpm exec playwright test tests/e2e/specs/change-requests/CR017` passed 2/2 tests in Chromium. Reviewer evidence includes the persisted metadata snapshot, stored day-summary JSON, UI screenshot, SSE events, and deterministic provider-log markers.
+- The application branch has not yet been merged into local `main`.
 
 ## Rollback
 
