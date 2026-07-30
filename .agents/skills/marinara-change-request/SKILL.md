@@ -36,7 +36,7 @@ Keep these files in the parent repo. Remove any copied CR docs from upstream PR 
 ## New CR Workflow
 
 1. Start from the appropriate base branch. Use `main` for local development unless the user specifies otherwise.
-2. If the new CR should be based on `upstream-main`, first fetch `upstream main` and fast-forward local `upstream-main` to `upstream/main`.
+2. If the new CR should use the stable release base, run `$marinara-branch-maintenance` first and verify the mirror invariant `upstream/main == origin/upstream-main == upstream-main`. Do not make local `upstream-main` track Pasta-Devs directly and do not add CR commits to it.
 3. Create `change/CRXXX-short-title` in the nested app repo when application implementation is expected.
 4. Add a temporary nested app worktree checked out to `change/CRXXX-short-title`.
 5. Create parent `HLD.md` with title, status, goals, proposed solution, risks, and validation.
@@ -45,6 +45,8 @@ Keep these files in the parent repo. Remove any copied CR docs from upstream PR 
 8. Commit the CR docs and tracker update in the parent repo with a message like `docs: init CRXXX short title`.
 9. Remove the temporary worktree after the successful commit and validation unless the user is continuing directly into approved implementation work there.
 10. Ask for HLD approval before writing implementation code when the design is unresolved. A direct user instruction to implement a clear change counts as approval; do not pause again merely because the CR is new.
+
+If a completed CR will be contributed to Pasta-Devs, use `$marinara-upstream-pr` to prepare a separate `pr/CRXXX-*` branch against `upstream/staging`. Keep the local `main` integration and the upstream contribution history separate.
 
 For a trivial change that the user directly instructed Codex to implement, collapse CR initialization and completion bookkeeping into one minimal parent-repo commit after implementation. Do not create a separate documentation-only checkpoint or approval round.
 

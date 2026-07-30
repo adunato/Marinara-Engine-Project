@@ -2,6 +2,14 @@
 
 Last updated: 2026-07-30
 
+## Repository Branch Alignment
+
+- Intended invariant: Pasta-Devs `upstream/main` equals Adunato `origin/upstream-main` equals local `upstream-main`.
+- Local `upstream-main` is at `dc0b39282`, matches `upstream/main`, and now tracks `origin/upstream-main`.
+- Adunato `origin/upstream-main` remains pending remote alignment: it contains one fork-only CR009 commit and is 1,828 commits behind the current Pasta-Devs `main` history.
+- Local `main` is built from current `upstream-main` plus 29 local development commits and tracks `origin/main`.
+- Adunato `origin/main` remains pending remote alignment with rebuilt local `main`. No remote branch was changed during the local cleanup or documentation update.
+
 ## States
 
 - `standalone`: Work exists on a CR branch but is not merged into `main` and has no open PR into `origin/main`.

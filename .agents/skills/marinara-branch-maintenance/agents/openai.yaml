@@ -1,4 +1,4 @@
 interface:
   display_name: "Marinara Branch Maintenance"
-  short_description: "Maintain Marinara app branches and parent tooling"
-  default_prompt: "Use $marinara-branch-maintenance to refresh the nested app main from upstream-main and maintain parent tooling."
+  short_description: "Sync Marinara fork mirrors and local branches"
+  default_prompt: "Use $marinara-branch-maintenance to synchronize Pasta-Devs main through the Adunato upstream-main mirror and maintain the local branch model."

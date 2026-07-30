@@ -1,5 +1,7 @@
 # CR009 Manual Verification Guide
 
+> Historical verification record only. Do not run the branch commands below as current maintenance guidance. `upstream-main` is now defined as a clean mirror of Pasta-Devs `main` and must not contain CR009 or other fork-only changes; use `$marinara-branch-maintenance` for current alignment work.
+
 Use this after CR009 has been merged into `upstream-main` and the app is running from that post-merge branch.
 
 ## Prerequisites

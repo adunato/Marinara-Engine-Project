@@ -43,11 +43,15 @@ Target elapsed time is minutes, not tens of minutes. Process is a safety mechani
 
 This repository is a fork of the `pastadevs/marinara-engine` project. Keep branch intent clear so local development work stays separate from upstream-ready changes.
 
+- Remote `upstream`: `Pasta-Devs/Marinara-Engine`, the authoritative upstream repository.
+- Remote `origin`: `adunato/Marinara-Engine`, the development fork.
 - Parent `main`: local tooling and change-request documentation for this workspace.
-- Nested `Marinara-Engine/main`: local application development branch for new features and experiments not necessarily intended for upstream use.
-- `upstream-main`: clean branch for upstream updates and pull requests into `pastadevs/main`.
+- `upstream-main`: local clean mirror of `origin/upstream-main`; the Adunato branch in turn mirrors `upstream/main`. Keep all three refs on the same commit, configure local `upstream-main` to track `origin/upstream-main`, and never add local development or proposed-PR commits to it.
+- Nested `Marinara-Engine/main`: local application development branch built from `upstream-main` plus completed local development work. It tracks `origin/main` when the fork is published.
 - `change/CRXXX`: per-change working branches mapped to a change request, following the change request skill practice.
-- `pr/CRXXX`: upstream-ready PR branches created after a change is completed and tested. Strip non-upstream artifacts such as design documents before merging these branches into `upstream-main`.
+- `pr/CRXXX`: upstream-ready PR branches created after a change is completed and tested. Rebase only the intended change onto `upstream/staging`, strip non-upstream artifacts, and target Pasta-Devs `staging`. Never merge these branches into `upstream-main`; accepted work reaches the mirror after Pasta-Devs promotes it to `main`.
+
+The mirror invariant is `upstream/main == origin/upstream-main == upstream-main`. Synchronizing either Adunato remote branch requires explicit user approval; inspecting or updating local tracking configuration does not authorize a push.
 
 Use the repo-local skills for detailed project workflows:
 

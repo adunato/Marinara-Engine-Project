@@ -1,19 +1,29 @@
 ---
 name: marinara-branch-maintenance
-description: Maintain the local branch model for the Marinara-Engine nested app repo and parent tools repo. Use when Codex needs to reset or rebuild the nested app main from upstream-main, inspect or update local-only tooling artifacts, or explain this workspace's fork branch strategy.
+description: Maintain the local branch model for the Marinara-Engine nested app repo and parent tools repo. Use when Codex needs to synchronize the Pasta-Devs main mirror through the Adunato fork, reset or rebuild nested app main from upstream-main, inspect or update local-only tooling artifacts, or explain this workspace's fork branch strategy.
 ---
 
 # Marinara Branch Maintenance
 
 Use this skill only in `Marinara-Engine-Project/`, with application Git commands run from the nested `Marinara-Engine/` repo.
 
-## Branch Model
+## Remote and Branch Model
 
-- `upstream-main`: clean upstream-compatible branch used for updates and PRs into `pastadevs/main`.
+- Remote `upstream`: `Pasta-Devs/Marinara-Engine`, the authoritative upstream repository.
+- Remote `origin`: `adunato/Marinara-Engine`, the development fork.
+- `upstream-main`: local clean mirror branch. It tracks `origin/upstream-main`, which mirrors `upstream/main`.
 - Parent `main`: local tools, change-request docs, and E2E harness.
-- Nested `main`: local application development branch. It can contain new features and experiments.
+- Nested `main`: local application development branch built from `upstream-main` plus completed local changes. It tracks `origin/main` when published.
 - `change/CRXXX-*`: working branches for individual change requests.
-- `pr/CRXXX-*`: upstream-ready PR branches derived from completed CR work.
+- `pr/CRXXX-*`: upstream-ready branches containing only the intended CR diff rebased onto `upstream/staging`.
+
+Maintain this invariant:
+
+```text
+upstream/main == origin/upstream-main == upstream-main
+```
+
+Never merge local development, change, or PR branches into `upstream-main`. Normal Pasta-Devs contributions target `staging`; accepted changes reach this stable mirror only after promotion to Pasta-Devs `main`.
 
 ## Git Worktree Discipline
 
@@ -52,6 +62,37 @@ Update parent tooling directly on the parent `main` branch. Do not reintroduce a
 ## Tracker Maintenance
 
 Keep `change_requests/tracker.md` in sync with branch workflow changes. Update it when a CR is created, archived, superseded, merged into `main`, opened as a PR, or merged into the PR target branch.
+
+## Refresh Upstream Mirror Workflow
+
+Treat remote updates as separate from local branch maintenance. A request to inspect, fetch, or repair local tracking does not authorize a push.
+
+1. Fetch both sides and record their exact tips:
+
+   ```powershell
+   git fetch upstream main
+   git fetch origin upstream-main
+   git rev-parse upstream/main origin/upstream-main upstream-main
+   ```
+
+2. If local or Adunato `upstream-main` contains fork-only commits, preserve them with an explicit local archive tag before replacing any ref.
+3. Create a temporary worktree for local `upstream-main`, verify it is clean, and reset it to the authoritative stable branch:
+
+   ```powershell
+   git reset --hard upstream/main
+   ```
+
+4. Verify the worktree is clean and remove it.
+5. Configure the local branch to track the Adunato mirror without moving the branch:
+
+   ```powershell
+   git branch --set-upstream-to=origin/upstream-main upstream-main
+   ```
+
+6. Stop unless the user explicitly authorizes remote alignment. When authorized, push `upstream-main` to `origin/upstream-main`. Use a normal push when it is a fast-forward. If the remote contains fork-only history and the user has approved replacing it, use `--force-with-lease` tied to the previously observed remote tip.
+7. Fetch again and verify that `upstream/main`, `origin/upstream-main`, and local `upstream-main` resolve to the same commit.
+
+Do not merge `origin/upstream-main` into the local mirror to resolve divergence; that would reintroduce fork-only commits into the clean base.
 
 ## Rebuild Main Workflow
 
