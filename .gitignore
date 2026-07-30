@@ -1,4 +1,5 @@
 Marinara-Engine/
+.codex-remote-attachments/
 node_modules/
 test-results/
 local-tools-overlay.tar
