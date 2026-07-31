@@ -4,58 +4,65 @@ Status: Proposed
 
 ## Prerequisites
 
-- Base application work on nested `Marinara-Engine/main` using `change/CR019-compiled-character-mind` and a dedicated temporary worktree.
-- Obtain approval for the rewritten `HLD.md` before application implementation.
+- Obtain approval for the replacement `HLD.md` before application implementation.
+- Perform all application work on `change/CR019-compiled-character-mind` from a dedicated temporary nested-repository worktree.
 - Read `AGENTS.md`, `Marinara-Engine/CONTRIBUTING.md`, and `Marinara-Engine/packages/client/.instructions.md` before editing application or client code.
-- Trace CR015 Daily Memories persistence, embeddings, editor, and pre-generation formation path.
-- Trace CR016 single-character eligibility, managed-agent configuration, offline model calls, and Conversation injection path.
+- Confirm the current Daily Memory persistence/update hooks, built-in agent runtime, tool loop, `DATA_DIR` path guards, backup/restore code, Markdown renderer, and Game Assets file-browser patterns before implementation.
+- Keep response-generation integration outside CR019.
 
 ## Atomic Tasks
 
-1. Define the shared `MindSourceRef`, `MindPage`, `CharacterMindDocument`, `MindPageUpsert`, compilation-result, and appraisal contracts exactly as approved in the HLD.
-2. Register Compiled Character Mind as an opt-in, managed, single-character Conversation agent with one connection setting.
-3. Add one file-native `character_minds` table containing the JSON document and normal chat/character ownership and cascade constraints.
-4. Implement document normalization and validation, including the fixed page, content, link, and source limits.
-5. Implement a small Conversation mind service for read, save page, delete page, clear, card/day revision calculation, rebuild-needed detection, candidate replacement, and changed-page embedding.
-6. Implement the compilation call and strict parser for page upserts only.
-7. Implement the atomic keyed upsert reducer: validate the complete batch, create or replace keyed pages, union provenance, refresh embeddings, and replace the document only on complete success.
-8. Implement build/rebuild by processing existing Daily Memory days sequentially through the same reducer, preserving the old document until the complete candidate succeeds.
-9. Hook bounded automatic compilation into Conversation generation for at most one changed completed Daily Memory day per reply.
-10. Implement page retrieval from the last six eligible messages using cosine similarity, top-five selection, and linked expansion capped at eight pages, with title-match fallback.
-11. Implement and validate the single-field transient appraisal call.
-12. Inject the appraisal into eligible Conversation generation and ensure compilation/appraisal context cannot feed back into future source processing.
-13. Add server routes for state read, page save/delete, build/rebuild progress, and clear.
-14. Add the minimal Conversation settings entry and Character Mind modal for connection selection, page inspection/editing, build/rebuild, and clear.
-15. Add focused shared/server/client tests for schema bounds, atomic upserts, provenance, source revisions, rebuild-needed detection, isolation, rebuild preservation, retrieval, appraisal exclusion, failure degradation, and the minimal editor.
-16. Run `pnpm db:push` and `pnpm check` once and record the results.
-17. After behaviour is complete, ask whether to add focused CR019 Playwright E2E validation through `$marinara-e2e-validation`.
-18. Commit the completed application branch, merge it into the requested local branch after validation, update the tracker, and remove the temporary worktree.
+1. Add the built-in Character Mind agent manifest, Conversation-mode eligibility, enablement, connection setting, and operation settings without registering it as a normal pre- or post-generation injection agent.
+2. Add shared contracts for mind status, operation progress, filesystem nodes, and the query result `{ briefing, wikiPages, rawSources }`.
+3. Implement the validated mind-root resolver for `DATA_DIR/character-minds/<chatId>/<characterId>` with ownership checks, containment enforcement, symlink rejection, Markdown-only access, and centralized file/operation limits.
+4. Add bundled default templates for `SCHEMA.md`, `index.md`, and `log.md`, using the approved Karpathy terminology and minimal page grammar.
+5. Implement immutable character-card snapshot creation with deterministic revisions, predecessor metadata, exact card content, and create-only writes.
+6. Implement immutable completed-day Daily Memory snapshot creation with deterministic revisions, exact IDs/date/importance/text, predecessor metadata, and create-only writes.
+7. Implement pending-source discovery by comparing current card/day revisions with immutable snapshots and successful ingest records in `log.md`.
+8. Implement restricted mind tools for list, search, read, wiki write, wiki rename/delete, and index replacement. Enforce the HLD permission matrix separately for ingest, query, and lint.
+9. Add a Character Mind operation runner over the existing multi-round agent executor, with one resolved mind, operation-specific prompt, tool context, cancellation, bounded rounds, operation trace, and per-mind writer lock.
+10. Implement ingest exactly as the schema-defined workflow: read schema/index/source, inspect relevant wiki material, make Markdown edits through tools, update the index, validate the final state, and append an actual-trace log entry.
+11. Implement Build by initializing the mind, snapshotting current inputs, and ingesting the card followed by Daily Memory days in chronological order. Make an interrupted build resumable through Sync.
+12. Implement Sync by snapshotting pending revisions and ingesting the oldest unprocessed source until the current requested run limit is reached, with progress reporting and explicit resume behavior.
+13. Trigger the same Sync service after a Daily Memory day is created, edited, or regenerated for existing minds in that Conversation. Keep failure non-destructive and visibly pending; do not hook this work to response generation.
+14. Implement query as a read-only operation that starts with `index.md`, can read wiki and raw Markdown, returns the validated detailed briefing and actual file references, and appends a compact query entry to `log.md`.
+15. Implement lint using the approved checks and write permissions, including safe page rename/removal, link and citation repair, index maintenance, an actual-trace log entry, and the automatic trigger after seven successful ingests.
+16. Add routes for status, Build, Sync, operation progress/cancel, file tree/read/search, schema save, query, lint, desktop open-folder, and confirmed clear.
+17. Add backup/restore coverage for `character-minds`, deletion cleanup for chat/character ownership, and user documentation describing the data directory and Obsidian access limitations on Docker and Android.
+18. Extend the shared Markdown renderer with safe `[[wikilink]]` recognition and navigation callbacks without changing ordinary chat Markdown behavior.
+19. Add the Character Mind browser with operation controls, progress/errors, file tree, rendered/raw Markdown views, clickable wikilinks, text search, schema editor, query preview with cited files, and explicit clear confirmation. Do not add an in-app graph or general wiki editor.
+20. Add focused tests for snapshots, pending revision discovery, operation permissions, path security, locks, ingest traces, query references, lint changes, backup/deletion, renderer behavior, and UI operations.
+21. Verify through focused tests and run `pnpm check` once. Run `pnpm db:push` only if implementation unexpectedly requires a database-schema change; the approved design does not require one.
+22. Confirm by inspection/test that no Character Mind result enters the response-generation path.
+23. After behavior is complete, ask whether to add focused CR019 Playwright E2E validation for Build/Sync, browsing, query, lint, and Obsidian-compatible link navigation.
+24. Commit the completed application branch, merge it into the requested local branch after validation, update the tracker, and remove the temporary worktree.
 
 ## Expected Areas
 
-- Shared built-in agent manifest and Character Mind contracts.
-- One file-native chat-owned schema row and file-backed-store registration.
-- One focused Conversation mind service and runtime resolver.
-- One route module and narrow Conversation generation integration.
-- Existing Daily Memory and embedding helpers where reuse is safe.
-- Conversation agent settings, one Character Mind modal, and one client hook.
-- Focused shared/server/client tests.
-- Optional parent Playwright tests only after user agreement.
+- Shared built-in agent manifest and narrow Character Mind API contracts.
+- Server Character Mind filesystem, snapshot, operation-runner, and route modules.
+- Existing Daily Memory persistence hooks for independent Sync triggering.
+- Existing backup/restore and chat/character deletion paths.
+- Existing Markdown renderer and a focused Character Mind browser/hook.
+- Data-storage and backup documentation.
+- Focused server, shared, and client tests.
+
+The implementation must not add a `character_minds` database table, JSON page document, embedding index, graph database, or response-generation hook.
 
 ## Verification
 
-- The persisted document matches the approved schema and rejects over-limit or cross-owned data atomically.
-- The same character card in two Conversations produces isolated mind documents.
-- A significant Daily Memory creates or updates a page; a low-value day may change nothing.
-- Page updates replace content while preserving stable key and accumulated source references.
-- Invalid links or source IDs reject the complete compilation batch and preserve the prior document and source revisions.
-- Failed rebuild leaves the old document unchanged.
-- Retrieval returns semantic pages plus only bounded linked pages; no-match appraisal is skipped.
-- Appraisal enters the current response context but never persistence or later compilation.
-- Missing connection, embeddings, invalid model output, and runtime errors do not block ordinary replies.
-- Manual edit/delete, build/rebuild, clear, agent removal preservation, and chat deletion behave as specified.
-- `pnpm db:push` and `pnpm check` pass once after implementation.
+- The mind is an ordinary directory of Markdown files and opens correctly in Obsidian.
+- Character card and Daily Memory revisions create new immutable raw files rather than overwriting old evidence.
+- Agent tools cannot mutate raw sources, schema, another mind, non-Markdown files, or paths outside the resolved root.
+- Ingest can touch multiple linked pages, updates the index, and records the actual operation in the append-only log.
+- Query reads the wiki first, follows relevant raw-source citations for specifics, and returns a detailed briefing with accurate file references.
+- Lint repairs the approved wiki problems without inventing evidence or changing raw sources.
+- Build and Sync resume safely after interruption, and Daily Memory changes become pending/processed independently of response generation.
+- The browser follows wikilinks, exposes raw evidence, edits only the schema, and does not require an internal graph.
+- Backup/restore and deletion lifecycle include the complete mind directory.
+- Existing Conversation generation behaves identically whether the Character Mind agent is enabled or disabled.
+- Focused tests and `pnpm check` pass once after implementation.
 
 ## Rollback
 
-Remove the agent registration, routes, UI, and generation hooks while leaving Daily Memories, Daily Intentions, Memory Recall, summaries, and ordinary Conversation generation unchanged. Preserve the dedicated data row during a temporary rollback unless an explicit migration safely removes it.
+Disable or remove the Character Mind agent registration, routes, Daily Memory Sync trigger, browser, renderer extension, and backup-directory registration. Leave existing `character-minds` directories intact unless the user explicitly clears them, so a later re-enable or corrected implementation can recover the Markdown wiki and immutable raw sources.

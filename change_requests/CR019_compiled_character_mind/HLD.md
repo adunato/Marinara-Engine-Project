@@ -4,261 +4,348 @@ Status: Proposed
 
 ## Problem
 
-Conversation characters receive a character card, summaries, recent messages, recalled transcript fragments, Daily Memories, and optional Daily Intentions. The response model must still reconstruct the character's current subjective understanding from those sources on every reply.
+Marinara currently stores the authored character card and accumulated Daily Memories, but it does not maintain the structured, compounding synthesis described by Karpathy's LLM Wiki pattern. Each later use must reconstruct relationships and meaning from those original records.
 
-CR019 tests a narrower idea: compile the character's accumulated understanding into a small, maintained set of linked pages, then retrieve the relevant pages before each reply. It deliberately does not attempt to define a complete psychology or pre-classify beliefs, feelings, relationships, motives, and other mental phenomena.
+CR019 instantiates the LLM Wiki pattern for one character in one Conversation. It implements the character mind as an isolated built-in agent and a real directory of interlinked Markdown files. It does not connect the agent's query output to response generation; that integration belongs to a separate change request.
 
 ## Outcome
 
-When the feature works, a significant Daily Memory updates one or more persistent subject pages. A later analogous situation retrieves those pages and uses them to form a short current appraisal before the ordinary response is written.
+For each `(chatId, characterId)` pair, Marinara can:
 
-The user can inspect the compiled pages and see which character-card fields or Daily Memories contributed to them.
+1. preserve character-card and Daily Memory revisions as immutable raw sources;
+2. ingest those sources into an LLM-maintained Markdown wiki;
+3. query the wiki and its cited raw sources to produce a detailed, cited briefing;
+4. lint the wiki for drift and structural problems; and
+5. let the user browse the same files in Marinara or Obsidian.
+
+Markdown files are the character mind. There is no JSON mind document, graph database, fixed psychological ontology, embedding index, or parallel page schema.
+
+## Framework Fidelity
+
+| Karpathy concept | CR019 mapping | Fit or explicit extension |
+| --- | --- | --- |
+| Raw sources | Immutable snapshots of the character card and completed Daily Memories | Direct mapping |
+| Wiki | LLM-maintained, interlinked Markdown pages | Direct mapping |
+| Schema | User-editable `SCHEMA.md` containing conventions and operation workflows | Direct mapping |
+| Ingest | Process one new raw source into the existing wiki | Direct mapping |
+| Query | Read `index.md`, relevant wiki pages, and cited raw sources; return a cited answer | Karpathy specifies wiki-first query but does not define whether raw sources may be opened. CR019 explicitly permits it for concrete grounding. |
+| Lint | Check contradictions, stale synthesis, broken links, orphans, missing pages, missing cross-references, and gaps | Direct mapping |
+| `index.md` | Content-oriented catalog read first during ingest and query | Direct mapping |
+| `log.md` | Append-only chronological record of ingest, query, and lint operations | Direct mapping |
+| Obsidian | The mind directory is an Obsidian-compatible Markdown vault | Direct mapping |
+| Query answer | A detailed briefing suitable for a later response-generation integration | Marinara-specific use of Karpathy's query operation |
+| Interactive ingest | Automatic ingest after Daily Memory persistence, plus manual Build/Sync | Karpathy prefers interactive ingest personally but explicitly permits batch automation |
+| Git repository | Not created by Marinara | Optional Karpathy recommendation omitted from the first iteration; Marinara backup and `log.md` provide recovery and history at this scope |
+| `qmd` or vector search | Not included | Optional Karpathy recommendation; `index.md` and text search are sufficient at the expected initial scale |
+
+Where Karpathy leaves behavior unspecified, `SCHEMA.md` is the authority. CR019 does not silently replace the framework's concepts with Marinara-specific equivalents.
 
 ## Scope
 
-- Opt-in managed agent.
-- Conversation mode only.
-- Exactly one character in the Conversation.
-- One mind per Conversation and character, so alternate chats and timelines remain isolated.
-- Character card and persisted Daily Memories are the only compilation sources in the first release.
-- One configured model connection is used for both compilation and appraisal.
+- Opt-in built-in Character Mind agent.
+- Conversation mode.
+- One independent mind per `(chatId, characterId)`.
+- Character card and completed Daily Memories are the initial raw-source types.
+- One configured agent connection and model for ingest, query, and lint.
+- Actual Markdown storage below `DATA_DIR`.
+- Automatic Daily Memory ingest, manual Build/Sync, manual lint, and lint after every seven successful ingests.
+- In-app Markdown page browser and desktop **Open in folder** action.
+- Obsidian-compatible links and directory structure.
+- A standalone query API and query preview in the mind browser.
 
-The feature may read existing Daily Memories even when the Daily Conversation Memories agent is no longer active. It can only receive new experience automatically when new Daily Memories are formed.
+## Out of Scope
 
-## Non-Goals
+- Injecting a query answer into Conversation, Roleplay, Game, or any other response-generation prompt.
+- Changing the normal character response pipeline or removing its existing context sources.
+- Evaluating whether a briefing improves generated responses.
+- A built-in graph view. Obsidian provides graph navigation on systems where the data directory is accessible.
+- A graph database, JSON page database, embeddings, vector retrieval, typed edges, fixed psychological categories, confidence scores, or numeric affect.
+- Web research or autonomous acquisition of new raw sources.
+- Filing generated character replies or query briefings back into the wiki.
+- Git initialization, branching, or commits inside character-mind directories.
+- Cross-Conversation or globally shared character minds.
 
-- A graph database, ontology, generic memory framework, or enterprise knowledge service.
-- Fixed psychological categories or numeric models of belief, confidence, emotion, salience, or personality.
-- Multi-character, Roleplay, Game, cross-chat, or globally shared character minds.
-- Replacing or modifying the character card, Daily Memories, summaries, Memory Recall, or Daily Intentions.
-- Scheduled background workers, autonomous research, graph visualization, schema editors, or user-authored inference rules.
-- Automatically treating an appraisal or generated reply as durable evidence.
+## Filesystem Layout
 
-## Structural Pattern
+Each mind is a self-contained Markdown directory:
 
-CR019 uses the useful part of the LLM-wiki pattern:
+```text
+DATA_DIR/character-minds/<chatId>/<characterId>/
+├── SCHEMA.md
+├── index.md
+├── log.md
+├── raw/
+│   ├── character-card/
+│   │   └── <captured-at>--<revision>.md
+│   └── daily-memories/
+│       └── <date>--<revision>.md
+└── wiki/
+    └── <page-name>.md
+```
 
-1. **Sources:** immutable character-card fields and Daily Memories.
-2. **Compiled artifact:** a bounded set of linked mind pages.
-3. **Schema:** the single page shape and the compilation/appraisal prompts.
-4. **Ingest:** update affected pages when a new Daily Memory day is available.
-5. **Query:** retrieve relevant pages for the current Conversation context.
+`chatId` and `characterId` are validated application identifiers. All file operations resolve the target path and reject traversal, symlinks escaping the mind root, unsupported extensions, oversized files, and writes outside the permitted operation area.
 
-There is no separate lint or reorganization subsystem in the first release. Rebuild is the recovery mechanism if the compiled artifact drifts or becomes cluttered.
+The complete `character-minds` directory is included in normal backup and restore. Desktop installations can open a mind root directly as an Obsidian vault. Docker users must expose `DATA_DIR` through a host bind mount. Android users browse through Marinara because application storage is not normally accessible to Obsidian.
 
-## Complete Data Schema
+## Raw Sources
 
-The semantic model has one primitive: `MindPage`.
+Raw sources are immutable. Marinara creates them; the agent can read but never modify or delete them.
+
+### Character card snapshots
+
+A snapshot contains the exact authored fields relevant to character identity and behavior, with minimal YAML metadata identifying:
+
+- source type;
+- character ID;
+- capture time;
+- deterministic content revision; and
+- the preceding revision when one exists.
+
+A changed card creates a new file. It never overwrites the earlier snapshot.
+
+### Daily Memory snapshots
+
+One snapshot contains the ordered Daily Memories for one completed Conversation day, preserving:
+
+- Daily Memory IDs;
+- date;
+- importance;
+- exact stored memory text;
+- capture time;
+- deterministic revision; and
+- the preceding revision when the day was previously captured.
+
+Editing or regenerating a Daily Memory day creates a new immutable revision. Earlier revisions remain available so the wiki can explain and revise prior synthesis rather than losing its evidence history.
+
+Daily Memories remain a lossy source if their formation omitted a concrete detail. CR019 does not claim that the wiki can recover information absent from every raw source. Adding source-message references or richer Daily Memory formation is a separate requirement if testing shows the stored memories are insufficiently specific.
+
+## Wiki
+
+The wiki is the LLM-generated synthesis. It contains normal Markdown files and `[[wikilinks]]`. Page types and psychological categories are not predefined.
+
+A page exists when a subject is independently useful enough to be linked from other pages. Otherwise, the agent updates an existing page. The initial page grammar is deliberately small:
+
+```markdown
+# Page title
+
+Current synthesis written as ordinary, evidence-grounded prose with
+[[links to related pages]]. Uncertainty and incompatible interpretations
+remain explicit when the sources do not justify resolving them.
+
+## Sources
+
+- [[raw/daily-memories/2026-07-18--a91f.md]]
+- [[raw/character-card/2026-07-01T120000Z--4fa3.md]]
+```
+
+The `## Sources` section is a Marinara schema convention required to support source-grounded query. It is not a fixed psychological data model. Claims may cite sources inline when attribution needs to be more precise.
+
+Wiki filenames use stable, filesystem-safe slugs. Page titles may change without changing links unnecessarily. When a page is renamed or merged, the agent updates inbound links during the same operation.
+
+## Schema
+
+`SCHEMA.md` is created from a bundled default and is editable by the user. The agent reads the complete file before every operation. Routine ingest, query, and lint cannot modify it.
+
+The default schema defines:
+
+- the three layers and their permissions;
+- the page grammar and naming conventions;
+- when to update a page versus create a page;
+- the requirement to preserve ambiguity and contradiction;
+- the requirement to ground synthesis in linked raw sources;
+- the ingest, query, and lint workflows;
+- the required `index.md` and `log.md` formats; and
+- the query briefing contract.
+
+Changing the schema affects later operations but does not automatically rewrite the wiki. The user can run lint after a schema change to bring existing pages into alignment.
+
+## Index and Log
+
+### `index.md`
+
+`index.md` is the content-oriented catalog. The agent reads it first and updates it during ingest and lint. Each entry contains a wikilink and one-line description, grouped only where useful. The grouping may evolve with the wiki; CR019 does not impose a fixed taxonomy.
+
+### `log.md`
+
+`log.md` is append-only and chronological. It records:
+
+- operation timestamp and type;
+- raw sources processed or followed;
+- wiki pages created, read, changed, renamed, or removed;
+- the operation result; and
+- failures or unresolved findings.
+
+Entries use parseable headings such as:
+
+```markdown
+## [2026-07-31T09:14:00Z] query | 7f31
+```
+
+Query entries remain compact: they record page and source links but do not duplicate the query text or resulting briefing. The runtime appends the entry from the actual operation trace so `log.md` remains accurate even when the agent's final prose is incomplete.
+
+## Built-In Agent
+
+CR019 uses one built-in Character Mind agent with three operation modes rather than three independently configured agents. This is the smallest mapping to Karpathy's single LLM wiki agent and keeps one schema and model configuration authoritative.
+
+The existing Marinara agent tool loop executes model calls, tool calls, tool results, and follow-up model calls. CR019 adds tools restricted to one resolved mind root:
+
+- list Markdown files;
+- search Markdown files;
+- read a Markdown file;
+- create or replace a wiki Markdown file;
+- rename or remove a wiki Markdown file;
+- replace `index.md`; and
+- append an operation record to `log.md` through the runtime.
+
+Tool availability depends on the operation:
+
+| Operation | Read schema/index/wiki | Read raw | Write wiki/index | Rename/delete wiki | Append log |
+| --- | --- | --- | --- | --- | --- |
+| Ingest | Yes | Yes | Yes | No | Runtime |
+| Query | Yes | Yes | No | No | Runtime |
+| Lint | Yes | Yes | Yes | Yes | Runtime |
+
+No operation may alter raw sources. No routine operation may alter `SCHEMA.md`.
+
+A single-operation lock serializes ingest and lint for a mind. Query waits for an active writer to finish and then runs read-only; multiple read-only queries may run concurrently.
+
+## Ingest
+
+Ingest processes one immutable raw source at a time:
+
+1. Read `SCHEMA.md` and `index.md`.
+2. Read the new raw source.
+3. Search and read relevant existing wiki pages and their cited sources.
+4. Update existing pages before creating new ones.
+5. Maintain `[[wikilinks]]` and `## Sources` citations across every affected page.
+6. Update `index.md`.
+7. Return a short operation summary.
+8. Append the actual operation trace to `log.md`.
+
+One source may update many pages. An ingest that finds nothing worth adding may validly change only `log.md`.
+
+### Build and Sync
+
+**Build** initializes the directory, snapshots the current character card and existing completed Daily Memory days, then ingests the snapshots one at a time: character card first, followed by Daily Memory days in chronological order.
+
+**Sync** detects current card or Daily Memory revisions without a corresponding successful ingest entry, creates any missing immutable snapshots, and resumes ingest from the oldest pending source.
+
+After a Daily Memory day is created, edited, or regenerated, Marinara queues the same Sync operation for each existing mind affected by that Conversation day. A failed or interrupted run remains pending and is recoverable through Sync; there is no separate durable job platform.
+
+A character-card change is detected on the next manual Sync or Daily Memory-triggered Sync. CR019 does not add a global fan-out background service for card edits.
+
+## Query
+
+Query accepts a caller-provided question or current-situation text. In this CR it is invoked only through the standalone API and browser preview.
+
+The operation:
+
+1. Read `SCHEMA.md` and `index.md`.
+2. Identify and read relevant wiki pages.
+3. Follow their citations into raw sources whenever concrete events, dates, wording, biographical details, or attribution would improve grounding.
+4. Search raw sources directly only when the relevant wiki synthesis identifies a gap but lacks an adequate citation.
+5. Produce a complete briefing with citations.
+6. Append a compact query entry to `log.md`.
+
+The query result contract is intentionally small:
 
 ```ts
-type MindSourceRef =
-  | { type: "character_card"; field: string }
-  | { type: "daily_memory"; id: string };
-
-type MindPage = {
-  key: string;
-  title: string;
-  content: string;
-  linkKeys: string[];
-  sources: MindSourceRef[];
-  embedding: number[] | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type CharacterMindDocument = {
-  version: 1;
-  characterId: string;
-  characterCardRevision: string;
-  dailyMemoryRevisions: Record<string, string>; // date -> deterministic revision
-  pages: MindPage[];
+type CharacterMindQueryResult = {
+  briefing: string;
+  wikiPages: string[];
+  rawSources: string[];
 };
 ```
 
-The file-native `character_minds` table contains one row per Conversation and character:
+`briefing` is the Karpathy query answer adapted to Marinara's future response-generation use. It must be self-contained, detailed enough to support concrete language, explicit about relevant uncertainty, and grounded by `wikiPages` and `rawSources`. It is not written into the wiki and is not treated as evidence.
 
-```ts
-type CharacterMindRow = {
-  id: string;
-  chatId: string;
-  characterId: string;
-  document: string; // JSON-serialized CharacterMindDocument
-  createdAt: string;
-  updatedAt: string;
-};
-```
+CR019 stops after returning and displaying this result. It does not decide how a later response-generation change will supply current messages, cache the briefing, or place it in a generation prompt.
 
-`chatId + characterId` is unique. Chat deletion cascades to the row.
+## Lint
 
-### Page meaning
+Lint reads the complete schema, index, wiki, and linked raw sources. It checks for the issues identified by Karpathy:
 
-A page represents one reusable subject that may affect future interpretation: a person, relationship, part of the character's life, recurring concern, self-understanding, or any other subject that proves useful. These are examples, not schema categories.
+- contradictions between pages;
+- synthesis made stale by later sources;
+- broken or missing links;
+- orphan pages;
+- important concepts without pages;
+- missing cross-references; and
+- gaps in the available sources.
 
-`key` is a stable, validated slug used for identity and linking. `title` names the subject. `content` is a concise current synthesis of what that subject means to this character. It may include facts, feelings, expectations, uncertainty, or contradiction in ordinary language. `linkKeys` connect subjects that are useful to consider together. Link semantics remain in the page content rather than a fixed relationship vocabulary.
+For CR019, lint may repair wiki pages, links, citations, filenames, and `index.md`. It may not conduct web research, invent missing evidence, alter raw sources, or alter `SCHEMA.md`.
 
-`sources` records provenance. It does not imply that every sentence can be mechanically attributed to one source; it identifies the material used to maintain the page. When a union would exceed the source limit, Marinara retains every character-card reference and the most recently updated Daily Memory references.
+The user can run lint manually. Marinara also queues lint after every seven successful ingest operations for that mind. Failed lint does not roll back already valid wiki content; it records the failure and can be rerun.
 
-Pages are deliberately small and bounded. Initial hard limits will be centralized constants rather than user settings:
+## API and UI
 
-- at most 30 pages per mind;
-- at most 1,500 characters of content per page;
-- at most 10 links and 50 source references per page.
+Server routes provide:
 
-These limits exist only to bound storage, compilation context, and response context. They can be recalibrated after observing real minds.
+- mind status and pending-source inspection;
+- Build and Sync;
+- directory tree and Markdown file reads;
+- schema update;
+- query;
+- lint;
+- clear with explicit confirmation; and
+- desktop open-folder support where available.
 
-## Page Creation Rule
+The Character Mind browser provides:
 
-Create a page only when all of the following are true:
+- Build, Sync, Query, Lint, Open Folder, and Clear actions;
+- a file tree for `wiki`, `raw`, `index.md`, `log.md`, and `SCHEMA.md`;
+- rendered Markdown with clickable `[[wikilinks]]`;
+- text search;
+- a raw Markdown view;
+- an editor for `SCHEMA.md`; and
+- a query input with the returned briefing and cited files.
 
-1. The subject is likely to matter in future conversations.
-2. The character has developed a subjective understanding or association worth preserving.
-3. The information cannot be left solely as an episodic Daily Memory without requiring future reconstruction.
+Raw sources are read-only. Wiki content is LLM-maintained and read-only in the initial Marinara UI. Users may inspect the files externally in Obsidian; external edits are visible on the next read and are subject to later lint or ingest maintenance.
 
-Routine events, isolated facts, and passing topics remain Daily Memories. A compilation run may validly change nothing.
+There is no in-app graph. Obsidian derives its graph directly from the same `[[wikilinks]]`.
 
-## Compilation
+## Failure and Recovery
 
-Compilation processes one completed Daily Memory day at a time. It receives:
-
-- the authored character card;
-- every Daily Memory from that day, including ID, date, importance, and exact text;
-- an index of existing page keys and titles;
-- the eight existing pages with the highest semantic similarity to that day's memories at or above cosine similarity `0.25`.
-
-The model returns only page upserts:
-
-```ts
-type MindPageUpsert = {
-  key: string; // creates when absent; updates when present
-  title: string;
-  content: string;
-  linkKeys: string[];
-  sourceMemoryIds: string[];
-  sourceCardFields: string[];
-};
-
-type MindCompilationResult = {
-  upserts: MindPageUpsert[];
-};
-```
-
-The server validates that:
-
-- keys use the application slug format and are unique within the mind;
-- link keys exist or are created in the same batch;
-- an existing page can be updated only when its complete prior content was supplied to the compiler;
-- Daily Memory IDs and card fields came from the supplied source set;
-- titles are unique case-insensitively;
-- page and document limits are respected.
-
-For an existing page, the upsert replaces `title`, `content`, and `linkKeys`; source references are unioned with existing references. Changed pages receive fresh embeddings. The server applies the complete batch to an in-memory copy and replaces the stored document only when the entire result is valid.
-
-The compiler receives the remaining page capacity. At the 30-page limit it may update supplied pages but cannot create another page. An attempted over-limit creation rejects the batch rather than silently deleting existing state.
-
-There are no reinforce, weaken, supersede, confidence, or strength operations. If new evidence changes the character's understanding, the model rewrites the affected page while retaining its stable key and accumulated provenance. Conflicting attitudes are written plainly in the same page or separated into linked pages when they concern independently reusable subjects.
-
-`characterCardRevision` is a deterministic hash of the supplied card fields. `dailyMemoryRevisions` stores one deterministic revision per completed day using the ordered Daily Memory IDs and update timestamps. Comparing these values identifies the oldest new or changed day for automatic compilation.
-
-A character-card change or removal of previously compiled Daily Memory evidence marks the mind as needing rebuild; the editor shows that state and pauses automatic day compilation. The current card still participates in appraisal, but CR019 does not attempt to reverse arbitrary old synthesis automatically. A new or edited Daily Memory day is safe to process incrementally and receives its new revision only after a successful document replacement.
-
-### Initial build and rebuild
-
-The editor exposes **Build mind** when no document exists and **Rebuild mind** afterward. Build/rebuild starts with one card-only compilation call, then processes existing Daily Memory days through the same page-upsert path, showing progress. Rebuild constructs a complete candidate document separately and replaces the old document only after success.
-
-Routine automatic consolidation processes at most one newly changed completed day before a reply. Additional backlog waits for later replies so the feature cannot hold a chat request indefinitely.
-
-## Retrieval
-
-The current retrieval query is the existing eligible last six Conversation messages, matching the Daily Memories default rather than adding another setting.
-
-Marinara embeds that query and ranks pages solely by cosine similarity to their stored embeddings. It selects the five highest-scoring pages at or above the existing Memory Recall cosine threshold of `0.25`, then follows their links in query-score order until reaching a hard maximum of eight pages.
-
-There is no confidence, importance, recency, or hand-written psychological weighting in the first release. Those mechanisms should be added only if observed retrieval failures justify them.
-
-If embeddings are unavailable, Marinara falls back to case-insensitive title matching against the current context. If no page matches, appraisal is skipped.
-
-## Appraisal
-
-The appraisal call receives:
-
-- the character card;
-- the selected mind pages;
-- the same recent Conversation messages used for retrieval.
-
-It returns one field:
-
-```ts
-type CharacterMindAppraisal = {
-  appraisal: string;
-};
-```
-
-The prompt asks for one concise internal account of how the current situation lands for the character, including relevant interpretation, emotion, tension, or impulse only when supported by the supplied pages and current context.
-
-The appraisal is injected into normal Conversation generation in a clearly delimited character-specific block. It is never stored, never supplied to compilation, and never treated as an event. It must not contain final dialogue or claim that an action occurred.
-
-Compilation, retrieval, or appraisal failure omits the mind contribution and allows the ordinary reply to continue.
-
-## Minimal UI
-
-Conversation Agents settings provide:
-
-- agent enablement;
-- one connection selector;
-- an entry point to **Character Mind**.
-
-The Character Mind modal provides:
-
-- build/rebuild and clear actions;
-- a list of pages showing title, editable content, linked page titles, and source references;
-- save and delete for individual pages;
-- build/rebuild progress and ordinary loading, empty, and error states.
-
-There is no graph view, automatic reorganization control, appraisal preview, ranking configuration, page-type selector, confidence control, or strength control.
-
-Manual pages use an empty `sources` array. Routine compilation may update them only when they are returned as relevant context and the new source material genuinely changes them.
-
-Deleting a page removes its key from every remaining page's `linkKeys`. Renaming a title does not change its stable key.
-
-## End-to-End Processing Trace
-
-1. Daily Memory day `D` has a revision not present in `dailyMemoryRevisions`.
-2. Marinara sends day `D`, the card, the page index, and semantically relevant existing pages to the compiler.
-3. The compiler returns zero or more keyed page upserts.
-4. Marinara validates the complete result, applies it to a copy, refreshes changed embeddings, stores the document, and records the revision for `D`.
-5. On a later reply, the last six messages retrieve five pages by embedding and up to three linked pages.
-6. The appraisal model converts only that current context, card, and selected page set into one transient appraisal paragraph.
-7. Normal Conversation generation receives the appraisal. Nothing from steps 6 or 7 is written back to the mind.
+- Every write uses temporary-file plus atomic-rename semantics.
+- A tool failure is returned to the agent, which may retry within the bounded operation loop.
+- An invalid path, non-Markdown target, oversized write, or raw-source mutation is rejected before filesystem mutation.
+- Successful file operations remain durable if a later step fails; Sync or lint repairs partial maintenance. CR019 does not add transactional filesystem snapshots.
+- A missing connection or invalid model result fails only the requested mind operation.
+- Clearing a mind removes exactly its validated mind root after confirmation. Recovery then requires a Marinara backup or a new Build.
+- Chat deletion removes that chat's mind directories. Character deletion removes matching character directories after ownership validation.
 
 ## Relationship to Existing Features
 
-- Daily Memories remain episodic evidence and are never modified.
-- The character card remains authored identity and is never modified.
-- Daily Intentions remain current prospective plans and are not changed by CR019.
-- Summaries, Memory Recall, and cross-chat awareness remain independent prompt sources.
-- Removing or disabling the agent preserves the mind document; explicit clear or chat deletion removes it.
+- Daily Memories remain the existing authored/formed records. CR019 snapshots but does not modify them.
+- Character cards remain authored records. CR019 snapshots but does not modify them.
+- Daily Intentions, summaries, Memory Recall, lorebooks, cross-chat awareness, and existing generation agents are neither read nor changed in the first iteration.
+- The built-in Character Mind agent has its own enablement and connection setting.
+- No code in the response-generation path consumes Character Mind query results in CR019.
 
 ## Risks
 
-- Page prose may manufacture certainty or misattribute another participant's statement.
-- Rewriting a page may lose nuance even though provenance remains.
-- Untyped links may be less precise than a future domain grammar.
-- The additional appraisal call increases latency and model cost.
-- Daily Memories may omit tone, attribution, or uncertainty needed for a sound synthesis.
-- A 30-page cap may eventually be too small or too large.
-
-These are accepted first-release tradeoffs. The page model should be expanded only in response to demonstrated failures--for example, adding atomic claims only if page rewriting loses important contradictions, or typed links only if untyped traversal retrieves the wrong context.
+- Daily Memories may omit the exact details needed for vivid query answers.
+- LLM file edits may under-update related pages or create duplicates; lint is the recovery mechanism prescribed by the framework.
+- A user-edited schema may produce incompatible conventions or poorer maintenance.
+- Repeated queries will grow `log.md`, although entries are deliberately compact.
+- External Obsidian edits can race with agent writes; the per-mind operation lock protects Marinara operations but cannot lock another desktop application.
+- Build and lint may require several tool/model rounds and therefore incur noticeable cost.
+- Provider models vary in tool-calling and multi-file editing reliability.
 
 ## Validation
 
-- Verify one mind per Conversation and character, including isolation between chats using the same card.
-- Verify schema normalization and all page, link, source, and document bounds.
-- Verify keyed page creation, existing-page replacement, source union, link validation, and atomic rejection of an invalid batch.
-- Verify a low-value day may return no upserts.
-- Verify per-day revisions identify new and edited Daily Memory days, while card changes and removed evidence mark the mind for rebuild.
-- Verify build/rebuild uses the same day compilation path and failed rebuild preserves the old document.
-- Verify retrieval selects semantic matches, follows only bounded links, and falls back to title matching without embeddings.
-- Verify appraisal is transient, delimited, excluded from future compilation, and cannot block ordinary generation.
-- Verify manual page editing/deletion, clear, agent removal preservation, and chat-deletion cascade.
-- Run `pnpm db:push` and `pnpm check` once for the substantive schema and cross-cutting change.
-- After implementation, agree with the user whether to add focused CR019 Playwright E2E validation.
+- Verify isolation between minds sharing a character or Conversation.
+- Verify raw snapshots are revisioned, immutable, exact, and never writable through agent tools.
+- Verify Build ingests the card and Daily Memory sources in the defined order and can resume after failure.
+- Verify automatic Daily Memory Sync detects new and edited days without depending on message generation.
+- Verify ingest updates multiple Markdown pages, `index.md`, citations, links, and `log.md` through bounded tools.
+- Verify query begins with the index, follows wiki links and raw citations, and returns a detailed briefing plus only actually read files.
+- Verify lint detects and repairs broken links, orphans, duplicates, stale synthesis, and missing citations without changing raw sources or schema.
+- Verify the seven-ingest lint trigger and manual lint use the same operation.
+- Verify path containment, extension restrictions, symlink rejection, size limits, atomic writes, and per-mind writer locking.
+- Verify backup/restore and chat/character deletion include the new directory.
+- Verify Markdown rendering and `[[wikilinks]]` work in Marinara and Obsidian-compatible files remain ordinary Markdown.
+- Verify schema editing changes later agent behavior without silently rewriting the wiki.
+- Verify no Character Mind output is added to any response-generation prompt.
+- Run focused server/client tests and `pnpm check` once after implementation.
+- After implementation, agree whether focused CR019 Playwright E2E validation is worthwhile for the browser and operation flows.
