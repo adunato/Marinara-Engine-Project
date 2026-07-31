@@ -54,4 +54,5 @@ The modal states that this choice applies to every Character Mind and to ingest,
 - Changed client files passed ESLint and client TypeScript validation; server/shared TypeScript validation passed.
 - The broad `pnpm check` exceeded the command window while running the full client lint, after the focused checks had passed. It was not repeated.
 - The integrated primary-checkout production build passed.
+- Follow-up `eb05263b4` adds Character Mind to Conversation mode's explicit agent allowlist so the Chat Settings picker and management card can render. The Conversation agent-policy regression and integrated production build passed.
 - Focused Playwright UI validation remains optional follow-up evidence.

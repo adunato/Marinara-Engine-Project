@@ -33,6 +33,8 @@
 
 The focused regression, changed-file ESLint, client/server/shared TypeScript checks, and primary-checkout build passed. `pnpm check` exceeded the command window during its full client lint phase and was not repeated.
 
+Follow-up visibility fix `eb05263b4` corrected the Conversation agent allowlist and updated its regression assertion. The focused regression and primary-checkout production build passed.
+
 ## Rollback
 
 Revert the CR020 application commit. CR019's Markdown files and API behavior remain compatible and are not migrated.
