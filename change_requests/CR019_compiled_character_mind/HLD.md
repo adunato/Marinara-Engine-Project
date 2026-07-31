@@ -1,6 +1,6 @@
 # CR019: Compiled Character Mind
 
-Status: Proposed
+Status: Implemented
 
 ## Problem
 

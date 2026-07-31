@@ -1,6 +1,10 @@
 # CR019 Implementation Plan
 
-Status: Proposed
+Status: Implemented
+
+Implementation commit: `4dd9b0cdf`
+
+Validation: focused Character Mind regression passed; shared/server TypeScript validation passed; primary-checkout production build passed. The first repository-wide `pnpm check` attempt exceeded its command time budget after the focused regression and was not repeated.
 
 ## Prerequisites
 
