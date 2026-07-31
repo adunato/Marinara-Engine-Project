@@ -4,244 +4,261 @@ Status: Proposed
 
 ## Problem
 
-Conversation characters currently receive authored character-card context, summaries, recent messages, Memory Recall, Daily Memories, and optional Daily Intentions. These sources help the model reconstruct a character's state, but Marinara does not preserve the character's evolving subjective interpretation of their life.
+Conversation characters receive a character card, summaries, recent messages, recalled transcript fragments, Daily Memories, and optional Daily Intentions. The response model must still reconstruct the character's current subjective understanding from those sources on every reply.
 
-Daily Intentions derives current first-person plans as free text. Extending that feature into longer-lived prose would still leave the model reconstructing and rewriting an undifferentiated summary. It would not provide independently addressable beliefs, emotional associations, relationship attitudes, evidence, or explicit change over time.
+CR019 tests a narrower idea: compile the character's accumulated understanding into a small, maintained set of linked pages, then retrieve the relevant pages before each reply. It deliberately does not attempt to define a complete psychology or pre-classify beliefs, feelings, relationships, motives, and other mental phenomena.
 
-CR019 adds a small Marinara-native compiled mind. It treats the character card and Daily Memories as source material, incrementally maintains structured concepts and mental associations, activates the relevant subset for the current situation, and performs one transient appraisal before the normal reply is written.
+## Outcome
 
-## Goals
+When the feature works, a significant Daily Memory updates one or more persistent subject pages. A later analogous situation retrieves those pages and uses them to form a short current appraisal before the ordinary response is written.
 
-- Give a single Conversation character an inspectable, persistent subjective model derived from their character card and saved Daily Memories.
-- Keep immutable source evidence separate from the compiled model.
-- Represent the mind as small concepts plus independently updateable mental associations rather than regenerated prose sections.
-- Preserve provenance from each association to the character card or supporting and contradicting Daily Memories.
-- Update associations through explicit create, reinforce, weaken, revise, and supersede operations.
-- Preserve compatible and conflicting attitudes without forcing every contradiction into one resolved statement.
-- Activate only associations relevant to the current Conversation situation.
-- Produce a transient current appraisal that informs, but does not write, the character's reply.
-- Reuse Marinara's file-native storage, agent connections, embeddings, Daily Memory lifecycle, prompt assembly, and Conversation settings patterns.
-- Keep the first implementation understandable and usable inside Marinara rather than building a generic memory platform.
+The user can inspect the compiled pages and see which character-card fields or Daily Memories contributed to them.
+
+## Scope
+
+- Opt-in managed agent.
+- Conversation mode only.
+- Exactly one character in the Conversation.
+- One mind per Conversation and character, so alternate chats and timelines remain isolated.
+- Character card and persisted Daily Memories are the only compilation sources in the first release.
+- One configured model connection is used for both compilation and appraisal.
+
+The feature may read existing Daily Memories even when the Daily Conversation Memories agent is no longer active. It can only receive new experience automatically when new Daily Memories are formed.
 
 ## Non-Goals
 
-- A general-purpose ontology, knowledge-graph engine, graph database, or reusable enterprise agent-memory service.
-- Literal Markdown or Obsidian storage. The source/compiled/schema lifecycle is useful; the file format is not required.
-- Multi-character Conversations, Roleplay, Game Mode, shared character-card minds, or cross-chat mind merging.
-- Automatically changing the authored character card.
-- Replacing Daily Memories, automatic summaries, Memory Recall, Daily Intentions, or recent transcript context.
-- Treating a current appraisal, generated reply, or previous model synthesis as new evidence.
-- A clinical, scientifically complete, or diagnostically meaningful model of human psychology.
-- User-defined concept types, association kinds, inference rules, or schema scripting in the first release.
-- Autonomous external research, tools, or world-state mutation.
+- A graph database, ontology, generic memory framework, or enterprise knowledge service.
+- Fixed psychological categories or numeric models of belief, confidence, emotion, salience, or personality.
+- Multi-character, Roleplay, Game, cross-chat, or globally shared character minds.
+- Replacing or modifying the character card, Daily Memories, summaries, Memory Recall, or Daily Intentions.
+- Scheduled background workers, autonomous research, graph visualization, schema editors, or user-authored inference rules.
+- Automatically treating an appraisal or generated reply as durable evidence.
 
-## Product Scope
+## Structural Pattern
 
-Compiled Character Mind is an opt-in managed agent for Conversation chats containing exactly one character. The persisted model belongs to the tuple of Conversation and character, not to the reusable character card globally. This prevents alternate chats, personas, and timelines from contaminating one another.
+CR019 uses the useful part of the LLM-wiki pattern:
 
-The agent can use already persisted Daily Memories even if the Daily Conversation Memories agent is later disabled. It can only learn automatically from new days when Daily Memories continue to be formed.
+1. **Sources:** immutable character-card fields and Daily Memories.
+2. **Compiled artifact:** a bounded set of linked mind pages.
+3. **Schema:** the single page shape and the compilation/appraisal prompts.
+4. **Ingest:** update affected pages when a new Daily Memory day is available.
+5. **Query:** retrieve relevant pages for the current Conversation context.
 
-When the chat becomes ineligible, Marinara preserves the compiled model but stops consolidation, appraisal, and prompt injection until the Conversation again contains exactly one character.
+There is no separate lint or reorganization subsystem in the first release. Rebuild is the recovery mechanism if the compiled artifact drifts or becomes cluttered.
 
-## Structural Model
+## Complete Data Schema
 
-CR019 follows a compact version of the source/compiled/schema lifecycle:
+The semantic model has one primitive: `MindPage`.
 
-1. **Sources** are the immutable authored character card and saved Daily Memories.
-2. **Compiled mind** is the persisted set of concepts and mental associations.
-3. **Schema** is a fixed application-owned grammar and the prompts and validation rules that maintain it.
-4. **Ingest** is daily consolidation after new Daily Memory days become available.
-5. **Query** is activation plus transient appraisal before a reply.
-6. **Lint** is bounded reorganization that merges duplication, repairs links, identifies stale or unsupported associations, and preserves unresolved conflicts.
+```ts
+type MindSourceRef =
+  | { type: "character_card"; field: string }
+  | { type: "daily_memory"; id: string };
 
-Marinara stores this model as one bounded structured document per Conversation and character in its existing file-native database. It may expose a wiki-like concept browser, but it does not introduce a filesystem wiki, normalized graph schema, or another database.
+type MindPage = {
+  key: string;
+  title: string;
+  content: string;
+  linkKeys: string[];
+  sources: MindSourceRef[];
+  embedding: number[] | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
-## Fixed Grammar
+type CharacterMindDocument = {
+  version: 1;
+  characterId: string;
+  characterCardRevision: string;
+  dailyMemoryRevisions: Record<string, string>; // date -> deterministic revision
+  pages: MindPage[];
+};
+```
 
-### Concepts
+The file-native `character_minds` table contains one row per Conversation and character:
 
-A concept is an addressable subject in the character's mind. The first release supports a small fixed set:
+```ts
+type CharacterMindRow = {
+  id: string;
+  chatId: string;
+  characterId: string;
+  document: string; // JSON-serialized CharacterMindDocument
+  createdAt: string;
+  updatedAt: string;
+};
+```
 
-- `self`
-- `person`
-- `relationship`
-- `life_area`
-- `situation`
-- `theme`
+`chatId + characterId` is unique. Chat deletion cascades to the row.
 
-Each concept has a stable identifier, type, short title, optional concise orientation text, and created/updated timestamps. Conversation and character ownership come from the containing mind document.
+### Page meaning
 
-Concept creation should remain conservative. A new proper noun or passing topic does not automatically deserve its own concept. The consolidation prompt should create concepts only when the subject is likely to matter again.
+A page represents one reusable subject that may affect future interpretation: a person, relationship, part of the character's life, recurring concern, self-understanding, or any other subject that proves useful. These are examples, not schema categories.
 
-### Mental Associations
+`key` is a stable, validated slug used for identity and linking. `title` names the subject. `content` is a concise current synthesis of what that subject means to this character. It may include facts, feelings, expectations, uncertainty, or contradiction in ordinary language. `linkKeys` connect subjects that are useful to consider together. Link semantics remain in the page content rather than a fixed relationship vocabulary.
 
-An association is one independently addressable piece of subjective state attached to a source concept and optionally related to another concept. Supported kinds are:
+`sources` records provenance. It does not imply that every sentence can be mechanically attributed to one source; it identifies the material used to maintain the page. When a union would exceed the source limit, Marinara retains every character-card reference and the most recently updated Daily Memory references.
 
-- `belief`
-- `expectation`
-- `feeling`
-- `relationship_stance`
-- `self_view`
-- `value`
-- `motivation`
-- `concern`
+Pages are deliberately small and bounded. Initial hard limits will be centralized constants rather than user settings:
 
-Each association in the containing mind document stores:
+- at most 30 pages per mind;
+- at most 1,500 characters of content per page;
+- at most 10 links and 50 source references per page.
 
-- stable identifier and owning concept;
-- optional related concept;
-- kind and concise natural-language content;
-- strength from 1 through 5;
-- confidence from 1 through 5;
-- active or superseded state;
-- source references to character-card fields and Daily Memory IDs;
-- supporting and contradicting evidence references where applicable;
-- first-formed and last-updated timestamps;
-- optional embedding for activation.
+These limits exist only to bound storage, compilation context, and response context. They can be recalibrated after observing real minds.
 
-Strength represents how psychologically influential the association is. Confidence represents how certain the character is of belief-like content. Feelings and values may use confidence as stability or settledness rather than factual certainty; the prompt and UI must describe this distinction plainly.
+## Page Creation Rule
 
-Opposing associations may remain active simultaneously. Ambivalence is represented by multiple evidence-grounded associations and optional `conflicts_with` links, not by forcing a single blended conclusion.
+Create a page only when all of the following are true:
 
-## Consolidation
+1. The subject is likely to matter in future conversations.
+2. The character has developed a subjective understanding or association worth preserving.
+3. The information cannot be left solely as an episodic Daily Memory without requiring future reconstruction.
 
-Consolidation runs after one or more newly formed Daily Memory days are available and before normal Conversation generation. It is bounded so a backlog cannot indefinitely delay a reply.
+Routine events, isolated facts, and passing topics remain Daily Memories. A compilation run may validly change nothing.
 
-The consolidation model receives:
+## Compilation
 
-- relevant character-card fields as authored priors;
-- the new Daily Memories with IDs, dates, importance, and exact stored text;
-- the concepts and associations most relevant to those memories;
-- a compact index of the remaining active concepts so it can reuse existing identities.
+Compilation processes one completed Daily Memory day at a time. It receives:
 
-It returns structured proposed operations rather than a rewritten complete mind:
+- the authored character card;
+- every Daily Memory from that day, including ID, date, importance, and exact text;
+- an index of existing page keys and titles;
+- the eight existing pages with the highest semantic similarity to that day's memories at or above cosine similarity `0.25`.
 
-- create a concept or association;
-- reinforce an association with new supporting evidence;
-- weaken an association with contradicting evidence;
-- revise wording without losing identity or evidence;
-- supersede an association with a replacement;
-- link or unlink related or conflicting concepts/associations.
+The model returns only page upserts:
 
-The server validates operation types, identifiers, bounds, ownership, source references, and per-run limits before applying them to an in-memory copy and atomically replacing the stored document. Reinforcement and weakening use bounded application-controlled changes; the LLM does not freely assign arbitrary accumulated strength after every day.
+```ts
+type MindPageUpsert = {
+  key: string; // creates when absent; updates when present
+  title: string;
+  content: string;
+  linkKeys: string[];
+  sourceMemoryIds: string[];
+  sourceCardFields: string[];
+};
 
-An update may validly make no durable change. Low-value routine memories should not create model churn.
+type MindCompilationResult = {
+  upserts: MindPageUpsert[];
+};
+```
 
-The last successfully processed Daily Memory day is recorded. Failed consolidation leaves the existing model and cursor unchanged so the day can be retried.
+The server validates that:
 
-## Reorganization
+- keys use the application slug format and are unique within the mind;
+- link keys exist or are created in the same batch;
+- an existing page can be updated only when its complete prior content was supplied to the compiler;
+- Daily Memory IDs and card fields came from the supplied source set;
+- titles are unique case-insensitively;
+- page and document limits are respected.
 
-Daily consolidation may perform small local cleanup around affected concepts. A separate user-triggered **Reorganize** action performs a broader maintenance pass that can:
+For an existing page, the upsert replaces `title`, `content`, and `linkKeys`; source references are unioned with existing references. Changed pages receive fresh embeddings. The server applies the complete batch to an in-memory copy and replaces the stored document only when the entire result is valid.
 
-- merge duplicate concepts or associations;
-- repair missing links;
-- identify unsupported or stale associations;
-- supersede obsolete wording;
-- preserve unresolved contradictions;
-- recommend removal of low-value inactive material.
+The compiler receives the remaining page capacity. At the 30-page limit it may update supplied pages but cannot create another page. An attempted over-limit creation rejects the batch rather than silently deleting existing state.
 
-Reorganization remains a bounded LLM-assisted maintenance operation, not an always-running scheduler. It cannot modify source Daily Memories or the character card.
+There are no reinforce, weaken, supersede, confidence, or strength operations. If new evidence changes the character's understanding, the model rewrites the affected page while retaining its stable key and accumulated provenance. Conflicting attitudes are written plainly in the same page or separated into linked pages when they concern independently reusable subjects.
 
-## Activation and Appraisal
+`characterCardRevision` is a deterministic hash of the supplied card fields. `dailyMemoryRevisions` stores one deterministic revision per completed day using the ordered Daily Memory IDs and update timestamps. Comparing these values identifies the oldest new or changed day for automatic compilation.
 
-For each eligible reply while the agent is active:
+A character-card change or removal of previously compiled Daily Memory evidence marks the mind as needing rebuild; the editor shows that state and pauses automatic day compilation. The current card still participates in appraisal, but CR019 does not attempt to reverse arbitrary old synthesis automatically. A new or edited Daily Memory day is safe to process incrementally and receives its new revision only after a successful document replacement.
 
-1. Marinara builds a query from the current eligible Conversation messages.
-2. It seeds activation through semantic similarity and direct concept references.
-3. It selects a bounded set of active associations using relevance, strength, confidence, Daily Memory importance where available, and recency.
-4. It may include directly linked concepts or conflicting associations in one limited expansion so context includes meaningful tensions rather than only the highest-scoring isolated statement.
-5. A dedicated appraisal call receives the character card, current situation, and activated model subset.
+### Initial build and rebuild
 
-The appraisal call returns a compact structured internal result covering:
+The editor exposes **Build mind** when no document exists and **Rebuild mind** afterward. Build/rebuild starts with one card-only compilation call, then processes existing Daily Memory days through the same page-upsert path, showing progress. Rebuild constructs a complete candidate document separately and replaces the old document only after success.
 
-- interpretation of the current situation;
-- active feelings;
-- relevant expectations or sensitivities;
-- impulses and restraints;
-- unresolved tension when present.
+Routine automatic consolidation processes at most one newly changed completed day before a reply. Additional backlog waits for later replies so the feature cannot hold a chat request indefinitely.
 
-The appraisal must not write dialogue, assert that intended actions occurred, or alter persistent state. Marinara injects it into the normal Conversation prompt as a clearly delimited character-specific section and then performs the ordinary response generation.
+## Retrieval
 
-Activation may return no associations, and appraisal may validly be omitted. Any retrieval or appraisal failure is fail-open and must not block the reply.
+The current retrieval query is the existing eligible last six Conversation messages, matching the Daily Memories default rather than adding another setting.
+
+Marinara embeds that query and ranks pages solely by cosine similarity to their stored embeddings. It selects the five highest-scoring pages at or above the existing Memory Recall cosine threshold of `0.25`, then follows their links in query-score order until reaching a hard maximum of eight pages.
+
+There is no confidence, importance, recency, or hand-written psychological weighting in the first release. Those mechanisms should be added only if observed retrieval failures justify them.
+
+If embeddings are unavailable, Marinara falls back to case-insensitive title matching against the current context. If no page matches, appraisal is skipped.
+
+## Appraisal
+
+The appraisal call receives:
+
+- the character card;
+- the selected mind pages;
+- the same recent Conversation messages used for retrieval.
+
+It returns one field:
+
+```ts
+type CharacterMindAppraisal = {
+  appraisal: string;
+};
+```
+
+The prompt asks for one concise internal account of how the current situation lands for the character, including relevant interpretation, emotion, tension, or impulse only when supported by the supplied pages and current context.
+
+The appraisal is injected into normal Conversation generation in a clearly delimited character-specific block. It is never stored, never supplied to compilation, and never treated as an event. It must not contain final dialogue or claim that an action occurred.
+
+Compilation, retrieval, or appraisal failure omits the mind contribution and allows the ordinary reply to continue.
+
+## Minimal UI
+
+Conversation Agents settings provide:
+
+- agent enablement;
+- one connection selector;
+- an entry point to **Character Mind**.
+
+The Character Mind modal provides:
+
+- build/rebuild and clear actions;
+- a list of pages showing title, editable content, linked page titles, and source references;
+- save and delete for individual pages;
+- build/rebuild progress and ordinary loading, empty, and error states.
+
+There is no graph view, automatic reorganization control, appraisal preview, ranking configuration, page-type selector, confidence control, or strength control.
+
+Manual pages use an empty `sources` array. Routine compilation may update them only when they are returned as relevant context and the new source material genuinely changes them.
+
+Deleting a page removes its key from every remaining page's `linkKeys`. Renaming a title does not change its stable key.
+
+## End-to-End Processing Trace
+
+1. Daily Memory day `D` has a revision not present in `dailyMemoryRevisions`.
+2. Marinara sends day `D`, the card, the page index, and semantically relevant existing pages to the compiler.
+3. The compiler returns zero or more keyed page upserts.
+4. Marinara validates the complete result, applies it to a copy, refreshes changed embeddings, stores the document, and records the revision for `D`.
+5. On a later reply, the last six messages retrieve five pages by embedding and up to three linked pages.
+6. The appraisal model converts only that current context, card, and selected page set into one transient appraisal paragraph.
+7. Normal Conversation generation receives the appraisal. Nothing from steps 6 or 7 is written back to the mind.
 
 ## Relationship to Existing Features
 
-- **Daily Memories** remain the primary event evidence and are never rewritten by CR019.
-- **Character cards** remain authored identity and behavioural authority. Compiled associations cannot silently edit them.
-- **Daily Intentions** remain current prospective intentions. CR019 does not rewrite or schedule Daily Intentions in the first release.
-- **Automatic summaries** remain chronological compression rather than subjective state.
-- **Memory Recall** continues to retrieve past transcript fragments independently.
-- **Cross-chat awareness** does not merge or mutate the Conversation-scoped mind.
-
-Prompt sections must identify these sources distinctly so the response model cannot mistake an appraisal for an event, a belief for an objective fact, or an intention for a completed action.
-
-## Configuration and UI
-
-The first release keeps configuration deliberately small:
-
-- enable or disable the managed agent through existing Conversation Agents controls;
-- select one model connection used for consolidation, reorganization, and appraisal;
-- inspect the current compiled mind;
-- manually edit or remove concepts and associations;
-- view strength, confidence, status, and source-memory references;
-- generate missing initial state from existing sources;
-- rebuild the entire compiled mind from the current character card and all saved Daily Memories after explicit confirmation;
-- run Reorganize manually;
-- preview the currently activated subset and appraisal for the Conversation context.
-
-There is no visual graph editor, ontology designer, rule builder, or large set of ranking controls. A searchable concept list with association cards is sufficient.
-
-Manual edits update compiled state but do not fabricate source evidence. The UI marks user-authored edits explicitly and allows them to exist without Daily Memory provenance.
-
-## Persistence
-
-Use one dedicated file-native `character_minds` row per eligible Conversation and character. The row stores:
-
-- the bounded JSON mind document containing concepts, associations, links, evidence references, and optional stored embeddings;
-- the Daily Memory source cursor or compact source fingerprint used to find changed evidence;
-- created, updated, and last-consolidated timestamps.
-
-The collection is intentionally small enough for direct in-process filtering and scoring. CR019 does not add a graph database, join tables, a general query language, background workers, or a separately deployed service.
-
-The table participates in normal chat and character cascade behavior. Deleting a Conversation deletes its compiled mind. Removing the agent preserves the model unless the user explicitly chooses to clear it, matching the preservation behaviour of Daily Intentions.
-
-## Failure Behaviour
-
-- Missing or invalid model connections skip consolidation or appraisal without blocking chat.
-- Invalid structured output applies no partial state mutation.
-- A failed daily consolidation does not advance its cursor.
-- A failed rebuild preserves the previous complete model.
-- A failed appraisal omits only the appraisal block.
-- Missing embeddings fall back to a bounded textual/direct-concept path where practical; they do not trigger a separate infrastructure requirement.
-- Concurrent consolidation, rebuild, edit, and reorganization operations for one mind are serialized or rejected clearly.
-- Removing source Daily Memories does not silently erase associations during reply generation; the next consolidation, rebuild, or reorganization identifies unsupported references.
+- Daily Memories remain episodic evidence and are never modified.
+- The character card remains authored identity and is never modified.
+- Daily Intentions remain current prospective plans and are not changed by CR019.
+- Summaries, Memory Recall, and cross-chat awareness remain independent prompt sources.
+- Removing or disabling the agent preserves the mind document; explicit clear or chat deletion removes it.
 
 ## Risks
 
-- LLM interpretation may manufacture certainty or attribute another participant's statement to the character.
-- Repeated consolidation may reinforce an early mistaken interpretation.
-- The additional appraisal call increases response latency and model cost.
-- Too many weak concepts or associations may create noisy activation and prompt bloat.
-- Too aggressive supersession may flatten ambivalence; too little cleanup may leave contradictory clutter.
-- Daily Memories may omit tone, uncertainty, speaker attribution, or exact wording needed for a sound psychological update.
-- Editing and rebuild operations may surprise users if source provenance and destructive replacement are not clear.
+- Page prose may manufacture certainty or misattribute another participant's statement.
+- Rewriting a page may lose nuance even though provenance remains.
+- Untyped links may be less precise than a future domain grammar.
+- The additional appraisal call increases latency and model cost.
+- Daily Memories may omit tone, attribution, or uncertainty needed for a sound synthesis.
+- A 30-page cap may eventually be too small or too large.
 
-Mitigations are fixed ownership and attribution rules, source references, bounded operations, explicit confidence, preserved contradictions, inspectable state, transactional updates, and fail-open runtime behaviour.
-
-The stored document has application-defined size and item-count limits. When it approaches those bounds, consolidation must revise, merge, supersede, or decline low-value additions rather than expanding without limit.
+These are accepted first-release tradeoffs. The page model should be expanded only in response to demonstrated failures--for example, adding atomic claims only if page rewriting loses important contradictions, or typed links only if untyped traversal retrieves the wrong context.
 
 ## Validation
 
-- Verify single-character Conversation eligibility and isolation between Conversations using the same character card.
-- Verify card-derived priors are distinguishable from Daily Memory evidence and never alter the card.
-- Verify create, reinforce, weaken, revise, supersede, related-link, and conflict-link operations with bounded deterministic state changes.
-- Verify invalid IDs, cross-chat references, invalid strengths/confidence, unknown operation kinds, and malformed structured output produce no partial mutation.
-- Verify supporting and contradicting evidence remain traceable to existing Daily Memory IDs.
-- Verify opposing associations can coexist and both activate for an appropriate situation.
-- Verify activation uses current context and returns a bounded relevant subset with directly related conflicts.
-- Verify appraisal is transient, character-specific, clearly delimited, and excluded from consolidation input.
-- Verify appraisal and consolidation failures do not block ordinary replies or destroy prior state.
-- Verify initial build, manual edit/delete, rebuild confirmation, failed rebuild preservation, Reorganize, clear, and preview behaviour.
-- Verify deleting a chat cascades its compiled mind and disabling/removing the agent preserves it.
-- Run `pnpm db:push` for the new schema and `pnpm check` once for the substantive cross-cutting change.
-- After implementation is complete, agree with the user whether to add focused CR019 Playwright E2E validation.
+- Verify one mind per Conversation and character, including isolation between chats using the same card.
+- Verify schema normalization and all page, link, source, and document bounds.
+- Verify keyed page creation, existing-page replacement, source union, link validation, and atomic rejection of an invalid batch.
+- Verify a low-value day may return no upserts.
+- Verify per-day revisions identify new and edited Daily Memory days, while card changes and removed evidence mark the mind for rebuild.
+- Verify build/rebuild uses the same day compilation path and failed rebuild preserves the old document.
+- Verify retrieval selects semantic matches, follows only bounded links, and falls back to title matching without embeddings.
+- Verify appraisal is transient, delimited, excluded from future compilation, and cannot block ordinary generation.
+- Verify manual page editing/deletion, clear, agent removal preservation, and chat-deletion cascade.
+- Run `pnpm db:push` and `pnpm check` once for the substantive schema and cross-cutting change.
+- After implementation, agree with the user whether to add focused CR019 Playwright E2E validation.
