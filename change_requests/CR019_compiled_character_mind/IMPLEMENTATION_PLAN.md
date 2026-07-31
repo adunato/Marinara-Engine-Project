@@ -4,65 +4,66 @@ Status: Proposed
 
 ## Prerequisites
 
-- Obtain approval for the replacement `HLD.md` before application implementation.
-- Perform all application work on `change/CR019-compiled-character-mind` from a dedicated temporary nested-repository worktree.
-- Read `AGENTS.md`, `Marinara-Engine/CONTRIBUTING.md`, and `Marinara-Engine/packages/client/.instructions.md` before editing application or client code.
-- Confirm the current Daily Memory persistence/update hooks, built-in agent runtime, tool loop, `DATA_DIR` path guards, backup/restore code, Markdown renderer, and Game Assets file-browser patterns before implementation.
-- Keep response-generation integration outside CR019.
+- Obtain approval for the replacement HLD before application implementation.
+- Perform application work on `change/CR019-compiled-character-mind` from a dedicated temporary nested-repository worktree.
+- Read `AGENTS.md` and `Marinara-Engine/CONTRIBUTING.md` before application edits.
+- Confirm the current Daily Memory commit path, built-in agent manifest/runtime, multi-round tool loop, connection fallback, `DATA_DIR` security helpers, backup/restore, and deletion lifecycle.
+- Do not add custom Character Mind client UI or response-generation integration.
 
 ## Atomic Tasks
 
-1. Add the built-in Character Mind agent manifest, Conversation-mode eligibility, enablement, connection setting, and operation settings without registering it as a normal pre- or post-generation injection agent.
-2. Add shared contracts for mind status, operation progress, filesystem nodes, and the query result `{ briefing, wikiPages, rawSources }`.
-3. Implement the validated mind-root resolver for `DATA_DIR/character-minds/<chatId>/<characterId>` with ownership checks, containment enforcement, symlink rejection, Markdown-only access, and centralized file/operation limits.
-4. Add bundled default templates for `SCHEMA.md`, `index.md`, and `log.md`, using the approved Karpathy terminology and minimal page grammar.
-5. Implement immutable character-card snapshot creation with deterministic revisions, predecessor metadata, exact card content, and create-only writes.
-6. Implement immutable completed-day Daily Memory snapshot creation with deterministic revisions, exact IDs/date/importance/text, predecessor metadata, and create-only writes.
-7. Implement pending-source discovery by comparing current card/day revisions with immutable snapshots and successful ingest records in `log.md`.
-8. Implement restricted mind tools for list, search, read, wiki write, wiki rename/delete, and index replacement. Enforce the HLD permission matrix separately for ingest, query, and lint.
-9. Add a Character Mind operation runner over the existing multi-round agent executor, with one resolved mind, operation-specific prompt, tool context, cancellation, bounded rounds, operation trace, and per-mind writer lock.
-10. Implement ingest exactly as the schema-defined workflow: read schema/index/source, inspect relevant wiki material, make Markdown edits through tools, update the index, validate the final state, and append an actual-trace log entry.
-11. Implement Build by initializing the mind, snapshotting current inputs, and ingesting the card followed by Daily Memory days in chronological order. Make an interrupted build resumable through Sync.
-12. Implement Sync by snapshotting pending revisions and ingesting the oldest unprocessed source until the current requested run limit is reached, with progress reporting and explicit resume behavior.
-13. Trigger the same Sync service after a Daily Memory day is created, edited, or regenerated for existing minds in that Conversation. Keep failure non-destructive and visibly pending; do not hook this work to response generation.
-14. Implement query as a read-only operation that starts with `index.md`, can read wiki and raw Markdown, returns the validated detailed briefing and actual file references, and appends a compact query entry to `log.md`.
-15. Implement lint using the approved checks and write permissions, including safe page rename/removal, link and citation repair, index maintenance, an actual-trace log entry, and the automatic trigger after seven successful ingests.
-16. Add routes for status, Build, Sync, operation progress/cancel, file tree/read/search, schema save, query, lint, desktop open-folder, and confirmed clear.
-17. Add backup/restore coverage for `character-minds`, deletion cleanup for chat/character ownership, and user documentation describing the data directory and Obsidian access limitations on Docker and Android.
-18. Extend the shared Markdown renderer with safe `[[wikilink]]` recognition and navigation callbacks without changing ordinary chat Markdown behavior.
-19. Add the Character Mind browser with operation controls, progress/errors, file tree, rendered/raw Markdown views, clickable wikilinks, text search, schema editor, query preview with cited files, and explicit clear confirmation. Do not add an in-app graph or general wiki editor.
-20. Add focused tests for snapshots, pending revision discovery, operation permissions, path security, locks, ingest traces, query references, lint changes, backup/deletion, renderer behavior, and UI operations.
-21. Verify through focused tests and run `pnpm check` once. Run `pnpm db:push` only if implementation unexpectedly requires a database-schema change; the approved design does not require one.
-22. Confirm by inspection/test that no Character Mind result enters the response-generation path.
-23. After behavior is complete, ask whether to add focused CR019 Playwright E2E validation for Build/Sync, browsing, query, lint, and Obsidian-compatible link navigation.
-24. Commit the completed application branch, merge it into the requested local branch after validation, update the tracker, and remove the temporary worktree.
+1. Add the built-in Character Mind manifest and Conversation eligibility using the existing generic agent enablement/connection UI, but exclude it from pre-generation, parallel, and post-generation pipelines.
+2. Add shared API contracts exactly matching the HLD: status, Build, Sync, Query, Lint, Cancel, operation traces, and the three final result contracts.
+3. Add centralized constants for the approved 4 MiB raw-source bound plus the path, wiki-file, search, batch, chunked-read, tool-round, output-token, timeout, and request limits.
+4. Implement the mind-root resolver with chat/character ownership checks, normalized relative paths, containment enforcement, Markdown-only access, and symlink rejection.
+5. Add the exact bundled `SCHEMA.md`, `index.md`, and `log.md` contents from the HLD.
+6. Implement recursive stable JSON serialization and the character-card canonical payload containing complete `CharacterData` plus the per-chat About Me override.
+7. Implement the character-card raw Markdown renderer, 16-character SHA-256 revision, predecessor lookup, create-only atomic write, idempotency, and integrity parser/verifier.
+8. Implement ordered Daily Memory canonical payload generation excluding embeddings and the corresponding renderer, revision, predecessor, create-only write, idempotency, and integrity verification.
+9. Implement parseable `log.md` entry rendering/parsing for ingest/query/lint success and failure, including exact operation paths, revisions, trace-derived reads/writes, summaries, and compact query entries.
+10. Implement pending-source discovery solely from current canonical revisions, raw snapshots, and successful ingest log entries; do not add a mind database table or JSON state file.
+11. Implement the seven restricted batch tools with the exact HLD schemas and permission matrix: list, search, read, wiki write, index write, wiki move, and wiki delete.
+12. Implement deterministic post-tool validation for H1/source-section requirements, wikilink resolution, inbound-link checks before delete, raw revision integrity, and accurate operation tracing.
+13. Implement the Character Mind operation runner over the existing tool loop with the exact ingest/query/lint envelopes, prompt escaping, dedicated round/token/timeout limits, mandatory-read checks, result parsing, cancellation, and per-mind locking.
+14. Implement single-source ingest, including final Markdown validation and runtime-authored append-only log entries based on actual tool calls rather than model claims.
+15. Implement Build exactly as specified: fail when initialized, seed files, snapshot the current card and all formed Daily Memory days, then ingest card-first and days oldest-first with resumable partial success.
+16. Implement Sync with `{ maxSources }`, card/day snapshot discovery, log-based pending order, sequential ingest, first-failure stop, and remaining-source response.
+17. Add the best-effort `maxSources: 1` Sync trigger after successful Daily Memory create/edit/regenerate for enabled, initialized minds, without touching the response-generation path or failing Daily Memory persistence.
+18. Implement query with the exact 32 KiB request bound, read-only tools, mandatory schema/index reads, raw-integrity checks, actual-read reference validation, detailed briefing result, and compact runtime log entry.
+19. Implement deterministic lint prechecks, the lint tool run, safe link repair/rename/delete behavior, trace-derived log entries, and the automatic trigger after seven successful ingests since the last successful lint.
+20. Add only the six manual operation routes defined in the HLD. Reuse existing application access controls and do not add file read/write/browser/open-folder/clear routes.
+21. Register `character-minds` with backup/restore and add validated chat/character deletion cleanup.
+22. Document the directory layout, manual API operations, Obsidian usage, Docker bind-mount requirement, Android limitation, raw immutability, and the absence of a custom UI.
+23. Add focused shared/server tests for canonicalization, render/parse integrity, revisions, log parsing, pending discovery, tool permissions, paths/symlinks, operation prompts/limits, Build/Sync ordering, automatic Sync, query grounding, lint, locks/cancel, backup, and deletion.
+24. Confirm through code search and tests that there is no Character Mind client implementation, Markdown renderer change, general file API, database table/state file, embedding index, or response-generation hook.
+25. Run focused tests and `pnpm check` once. Run `pnpm db:push` only if implementation unexpectedly changes database schema; the approved design does not require it.
+26. After behavior is complete, ask whether focused API-level CR019 Playwright validation is worthwhile. There is no UI flow to validate.
+27. Commit the application branch, merge it into the requested local branch after validation, update the tracker, and remove the temporary worktree.
 
 ## Expected Areas
 
-- Shared built-in agent manifest and narrow Character Mind API contracts.
-- Server Character Mind filesystem, snapshot, operation-runner, and route modules.
-- Existing Daily Memory persistence hooks for independent Sync triggering.
+- Shared built-in agent manifest and API/result contracts.
+- Server Character Mind canonical-source, filesystem, tool, operation, log, and route modules.
+- Existing Daily Memory persistence hook for independent automatic Sync.
 - Existing backup/restore and chat/character deletion paths.
-- Existing Markdown renderer and a focused Character Mind browser/hook.
-- Data-storage and backup documentation.
-- Focused server, shared, and client tests.
+- Server/shared tests and user/developer documentation.
 
-The implementation must not add a `character_minds` database table, JSON page document, embedding index, graph database, or response-generation hook.
+No custom client component, hook, Markdown renderer change, mind database table, JSON state document, embedding service, graph dependency, or generation-route integration is expected.
 
 ## Verification
 
-- The mind is an ordinary directory of Markdown files and opens correctly in Obsidian.
-- Character card and Daily Memory revisions create new immutable raw files rather than overwriting old evidence.
-- Agent tools cannot mutate raw sources, schema, another mind, non-Markdown files, or paths outside the resolved root.
-- Ingest can touch multiple linked pages, updates the index, and records the actual operation in the append-only log.
-- Query reads the wiki first, follows relevant raw-source citations for specifics, and returns a detailed briefing with accurate file references.
-- Lint repairs the approved wiki problems without inventing evidence or changing raw sources.
-- Build and Sync resume safely after interruption, and Daily Memory changes become pending/processed independently of response generation.
-- The browser follows wikilinks, exposes raw evidence, edits only the schema, and does not require an internal graph.
-- Backup/restore and deletion lifecycle include the complete mind directory.
-- Existing Conversation generation behaves identically whether the Character Mind agent is enabled or disabled.
-- Focused tests and `pnpm check` pass once after implementation.
+- Raw Markdown generation is completely deterministic, exact, revisioned, immutable, idempotent, and integrity-checked.
+- The committed default schema, prompts, tool schemas, limits, APIs, and result contracts match the HLD verbatim.
+- Agent operations cannot access another mind or mutate raw sources, schema, or log.
+- Build/Sync derive state from Markdown and log entries and resume safely after partial failure or restart.
+- Ingest maintains real Markdown pages, wikilinks, source citations, index, and trace-grounded logs.
+- Query uses wiki structure to select relevant raw detail and returns a concrete briefing with verified references.
+- Lint performs the defined deterministic and model-assisted checks without inventing evidence.
+- Daily Memory automatic Sync and seven-ingest lint triggers use the same manually callable services.
+- Backup/restore/deletion lifecycle covers the mind directory.
+- Existing Conversation generation is unchanged and no Character Mind UI exists.
+- Focused tests and `pnpm check` pass once.
 
 ## Rollback
 
-Disable or remove the Character Mind agent registration, routes, Daily Memory Sync trigger, browser, renderer extension, and backup-directory registration. Leave existing `character-minds` directories intact unless the user explicitly clears them, so a later re-enable or corrected implementation can recover the Markdown wiki and immutable raw sources.
+Remove the built-in agent registration, operation routes, Daily Memory Sync trigger, server services, and backup/deletion registration. Leave existing `character-minds` directories intact unless the user explicitly removes them manually, preserving the Markdown wiki and immutable sources for recovery.
