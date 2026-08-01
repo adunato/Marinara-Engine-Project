@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Awaiting HLD approval before implementation.
+Approved and implemented on `change/CR030-staged-character-mind-editing` in application commit `a4e67dd88`. Awaiting merge and manual validation.
 
 ## Context
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Do not begin implementation until the HLD is approved.
+Implemented on `change/CR030-staged-character-mind-editing` in application commit `a4e67dd88`. The focused Character Mind regression and server TypeScript validation passed. The single broad `pnpm check` attempt reached its command limit during the client build and was not repeated.
 
 ## Prerequisites
 
