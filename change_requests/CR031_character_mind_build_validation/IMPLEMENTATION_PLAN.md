@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Implementation requires approval.
+Completed in application commit `b26dfbcdc` and merged into local application `main`.
 
 ## Prerequisites
 

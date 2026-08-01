@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. No implementation has started.
+Implemented in application commit `b26dfbcdc` and merged into local application `main`.
 
 ## Problem
 
