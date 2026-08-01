@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented on `change/CR030-staged-character-mind-editing` in application commit `a4e67dd88`. The focused Character Mind regression and server TypeScript validation passed. The single broad `pnpm check` attempt reached its command limit during the client build and was not repeated.
+Implemented in application commit `a4e67dd88` and fast-forwarded into local application `main`. The focused Character Mind regression, server TypeScript validation, and integrated primary-checkout production build passed. The earlier single broad `pnpm check` attempt reached its command limit during the client build and was not repeated.
 
 ## Prerequisites
 

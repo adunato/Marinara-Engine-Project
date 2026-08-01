@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved and implemented on `change/CR030-staged-character-mind-editing` in application commit `a4e67dd88`. Awaiting merge and manual validation.
+Implemented in application commit `a4e67dd88`, fast-forwarded into local application `main`, and built successfully in the primary checkout. Awaiting manual validation.
 
 ## Context
 
