@@ -2,7 +2,7 @@
 
 ## Status
 
-Deferred placeholder. Pick up after the current Character Mind work is complete. No application branch or implementation has been started.
+Completed and fast-forwarded into local application `main` in `7e6743925`.
 
 ## Problem
 
@@ -30,6 +30,15 @@ Add bounded, transparent retry handling at Marinara's shared LLM request boundar
 
 The retry count and delays should remain internal defaults for the initial implementation; this CR does not require new user-facing settings.
 
+## Implemented solution
+
+- Added a shared `LlmTransportRetryProvider` decorator around configured language providers and the local sidecar provider.
+- Kept retry outside the complete primary-plus-fallback request so connection fallback runs once per attempt without nested retry multiplication.
+- Added two retries with short exponential backoff, jitter, capped `Retry-After`, error/cause-chain classification, and immediate abort propagation.
+- Prevented replay after usable streamed output or response callbacks, while preserving the original messages and request options across safe attempts.
+- Retained HTTP status and retry timing metadata in provider errors for OpenAI-compatible, Anthropic, Google, and Vertex text requests.
+- Kept Phoenix tracing inside the retry decorator so each provider attempt receives its own trace span, while fallback activation is reported once per logical request.
+
 ## Non-goals
 
 - Restarting an entire Character Mind Build.
@@ -45,9 +54,7 @@ The retry count and delays should remain internal defaults for the initial imple
 
 ## Validation
 
-- Deterministic tests for retryable and non-retryable failures.
-- Verify messages and request options are identical across attempts.
-- Verify successful tool history owned by the caller remains intact.
-- Verify abort cancels both an in-flight request and backoff.
-- Verify exhaustion returns the final useful error with attempt context.
-- Run server TypeScript validation and focused provider/runtime regressions.
+- `pnpm regression:providers` passed, including the new deterministic transport retry regression and the existing provider/fallback compatibility suite.
+- `pnpm --filter @marinara-engine/server lint` passed (shared/server TypeScript validation).
+- The new regression verifies unchanged messages/options and completed tool history, transient/permanent classification, bounded exhaustion with the final cause, capped `Retry-After`, pre-flight/in-flight/backoff aborts, no replay after usable output, and one outer retry loop across connection fallback.
+- The single full `pnpm check` attempt reached its four-minute command limit during the client-side phase and was not repeated under the repository's proportional-validation rule.

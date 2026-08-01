@@ -1,12 +1,12 @@
 # Change Request Tracker
 
-Last updated: 2026-07-31
+Last updated: 2026-08-01
 
 ## Repository Branch Alignment
 
 - Intended invariant: Pasta-Devs `upstream/main` equals Adunato `origin/upstream-main` equals local `upstream-main`.
 - Pasta-Devs `upstream/main`, Adunato `origin/upstream-main`, and local `upstream-main` are aligned at `dc0b39282`; local `upstream-main` tracks the Adunato mirror.
-- Local `main` is built from current `upstream-main` plus 37 local development commits and is at `1188cbdd4`, eight commits ahead of Adunato `origin/main` at `a5169b9e0`.
+- Local `main` is built from current `upstream-main` plus 38 local development commits and is at `7e6743925`, nine commits ahead of Adunato `origin/main` at `a5169b9e0`.
 - The replaced Adunato tips are retained locally as annotated tags `archive/2026-07-30/remote/origin-upstream-main-before-alignment` and `archive/2026-07-30/remote/origin-main-before-alignment`.
 - Remote alignment completed on 2026-07-30. Archive tags were not pushed and stale remote feature branches were not deleted.
 
@@ -45,4 +45,4 @@ Last updated: 2026-07-31
 | CR021 | merged into main | Character Mind Runtime Hardening | Makes Character Mind tool and result contracts explicit and surfaces unresolved mutation failures instead of secondary terminal-format errors. | CR019, CR020 | Diagnosed from Phoenix trace `d4850e5a1e0721befc4df86da8540894`; implemented in `447c0cb8a`. Focused Character Mind regression, server TypeScript validation, and the primary-checkout production build passed. |
 | CR022 | merged into main | Corpus-Aware Character Mind Build | Replaces source-ordered initial ingest with a corpus-wide page-map pass followed by mapped wiki materialization, and adds existing Conversation auto-summaries as raw sources. | CR019, CR020, CR021 | Implemented in `5b7fd02b7` and fast-forwarded into local application `main`. Build now maps current Character Card, day/week auto-summaries, and formed Daily Memories before writing pages; Sync remains incremental only after a successful Build. Focused Character Mind regression and the full `pnpm check` passed; the only lint output was one pre-existing React Hooks warning in `HomeProfessorMariChat.tsx`. |
 | CR023 | merged into main | Character Mind Plan Recovery | Lets the corpus planner correct incomplete reads or an invalid proposed map within the same agent run instead of failing only after finalization. | CR022 | Diagnosed from Phoenix trace `4ca29a157a16956a914d874fa0c56c55`; implemented in `1188cbdd4`. Focused Character Mind regression, server TypeScript validation, and the integrated primary-checkout production build passed. |
-| CR024 | standalone | Shared LLM Transport Retries | Adds bounded transparent retries for transient provider-request failures while preserving the calling agent or workflow state. | None | Deferred documentation-only placeholder to pick up after the current Character Mind work. Motivated by Phoenix trace `852c088e17735518fdfb8edf79015527`; no application branch or implementation started. |
+| CR024 | merged into main | Shared LLM Transport Retries | Adds bounded transparent retries for transient provider-request failures while preserving the calling agent or workflow state. | None | Implemented in `7e6743925` and fast-forwarded into local application `main`. The provider compatibility and deterministic retry regressions passed, as did shared/server TypeScript validation; the single full `pnpm check` attempt reached its four-minute limit during the client phase and was not repeated. |

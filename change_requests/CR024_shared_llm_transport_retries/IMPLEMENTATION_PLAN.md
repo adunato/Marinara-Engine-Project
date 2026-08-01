@@ -2,7 +2,7 @@
 
 ## Status
 
-Deferred placeholder. Refine and approve this plan when CR024 is picked up.
+Completed in `7e6743925` and fast-forwarded into local application `main`.
 
 ## 1. Locate the retry boundary
 
@@ -39,3 +39,12 @@ Deferred placeholder. Refine and approve this plan when CR024 is picked up.
 - Run server TypeScript validation.
 - Use broader validation only if the final implementation changes shared streaming or all generation paths.
 - Decide separately whether any UI-level E2E is useful; none is expected for a server-only transparent retry change.
+
+## Completion record
+
+- Added the shared retry decorator, transient classifier, abort-aware backoff, structured HTTP error metadata, and attempt-level warning logs.
+- Applied the decorator to registry-created providers and the local sidecar, with connection fallback inside the single retry boundary.
+- Added `scripts/regressions/llm-transport-retry.regression.ts` and included it in `pnpm regression:providers`.
+- Focused provider regressions and server TypeScript validation passed.
+- The full `pnpm check` attempt timed out during the client phase after four minutes and was not repeated.
+- No UI E2E was added because the change has no UI surface and its failure modes are covered deterministically below the agent/workflow layer.
