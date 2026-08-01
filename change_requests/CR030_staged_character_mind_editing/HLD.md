@@ -296,4 +296,3 @@ These sources inform the design principles. The CR030 contracts are proposed Mar
 11. A concurrent manual edit causes a conflict rather than a stale overwrite.
 12. Raw sources, `SCHEMA.md`, manual index text outside the generated section, and `log.md` retain their ownership guarantees.
 13. Focused regressions cover output-channel contracts, staging, conflicts, recovery, retries, topology, grounding, and legacy incomplete-Build handling.
-

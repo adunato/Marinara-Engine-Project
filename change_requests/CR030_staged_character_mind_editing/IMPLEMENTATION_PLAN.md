@@ -161,4 +161,3 @@ No database schema push or version check is expected unless implementation expan
 ## Approval gate
 
 Implementation begins only after the user approves `HLD.md` or gives a direct instruction to implement the approved design. Any material change to the mutation boundary, manual-edit conflict policy, index ownership, or commit guarantee returns to HLD review before coding.
-
