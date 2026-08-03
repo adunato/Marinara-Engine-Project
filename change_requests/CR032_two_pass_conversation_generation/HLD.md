@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented on application branch `change/CR032-two-pass-conversation-generation`. Focused Playwright E2E validates the Chat Settings controls and the isolated curator-to-writer request boundary; manual exploratory browser validation has not been performed.
+Implemented in `b2cf5ae80` and fast-forwarded into local application `main`. Focused Playwright E2E validates the Chat Settings controls and the isolated curator-to-writer request boundary; manual exploratory browser validation has not been performed.
 
 The initial Conversation Briefing and Conversation Writer prompt bodies are approved below.
 
