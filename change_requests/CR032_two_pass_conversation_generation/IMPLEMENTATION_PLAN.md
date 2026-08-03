@@ -2,12 +2,13 @@
 
 ## Status
 
-Proposed. Do not begin application implementation until the HLD and both prompt templates are approved.
+Implemented on `change/CR032-two-pass-conversation-generation`. Focused source-parity/writer-isolation regression, server/shared type checks, targeted client lint, and the client production build pass. The repository-wide `pnpm check` exceeded its five-minute command timeout without reporting a failing stage; `pnpm db:push` is not defined in this checkout.
+
+Manual browser validation and the decision on focused Playwright E2E remain open.
 
 ## Prerequisites
 
-- Approve `HLD.md` and resolve any changes to the pipeline boundary or UI settings.
-- Supply and approve the Conversation Briefing and Conversation Writer prompt bodies; both remain placeholders in this CR.
+- Preserve the approved pipeline boundary, canonical shared-source invariant, and prompt bodies recorded in `HLD.md`.
 - Perform all application work from a dedicated temporary worktree on `change/CR032-two-pass-conversation-generation`.
 - Read `Marinara-Engine/CONTRIBUTING.md` and `packages/client/.instructions.md` before application edits.
 - Preserve Standard Conversation generation as the default and comparison baseline.
@@ -25,7 +26,7 @@ Proposed. Do not begin application implementation until the HLD and both prompt 
 
 1. Add the two optional prompt fields to prompt storage and its database/file-backed migration path.
 2. Include them in preset CRUD, import, export, duplication, and bundled-preset seeding.
-3. Add explicit placeholder/default handling without copying `conversationPrompt` into either field.
+3. Seed the approved default Briefing and Writer prompts without copying `conversationPrompt` into either field.
 4. Ensure existing preset migrations preserve user content.
 
 ### 3. Add Preset Editor controls
@@ -56,10 +57,11 @@ Proposed. Do not begin application implementation until the HLD and both prompt 
 ### 6. Extract a reusable Conversation source package
 
 1. Identify the resolved inputs currently embedded during Standard Conversation prompt construction.
-2. Refactor only as needed to expose labelled source blocks without changing Standard output.
+2. Refactor only as needed to expose one immutable canonical source snapshot without changing Standard output.
 3. Include character/persona Conversation fields, attachments or captions, auto summaries/current-day history, Daily Memories, Daily Intentions, Memory Recall, lore, current status/time/schedules, awareness, connected context, behaviour/About Me, generation guides, and applicable pre-generation context results.
-4. Apply existing responder-specific audience, lore, current-context, visibility, and macro scoping before constructing each curator call.
-5. Keep Character Mind integration out of the first implementation while leaving an explicit source-extension point.
+4. Resolve retrieval, ranking, inclusion, responder-specific audience, lore, current-context, visibility, and macro decisions once, then share the resulting snapshot between renderers.
+5. Add parity assertions proving Standard and curator rendering consume the same snapshot rather than rerunning source selection.
+6. Keep Character Mind integration out of the first implementation while leaving an explicit source-extension point.
 
 ### 7. Implement the curator call
 
@@ -157,4 +159,4 @@ Revert the CR032 application commits. Existing chats then ignore the added metad
 
 ## Approval Gate
 
-Do not begin application implementation until the user approves this HLD and supplies or approves both placeholder prompt templates. Any decision to pass raw recent messages directly to the writer, add a third model call, or integrate Character Mind is a material scope change requiring explicit approval.
+Implementation is approved. Any decision to pass raw recent messages directly to the writer, add a third model call, or integrate Character Mind remains a material scope change requiring explicit approval.
