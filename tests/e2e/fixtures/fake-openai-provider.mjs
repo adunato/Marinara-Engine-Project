@@ -72,6 +72,30 @@ function selectResponse(body) {
     }
   }
 
+  if (text.includes("cr032 curator system marker")) {
+    const rawSourcePresent = text.includes("cr032 raw source marker");
+    const latestMessagePresent = text.includes("cr032 latest user marker");
+    const writerPromptPresent = text.includes("cr032 writer system marker");
+    console.log(
+      `[fake-openai] cr032 stage=curator model=${body.model ?? "unknown"} raw-source=${rawSourcePresent} latest-message=${latestMessagePresent} writer-prompt=${writerPromptPresent}`,
+    );
+    return {
+      content: "# Conversation Briefing\n\nCR032 CURATED BRIEFING MARKER\n\nThe character should answer the current request directly and naturally.",
+      toolCalls: [],
+    };
+  }
+
+  if (text.includes("cr032 writer system marker")) {
+    const briefingPresent = text.includes("cr032 curated briefing marker");
+    const rawSourcePresent = text.includes("cr032 raw source marker");
+    const latestMessagePresent = text.includes("cr032 latest user marker");
+    const curatorPromptPresent = text.includes("cr032 curator system marker");
+    console.log(
+      `[fake-openai] cr032 stage=writer model=${body.model ?? "unknown"} briefing=${briefingPresent} raw-source=${rawSourcePresent} latest-message=${latestMessagePresent} curator-prompt=${curatorPromptPresent}`,
+    );
+    return { content: "CR032 writer response.", toolCalls: [] };
+  }
+
   if (text.includes("you are a conversation memory assistant")) {
     console.log(`[fake-openai] cr017 summary model=${body.model ?? "unknown"}`);
     return {

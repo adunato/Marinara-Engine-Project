@@ -2,9 +2,9 @@
 
 ## Status
 
-Implemented on `change/CR032-two-pass-conversation-generation`. Focused source-parity/writer-isolation regression, server/shared type checks, targeted client lint, and the client production build pass. The repository-wide `pnpm check` exceeded its five-minute command timeout without reporting a failing stage; `pnpm db:push` is not defined in this checkout.
+Implemented on `change/CR032-two-pass-conversation-generation`. Focused source-parity/writer-isolation regression, server/shared type checks, targeted client lint, the client production build, and two focused Playwright E2E scenarios pass. The repository-wide `pnpm check` exceeded its five-minute command timeout without reporting a failing stage; `pnpm db:push` is not defined in this checkout.
 
-Manual browser validation and the decision on focused Playwright E2E remain open.
+The Playwright scenarios cover General Settings persistence and the live curator/writer isolation boundary. Manual exploratory browser validation has not been performed.
 
 ## Prerequisites
 
