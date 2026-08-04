@@ -6,15 +6,15 @@ Last updated: 2026-08-04
 
 - Intended invariant: Pasta-Devs `upstream/main` equals Adunato `origin/upstream-main` equals local `upstream-main`.
 - Pasta-Devs `upstream/main` is at `c82291d6c`; Adunato `origin/upstream-main` and local `upstream-main` remain aligned at `dc0b39282`, 870 commits behind the authoritative branch. Local `upstream-main` tracks the Adunato mirror.
-- Local `main` is at `b2cf5ae80`, contains 46 development commits beyond the stale local `upstream-main`, and is 17 commits ahead of Adunato `origin/main` at `a5169b9e0`.
-- Adunato `origin/main` contains the rebased CR010 through CR016 changes. CR017 through CR032 are present only in local `main`.
+- Local `main` is at `0d2808120`, contains 47 development commits beyond the stale local `upstream-main`, and is 18 commits ahead of Adunato `origin/main` at `a5169b9e0`.
+- Adunato `origin/main` contains the rebased CR010 through CR016 changes. CR017 through CR033 are present only in local `main`.
 - The replaced Adunato tips are retained locally as annotated tags `archive/2026-07-30/remote/origin-upstream-main-before-alignment` and `archive/2026-07-30/remote/origin-main-before-alignment`.
 - The completed CR017 through CR032 branch chain is retained by annotated tag `archive/2026-08-04/main-before-cr-branch-cleanup`.
 - Remote alignment last completed on 2026-07-30. Archive tags were not pushed. Stale remote CR and tooling branches were deleted on 2026-08-04.
 
 ## Documentation Notes
 
-- All change requests through CR032 are closed and archived. CR008, CR031, and CR032 were closed on 2026-08-04 after the user declined further discovery or validation follow-up.
+- All change requests through CR033 are closed and archived. CR008, CR031, and CR032 were closed on 2026-08-04 after the user declined further discovery or validation follow-up. CR033 was closed after its requested production build passed.
 - CR005 is a tracker-only historical record; its CR folder was not retained.
 - Archived CR006 predates the current CR documentation structure and contains no HLD or implementation plan.
 - Archived CR007 retains its design assessment but predates the current HLD and implementation-plan requirement.
@@ -63,3 +63,4 @@ Last updated: 2026-08-04
 | CR030 | archived | Staged Character Mind Editing | Replaces complete-content write-tool arguments with streamed page creation/replacement, bounded candidate edits, validation, and manual-edit conflict checks while preserving existing retries and Build resume. | CR019, CR021, CR022, CR024, CR025, CR026, CR029 | Implemented in `a4e67dd88`, validated, and merged into local application `main`. The subsequently observed `finishReason: "error"` handling defect remains follow-up work. Documentation archived after branch cleanup on 2026-08-04. |
 | CR031 | archived | Character Mind Build Validation Recovery | Makes Build map/page contracts explicit, aggregates map partition findings, corrects frozen-source validation, repairs local candidate defects without full regeneration, and records retry diagnostics. | CR022, CR023, CR025, CR029, CR030 | Implemented in `b26dfbcdc` and merged into local application `main`. Focused regression, `pnpm check`, and the integrated production build passed. Closed and archived on 2026-08-04 without additional Playwright E2E. |
 | CR032 | archived | Two-Pass Conversation Generation | Adds a chat-selected alternative Conversation pipeline that curates the resolved context into an invisible briefing before an isolated response-writing call. | None | Implemented in `b2cf5ae80` and merged into local application `main`. Focused Playwright E2E passed. Closed and archived on 2026-08-04 without further manual exploratory validation. |
+| CR033 | archived | Conversation Card Field Injection | Prevents ordinary Description and Personality wording between unrelated Conversation prompt macros from suppressing populated character-card fields. | None | Implemented in `0d2808120`, merged into local application `main`, and production build passed. Focused prompt regression execution was skipped at the user's direction. Archived on 2026-08-04. |
