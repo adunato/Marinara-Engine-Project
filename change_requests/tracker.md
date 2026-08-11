@@ -1,12 +1,12 @@
 # Change Request Tracker
 
-Last updated: 2026-08-08
+Last updated: 2026-08-11
 
 ## Repository Branch Alignment
 
 - Intended invariant: Pasta-Devs `upstream/main` equals Adunato `origin/upstream-main` equals local `upstream-main`.
 - Pasta-Devs `upstream/main` is at `c82291d6c`; Adunato `origin/upstream-main` and local `upstream-main` remain aligned at `dc0b39282`, 870 commits behind the authoritative branch. Local `upstream-main` tracks the Adunato mirror.
-- Local `main` is at `0d2808120`, contains 47 development commits beyond the stale local `upstream-main`, and is 18 commits ahead of Adunato `origin/main` at `a5169b9e0`.
+- Local `main` is at `182f8111c`, contains 48 development commits beyond the stale local `upstream-main`, and is 19 commits ahead of Adunato `origin/main` at `a5169b9e0`.
 - Adunato `origin/main` contains the rebased CR010 through CR016 changes. CR017 through CR033 are present only in local `main`.
 - The replaced Adunato tips are retained locally as annotated tags `archive/2026-07-30/remote/origin-upstream-main-before-alignment` and `archive/2026-07-30/remote/origin-main-before-alignment`.
 - The completed CR017 through CR032 branch chain is retained by annotated tag `archive/2026-08-04/main-before-cr-branch-cleanup`.
@@ -65,3 +65,4 @@ Last updated: 2026-08-08
 | CR032 | archived | Two-Pass Conversation Generation | Adds a chat-selected alternative Conversation pipeline that curates the resolved context into an invisible briefing before an isolated response-writing call. | None | Implemented in `b2cf5ae80` and merged into local application `main`. Focused Playwright E2E passed. Closed and archived on 2026-08-04 without further manual exploratory validation. |
 | CR033 | archived | Conversation Card Field Injection | Prevents ordinary Description and Personality wording between unrelated Conversation prompt macros from suppressing populated character-card fields. | None | Implemented in `0d2808120`, merged into local application `main`, and production build passed. Focused prompt regression execution was skipped at the user's direction. Archived on 2026-08-04. |
 | CR034 | merged into main | Managed Conversation Agent Pipeline Exclusion | Prevents Daily Conversation Memories and Daily Intentions from entering the generic agent batch on normal Conversation turns. | CR015, CR016 | Fixed in `182f8111c`; focused managed-agent regression and `pnpm check` passed. Pending manual Phoenix confirmation after restart. |
+| CR035 | standalone | Character Emotion States and Expression Integration | Extends the Roleplay post-generation Expression Engine to persist configured per-character emotions for next-turn card conditionals while continuing to drive the current swipe's avatar. | None | HLD proposed on `change/CR035-character-emotion-expressions`; awaiting approval before implementation. A coordinated Marinara-Agents package update may be required. |
