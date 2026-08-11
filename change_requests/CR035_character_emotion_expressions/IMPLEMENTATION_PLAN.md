@@ -42,18 +42,30 @@
    - Use latest selected-swipe state, then configured default, then empty string.
    - Ensure inactive conditional branches are removed before nested macro effects and token fitting.
 
-7. Cover every supported Roleplay prompt construction path.
+7. Cover every supported Roleplay and Conversation prompt construction path.
    - Preset character markers and group expansion.
-   - Identity fallback character-card injection.
+   - Conversation identity fallback character-card injection.
+   - Standard and two-pass Conversation source construction.
+   - Autonomous Conversation generation.
    - Regeneration and dry-run/Peek Prompt.
-   - Empty `charEmotion` behavior outside Roleplay.
-   - Any additional Roleplay card-field consumer identified during implementation discovery.
+   - Any additional Roleplay or Conversation card-field consumer identified during implementation discovery.
 
-8. Add focused automated coverage and user documentation.
+8. Expand Expression Engine availability and expression-avatar rendering for Conversation.
+   - Add `expression` to Conversation's agent-mode allowlist and update the official package manifest/version for Conversation support.
+   - Retain legacy expression-only result compatibility for already installed package versions.
+   - Reuse the existing Expression Avatars metadata/settings rather than creating a second toggle.
+   - Widen the resolver's current Roleplay-only enablement to Roleplay or Conversation.
+   - Pass the shared resolver through the Conversation surface and view components.
+   - Resolve persisted expressions for single-character Conversation messages.
+   - Resolve persisted expressions independently for each speaker segment in merged group messages.
+   - Parse completed merged responses into stable speaker IDs before the available-affect-target filter is applied.
+   - Keep non-message Conversation identity surfaces on base avatars in the initial scope.
+
+9. Add focused automated coverage and user documentation.
    - Document authoring syntax, post-generation/next-turn behavior, default and failure semantics, and interaction with Expression Engine.
-   - Add schema, macro, server pipeline, persistence, and focused client tests.
+   - Add schema, macro, server pipeline, persistence, and focused Roleplay/Conversation client tests.
 
-9. Run proportionate validation.
+10. Run proportionate validation.
    - Run the focused tests added for the shared, server, and client layers.
    - Run `pnpm check` once after the cross-package implementation is complete.
    - Agree with the user whether to add and run focused Playwright E2E validation.
@@ -66,6 +78,7 @@ Exact filenames should follow implementation discovery, but likely areas include
 - `packages/shared/src/types/character.ts`
 - `packages/shared/src/schemas/character.schema.ts`
 - `packages/shared/src/types/chat.ts`
+- `packages/shared/src/constants/chat-mode-capabilities.ts`
 - `packages/shared/src/types/agent.ts`
 - `packages/shared/src/utils/macro-engine.ts`
 - `packages/server/src/services/agents/agent-executor.ts`
@@ -78,7 +91,12 @@ Exact filenames should follow implementation discovery, but likely areas include
 - `packages/server/src/services/prompt/macro-context.ts`
 - `packages/client/src/components/characters/CharacterEditor.tsx` and a focused extracted emotion editor if appropriate
 - `packages/client/src/components/ui/MacroTextarea.tsx`, if macro insertion/reference warnings belong in the shared editor
-- existing expression-avatar consumers under `packages/client/src/`, only where combined live-result handling requires changes
+- `packages/client/src/components/chat/ChatArea.tsx`
+- `packages/client/src/components/chat/ChatConversationSurface.tsx`
+- `packages/client/src/components/chat/ConversationView.tsx`
+- `packages/client/src/components/chat/ConversationMessage.tsx`
+- `packages/client/src/components/chat/ConversationMessageGrouped.tsx`
+- existing Roleplay expression-avatar consumers, only where combined live-result handling requires changes
 - focused shared/server/client test files
 - relevant prompt/character-card documentation under `docs/`
 
@@ -92,7 +110,8 @@ Exact filenames should follow implementation discovery, but likely areas include
 - No profile, disabled profile, invalid output, agent failure, and removed state all use the specified fallback.
 - Group characters receive independent states.
 - Selecting another swipe changes the state source used by the next prompt.
-- Roleplay generation, regeneration, and prompt preview do not expose inactive fragments; other modes resolve `charEmotion` empty.
+- Roleplay, standard Conversation, two-pass Conversation, autonomous Conversation, regeneration, and prompt preview do not expose inactive fragments.
+- Conversation Expression Avatars resolve from the active swipe for both single-character messages and merged per-speaker segments.
 - `pnpm check` passes.
 
 ## Rollback
