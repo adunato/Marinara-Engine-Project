@@ -1,5 +1,11 @@
 # CR035 Implementation Plan
 
+## Implementation Status
+
+Implemented in application commit `96fae6f25` and fast-forwarded into local application `main` on 2026-08-11. Shared/server typechecks, client lint, and a focused schema/macro runtime check passed. The existing prompt regression runner currently stops before the CR035 cases because `scripts/regressions/prompt.regression.ts` imports a `formatAwarenessConversationBlock` export that is absent from `awareness.service.ts`. Focused Playwright E2E is pending agreement with the user.
+
+The Engine host now explicitly extends legacy Expression Engine prompts/results with `emotionStateId`; a companion Marinara-Agents package manifest/prompt update remains recommended so downloadable package metadata advertises Conversation support and the combined result shape natively.
+
 ## Prerequisites
 
 - Approve the CR035 HLD, especially the intentional next-turn semantics of post-generation emotion classification.
