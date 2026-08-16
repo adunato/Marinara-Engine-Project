@@ -1,6 +1,6 @@
 # Change Request Tracker
 
-Last updated: 2026-08-11
+Last updated: 2026-08-16
 
 ## Repository Branch Alignment
 
@@ -66,3 +66,4 @@ Last updated: 2026-08-11
 | CR033 | archived | Conversation Card Field Injection | Prevents ordinary Description and Personality wording between unrelated Conversation prompt macros from suppressing populated character-card fields. | None | Implemented in `0d2808120`, merged into local application `main`, and production build passed. Focused prompt regression execution was skipped at the user's direction. Archived on 2026-08-04. |
 | CR034 | merged into main | Managed Conversation Agent Pipeline Exclusion | Prevents Daily Conversation Memories and Daily Intentions from entering the generic agent batch on normal Conversation turns. | CR015, CR016 | Fixed in `182f8111c`; focused managed-agent regression and `pnpm check` passed. Pending manual Phoenix confirmation after restart. |
 | CR035 | merged into main | Character Emotion States and Expression Integration | Extends the Roleplay and Conversation post-generation Expression Engine to persist configured per-character emotions for next-turn card conditionals while driving per-swipe message avatars. | None | Implemented in `96fae6f25`; corrected in `37b6fb683` so Expression Engine configuration is visible and persisted in both Conversation and Roleplay, including compatibility for older Roleplay-only installed manifests. Merged into local application `main`. Shared/server/client typechecks, client lint, the focused emotion schema/macro runtime check, and the Conversation agent-capability regression passed. The repository prompt regression is blocked before CR035 cases by the pre-existing missing `formatAwarenessConversationBlock` export. Focused Playwright E2E remains a user decision. A companion Marinara-Agents manifest/prompt release is still recommended. |
+| CR036 | merged into main | Roleplay Source Chats in Scenes | Includes explicitly selected Source Chats in active Scene generation while keeping connected Conversation context, OOC notes, and influences excluded. | None | Implemented in `b9b22ea6a`, merged into local application `main`; focused context-source regression and `pnpm check` passed. |
