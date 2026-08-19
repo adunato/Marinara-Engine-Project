@@ -21,7 +21,9 @@ Draft implementation plan awaiting HLD approval.
    - Stateless (CR032)
    - Stateful (this CR)
 3. Add typed settings for the fast-path threshold and curation agent connection override if needed.
-4. Preserve backward-compatible parsing for chats without the new metadata.
+4. Add a typed **per-source role map** keyed by the closed set of context source identifiers defined in the HLD (`characterCard`, `persona`, `conversationStatus`, `commands`, `reactRules`, `replyRules`, `memories`, `dailyMemories`, `dailyIntentions`, `lorebook`, `summaries`, `crossChatAwareness`, `roleplayScenes`, `characterMind`, `recentExchange`), with role values `always_include` / `agent_curated` / `always_exclude` and the HLD defaults.
+5. Enforce the `recentExchange` invariant (cannot be `always_exclude`) and unavailable-source handling in normalization.
+6. Preserve backward-compatible parsing for chats without the new metadata (apply defaults).
 
 ### 2. Add persistent briefing storage and lifecycle
 
@@ -32,10 +34,12 @@ Draft implementation plan awaiting HLD approval.
 
 ### 3. Add batched source-tool infrastructure
 
-1. Define a tool registry for read-only source access (memories, summaries, scenes, awareness chats, lore, Character Mind, etc.).
-2. Implement a single batched invocation that runs all requested tool lookups in parallel and returns a combined delimited result block.
-3. Ensure each tool result is bounded, attributed, and explicit.
-4. Reuse existing retrieval logic where possible without changing Standard behavior.
+1. Define a tool registry for read-only source access covering every source in the HLD enumeration.
+2. Register only sources whose configured role is **Agent curated**; do not register **Always include** or **Always exclude** sources.
+3. Resolve all **Always include** sources up front and pack them into a labeled, immutable `## Injected Sources` block merged into the briefing before the curation agent runs.
+4. Implement a single batched invocation that runs all requested curated-tool lookups in parallel and returns a combined delimited result block.
+5. Ensure each tool result is bounded, attributed, and explicit.
+6. Reuse existing retrieval logic where possible without changing Standard behavior.
 
 ### 4. Implement the fast-path classifier
 
@@ -65,7 +69,8 @@ Draft implementation plan awaiting HLD approval.
 1. Add a **View Context Briefing** action in Conversation Chat Settings or the message menu.
 2. Add a read-only panel showing the current briefing.
 3. Add a **Reset** button to clear it.
-4. Add generation metadata showing fast/full path and batched tools used.
+4. Add a **Context Sources** panel listing every source with a three-state role selector (Always include / Agent curated / Always exclude), unavailable badges for globally disabled sources, the `recentExchange` exclude-disabled treatment, per-source descriptions, and a **Reset to defaults** action.
+5. Add generation metadata showing fast/full path, batched tools used, and which sources were injected as Always include.
 
 ### 8. Add diagnostics and metadata
 
@@ -79,11 +84,13 @@ Draft implementation plan awaiting HLD approval.
 2. Prove existing CR032 stateless Two-Pass still works when selected.
 3. Prove stateful mode persists and loads the briefing across turns.
 4. Prove fast path skips batched tool calls for routine messages.
-5. Prove full path issues one batched tool request and updates the briefing.
-6. Prove the writer receives only the briefing and system prompt.
-7. Prove reset clears the briefing.
-8. Prove export/import and backup/restore preserve the briefing.
-9. Prove no write-back to memories, summaries, lore, or other stores.
+5. Prove full path issues one batched tool request scoped to **Agent curated** sources and updates the briefing.
+6. Prove **Always include** sources are injected and preserved unchanged across fast and full paths.
+7. Prove **Always exclude** sources are never resolved or registered.
+8. Prove the writer receives only the briefing and system prompt.
+9. Prove reset clears the briefing.
+10. Prove the per-source role map persists across duplication, export/import, and backup/restore, and restores an unavailable source's prior role when it becomes available again.
+11. Prove no write-back to memories, summaries, lore, or other stores.
 
 ### 10. Document and validate
 
