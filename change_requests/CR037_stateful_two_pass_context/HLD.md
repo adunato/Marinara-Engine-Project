@@ -38,39 +38,52 @@ A persistent briefing would let the curator carry forward what it has already es
 
 There is one artifact per chat, stored in chat metadata. It serves as both the curator's working memory and the writer's isolated context.
 
+The briefing has two clearly separated sections:
+
+1. **SOURCES** — Extracted content from Always include sources. These blocks are immutable; the curation agent cannot edit, summarize, or drop them. They are injected verbatim by the host before the agent runs.
+2. **BRIEFING** — Agent-generated analysis and synthesis of all context (both injected sources and curated tool results). This section is editable by the curation agent on every turn; sections are assessed for change and edited in place rather than rewritten wholesale.
+
 Suggested structure (prompt-owned, not hard-coded):
 
 ```markdown
 # Conversation Context Briefing
 
-## Current Situation
-A concise description of the immediate situation.
+## SOURCES
+[Immutable blocks injected by the host from Always include sources]
+### Character Card
+[Resolved card fields — description, personality, backstory, appearance, scenario, example dialogue, system prompt, post-history instructions]
+### Persona
+[Active user persona identity and description]
+### Conversation Status
+[Engine-resolved {{context}} / {{status}} block — current situation, scene framing]
+### Commands
+[Available commands and reminders]
+### Recent Exchange (injected)
+[Fixed recent message window for continuity baseline]
 
-## Active Threads
+## BRIEFING
+[Agent-generated content — editable on every turn]
+### Current Situation
+A concise description of the immediate situation.
+### Active Threads
 - Thread label: brief description, status, priority
 - ...
-
-## Key Facts
+### Key Facts
 - Fact (source type, confidence: direct / summarized / inferred)
 - ...
-
-## Relationship State
+### Relationship State
 How the character understands the relationship with the persona right now.
-
-## Emotional State
+### Emotional State
 Current mood, underlying tension, recent shifts.
-
-## Recent Exchange
-Verbatim recent messages needed for tone and continuity.
-
-## Relevant External Context
+### Recent Exchange (curated)
+[Agent-determined verbatim messages needed for tone and continuity — may extend beyond injected window]
+### Relevant External Context
 References to memories, scenes, awareness chats, lore, etc., with source labels.
-
-## Last Updated
+### Last Updated
 Turn N, message ID, trigger classification, tools called.
 ```
 
-Application code validates only size bounds, non-emptiness, and stable section markers if needed for UI rendering.
+Application code validates only size bounds, non-emptiness, and stable section markers if needed for UI rendering. The SOURCES / BRIEFING boundary is the structural invariant that prevents the agent from modifying injected content.
 
 ## Context Sources
 
@@ -80,7 +93,7 @@ The enumeration is grouped by origin for clarity. Source identifiers are stable 
 
 | Source key | Human label | Origin | What it provides |
 |---|---|---|---|
-| `characterCard` | Character Card | Card | The active character's card fields (description, personality, backstory, appearance, scenario, example dialogue, system prompt, post-history instructions). |
+| `characterCard` | Character Card | Card | The active character's card fields (description, personality, backstory, appearance, scenario, example dialogue, card system prompt field, post-history instructions). In group chats, all participating characters' cards are included with labels. |
 | `persona` | Persona | Card / chat | The active user persona identity and description. |
 | `conversationStatus` | Conversation Status | Chat | The engine-resolved `{{context}}` / `{{status}}` block (current situation, scene framing). |
 | `commands` | Commands | Chat | The `{{commands}}` command list and reminders available to the character. |
@@ -94,13 +107,15 @@ The enumeration is grouped by origin for clarity. Source identifiers are stable 
 | `crossChatAwareness` | Cross-Chat Awareness | Connected chats | Summaries and recent messages from other Conversations sharing the current character (CR014), including their last Daily Memories retrieval (CR028). |
 | `roleplayScenes` | Roleplay Source Chats | Connected chats | Explicitly selected Roleplay / Scene source chats included in active Scene generation (CR036). |
 | `characterMind` | Character Mind | Character Mind store | Wiki pages and schema query results from the compiled Character Mind (CR019–CR031). |
-| `recentExchange` | Recent Exchange | Chat history | The verbatim recent messages needed for tone and continuity. Always present; role only controls whether the agent may extend the window. |
+| `recentExchange` | Recent Exchange | Chat history | The verbatim recent messages needed for tone and continuity. Always present; **Always include** provides a fixed recent message window, while **Agent curated** lets the agent decide how far back to look based on context needs. |
 
 ### Source discovery and stability
 
 - This list is the closed set for this CR. Adding a new source requires a tracked change and an explicit default role.
 - `recentExchange` is special: it is always required for continuity, so its role defaults to **Always include** and may only be set to **Agent curated** (never **Always exclude**). The UI enforces this.
 - Sources that are globally disabled for the chat (for example, no Character Mind built, no Daily Intentions feature on, no connected chats) are reported as **unavailable** by the host and greyed out in the UI; their configured role is retained but has no effect while unavailable.
+- Images and files attached to messages are carried alongside text content within `recentExchange` (and any other source that references message attachments). No separate image/file source is needed.
+- In group chats, **all character cards** for participating characters are included in the SOURCES section with appropriate labels so the writer can distinguish which card applies to which response. There are no other character-specific sources beyond those enumerated here.
 
 ## Per-Source Configuration
 
@@ -159,20 +174,25 @@ The panel sits next to the persistent-briefing inspection panel so users manage 
 
 On every user message in a Two-Pass chat:
 
-1. Load the per-source role map and the previous briefing from chat metadata (or initialize defaults and an empty shell on first use).
-2. Resolve all **Always include** sources up front and inject their content into the briefing shell as immutable blocks.
-3. Build the turn delta: new user message, previous assistant response, and generation metadata.
-4. Run the curation agent:
-   - Fast-path assessment.
-   - If needed, issue a single batched source-tool request scoped to the **Agent curated** sources only.
-   - Update the briefing, preserving the injected **Always include** blocks unchanged.
-5. Persist the updated briefing to chat metadata.
-6. Pass the updated briefing to the response writer.
+1. **Load state.** Load the per-source role map and the previous briefing from chat metadata. If no prior data exists (first use of stateful mode, or after reset), initialize defaults for the role map and create an empty BRIEFING shell.
+2. **Check periodic full rebuild.** If a daily rebuild is due (every day upon first message after midnight), discard the existing BRIEFING content and start from a blank shell. SOURCES are rebuilt fresh; the role map is retained.
+3. **Resolve Always include sources.** Resolve all **Always include** sources up front and inject their content into the SOURCES section as immutable, labeled blocks. The agent cannot modify these.
+4. **Build turn delta.** Construct the current turn context: new user message, previous assistant response, and generation metadata.
+5. **Run fast-path classifier.** A lightweight prompt (using a dedicated selectable connection) classifies the turn:
+   - Output: `{ "fastPath": true/false, "reason": string }`.
+   - If `fastPath: true`, skip batched tool calls and proceed to step 7a.
+   - If `fastPath: false`, proceed to step 6 (full path).
+6. **Full path — batched source query.** The curation agent emits a single structured request listing which **Agent curated** sources it wants. Shot 1 is the tool request; Shot 2 receives the combined result block. The agent cannot query **Always exclude** sources (not registered) or **Always include** sources (already in SOURCES).
+7. **Update BRIEFING section.** The curation agent edits the BRIEFING section in place based on the turn delta and (if full path) batched tool results:
+   - **Fast path:** Update only `Recent Exchange (curated)` (extend window if needed), `Last Updated`, and `Emotional State` if sentiment clearly shifted. Do not rewrite `Current Situation`, `Active Threads`, `Key Facts`, `Relationship State`, or `Relevant External Context`.
+   - **Full path:** Assess which BRIEFING sections need change based on the turn delta and tool results. Edit only the affected sections in place; do not rewrite the entire BRIEFING section. Preserve unchanged sections verbatim.
+8. **Persist.** Save the updated briefing (SOURCES + edited BRIEFING) to chat metadata.
+9. **Pass to writer.** The response writer receives only the complete briefing and its system prompt.
 
 The curation agent is multi-shot with tool support:
 
-- **Shot 1**: assess the turn and decide which **Agent curated** sources to query. It cannot query **Always exclude** sources (not registered) or **Always include** sources (already in the briefing).
-- **Shot 2**: receive batched source results and update the briefing, leaving injected **Always include** blocks intact.
+- **Shot 1** (full path only): assess the turn and decide which **Agent curated** sources to query via a single batched request.
+- **Shot 2**: receive batched source results and edit the BRIEFING section in place, leaving SOURCES blocks intact.
 
 No third rewrite pass.
 
@@ -182,7 +202,7 @@ Only **Agent curated** sources are exposed as batched tools. **Always include** 
 
 ### Example tool request
 
-The agent may only request sources configured as **Agent curated**. In this example the user has kept the retrieval-style sources curated and excluded `reactRules` / `replyRules`.
+The agent may only request sources configured as **Agent curated**. In this example the user has kept the retrieval-style sources curated and excluded `reactRules` / `replyRules`. Tool keys match source enumeration keys.
 
 ```json
 {
@@ -191,7 +211,7 @@ The agent may only request sources configured as **Agent curated**. In this exam
     "dailyMemories": { "include": true },
     "dailyIntentions": { "include": true },
     "summaries": { "range": "last_14_days" },
-    "awarenessChats": { "search": "Alice", "limit": 3 },
+    "crossChatAwareness": { "search": "Alice", "limit": 3 },
     "roleplayScenes": { "search": "lake scene", "limit": 2 },
     "lorebook": { "search": "prophecy", "limit": 3 },
     "characterMind": { "query": "prophecy", "limit": 3 }
@@ -217,7 +237,7 @@ The agent may only request sources configured as **Agent curated**. In this exam
 ### Summaries
 [ requested summaries ]
 
-### Awareness Chats
+### Cross Chat Awareness
 [ summaries/recent messages from Alice-related chats ]
 
 ### Roleplay Scenes
@@ -248,26 +268,26 @@ The fast path runs when the turn is assessed as a **routine continuation**. Indi
 ### Fast-path behavior
 
 - Skip batched tool calls.
-- Update only:
-  - Recent Exchange
-  - Latest Message / Trigger
-  - Emotional State if sentiment clearly shifted
-  - Last Updated metadata
-- Do not rewrite Key Facts, Active Threads, Relationship State, or External Context sections.
+- The fast-path classifier determines which BRIEFING sections need updating based on its assessment:
+  - `Recent Exchange (curated)` — always updated with the new message window; agent may extend beyond injected baseline if context warrants.
+  - `Last Updated` — always updated with turn metadata.
+  - `Emotional State` — updated only if sentiment clearly shifted.
+- Do not rewrite `Current Situation`, `Active Threads`, `Key Facts`, `Relationship State`, or `Relevant External Context` on fast path. These sections are assessed as unchanged and left verbatim.
 
 ### Implementation
 
-The fast-path classifier can be a small, fast model or the same curator model with a very tight output instruction. Example output:
+The fast-path classifier uses a dedicated selectable Marinara Engine connection (independent of the curation agent's connection). It outputs a structured decision:
 
 ```json
 {
   "fastPath": true,
-  "reason": "routine greeting",
-  "sectionsToUpdate": ["recentExchange", "latestMessage"]
+  "reason": "routine greeting"
 }
 ```
 
-If `fastPath` is false, the agent proceeds to select sources and call the batched tool.
+The `sectionsToUpdate` field is implicit in the workflow: on fast path, only `Recent Exchange (curated)`, `Last Updated`, and optionally `Emotional State` are updated. The classifier does not need to enumerate sections — the workflow dictates which BRIEFING sections are eligible for update based on the path taken.
+
+If `fastPath` is false, the agent proceeds to Shot 1 (batched source query) and then Shot 2 (BRIEFING edit).
 
 ## Persistence
 
@@ -283,37 +303,14 @@ If `fastPath` is false, the agent proceeds to select sources and call the batche
 Human interaction is **optional on request**, not gated per change:
 
 - A new action in Chat Settings or the message menu: **View Context Briefing**.
-- Read-only panel showing the current briefing.
+- Read-only panel showing the current briefing (SOURCES section immutable, BRIEFING section editable).
 - A **Reset** button to clear it.
 - Optionally a **Regenerate Briefing** action if the user thinks it has drifted.
 - A **Context Sources** panel (see **Per-Source Configuration**) for configuring each source's role.
-- Generation metadata records whether the fast path or full path ran, which tools were batched, and which sources were injected as Always include.
-
-## Integration with Two-Pass Pipeline
-
-```text
-[Existing shared context resolution]
-              |
-              v
-[Load per-source role map + previous briefing from chat metadata]
-              |
-              v
-[Resolve Always include sources → inject immutable labeled blocks into briefing]
-              |
-              v
-[Curation Agent]
-   |-- Fast path --> lightly update briefing (Always include blocks preserved)
-   |-- Full path --> select Agent curated sources --> batch tool call --> update briefing
-              |
-              v
-[Persist updated briefing + role map]
-              |
-              v
-[Writer receives updated briefing + writer system prompt]
-              |
-              v
-[Existing shared response lifecycle]
-```
+- Connection/model selection in Chat Settings:
+  - **Fast-path classifier connection** — dedicated selectable Marinara Engine connection (independent of curation agent).
+  - **Curation agent connection** — the model used for Shot 1 (source query) and Shot 2 (BRIEFING edit). Defaults to the chat's existing Two-Pass curator connection but is independently configurable.
+- Generation metadata records whether the fast path or full path ran, which tools were batched, which sources were injected as Always include, and which connections were used.
 
 The existing CR032 isolation boundary is preserved:
 
@@ -354,7 +351,7 @@ The existing CR032 isolation boundary is preserved:
 
 1. **Per-character briefing in group chats?** In a multi-character Conversation, do all characters share one briefing, or does each responding character have their own? ANSWER: share one briefing.
 2. **Periodic full rebuild?** Should the system occasionally rebuild the briefing from primary sources (e.g., every N turns or on reset) to limit drift? ANSWER: full reubuild every day upon first message.
-3. **Fast-path trigger implementation?** Should the classifier be a cheap dedicated model/prompt, or the same curator with constrained output? ANSWER: dedicated selectable model
+3. **Fast-path trigger implementation?** Should the classifier be a cheap dedicated Marinara Engine connection/prompt, or the same curation agent connection with constrained output? ANSWER: dedicated selectable Marinara Engine connection (independent of curation agent). All available connections are candidates; user selects in Chat Settings.
 4. **Tool set initial scope?** Which sources are in the first batched tool set? All existing ones, or a subset? ANSWER: All the sources in scope
 5. **Conflict with CR032 shipped implementation?** Does this replace the CR032 curator entirely, or coexist as an optional enhanced mode? ANSWER: Replaces it.
 6. **Per-source configuration defaults?** Are the default roles in **Per-Source Configuration** the right starting point, or should more sources default to **Always include** for parity with the current CR032 flat source package? ANSWER: defaults as drafted; users opt into more Always include only if they want fixed verbatim inclusion.
@@ -362,14 +359,16 @@ The existing CR032 isolation boundary is preserved:
 
 ## Acceptance Criteria
 
-- Two-Pass chats store and load a persistent context briefing.
-- The curation agent updates the briefing on each user message.
-- Routine turns use a fast path that skips batched source calls.
-- Non-routine turns issue a single batched source request scoped to **Agent curated** sources and receive a single combined result.
-- **Always include** sources are resolved up front, injected into the briefing, and preserved unchanged by the curation agent.
+- Two-Pass chats store and load a persistent context briefing with clearly separated SOURCES (immutable) and BRIEFING (editable) sections.
+- The curation agent updates the BRIEFING section on each user message by editing affected sections in place rather than rewriting wholesale.
+- Routine turns use a fast path that skips batched source calls; only `Recent Exchange (curated)`, `Last Updated`, and optionally `Emotional State` are updated.
+- Non-routine turns issue a single batched source request scoped to **Agent curated** sources and receive a single combined result, then edit the BRIEFING section in place.
+- **Always include** sources are resolved up front, injected into the SOURCES section, and preserved unchanged by the curation agent.
 - **Always exclude** sources are never resolved or registered.
+- A periodic full rebuild occurs every day upon first message after midnight, discarding BRIEFING content while retaining the role map.
 - The writer receives only the updated briefing and its system prompt.
 - Standard generation is unaffected.
 - The briefing and the per-source role map survive restart, duplication, export/import, and backup/restore.
-- The user can view and reset the briefing, and configure each context source's role, on request.
+- The user can view and reset the briefing, configure each context source's role, and select connections for fast-path classifier and curation agent, on request.
+- In group chats, all participating character cards are included in SOURCES with appropriate labels.
 - No changes are written back to memories, summaries, lorebooks, or other stores.
