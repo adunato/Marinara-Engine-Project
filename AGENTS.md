@@ -58,13 +58,17 @@ The mirror invariant is `upstream/main == origin/upstream-main == upstream-main`
 Use the repo-local skills for detailed project workflows:
 
 - `$marinara-branch-maintenance`: maintain parent tooling, rebuild nested `main` from `upstream-main`, and manage branch strategy.
-- `$marinara-change-request`: create and manage `change/CRXXX` branches and `change_requests/` docs.
+- `$marinara-change-request`: the index and shared contract for the decomposed CR workflow; select its intake, planning, worktree, implementation, review, validation, ship, or close stage skill as needed. Parent-root `kangentic.json` is the committed shared board source; its `KANGENTIC_STAGE_MAPPING.md` supplies the lifecycle mapping and schema limits. `.kangentic/config.json` is ignored runtime state. Do not invent unsupported board fields.
 - `$marinara-coderabbit-review`: triage, verify, plan, and address CodeRabbit PR review comments.
 - `$marinara-e2e-validation`: create focused Playwright E2E validation, reusable macros, annotations, and evidence for completed CR work.
 - `$marinara-pr-description`: draft or update `change_requests/CRXXX_*/PR.md` from the repository PR template.
 - `$marinara-upstream-pr`: prepare clean `pr/CRXXX` branches manually before upstream PR work.
 
 Keep `change_requests/tracker.md` current when CR state changes, including creation, archive/supersession, local merge, PR opening, and PR merge.
+
+## Change Request Stage Roles
+
+The `$marinara-change-request` package is one staged workflow, not a competing workflow adapter. Its committed `kangentic.json` defines `To Do`, Intake, Planning, Worktree, Implementation, Review, Validation, Ship, Close & Archive, and Done. `To Do` and Done are no-agent states; every active stage invokes a supported `spawn_agent` prompt template that specifies the `Luna I` agent parameter and only a top-level Codex role. Intake, worktree, implementation, ship, close, and archive are worker-owned; planning is designer-owned; review is reviewer-owned; validation is validator-owned. The board schema has no native skill/role/agent fields, so templates and `KANGENTIC_STAGE_MAPPING.md` carry that binding. Do not create or modify Codex role profiles for these mappings.
 
 Local-only startup helpers live in the parent tools repo and must be stripped from upstream PR branches:
 

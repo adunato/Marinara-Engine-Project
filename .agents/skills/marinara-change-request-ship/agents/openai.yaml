@@ -1,0 +1,4 @@
+interface:
+  display_name: "Marinara CR Ship"
+  short_description: "Prepare validated Marinara CR work for delivery"
+  default_prompt: "Use $marinara-change-request-ship to prepare this validated Marinara change request for delivery."

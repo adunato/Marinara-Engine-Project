@@ -1,0 +1,4 @@
+interface:
+  display_name: "Marinara CR Planning"
+  short_description: "Plan approved Marinara change request work"
+  default_prompt: "Use $marinara-change-request-planning to refine the design and plan for this Marinara change request."

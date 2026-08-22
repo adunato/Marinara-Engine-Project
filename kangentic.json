@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "columns": [
+    {
+      "id": "332ba66e-9bec-49d8-94f0-bb2feada22cc",
+      "name": "To Do",
+      "role": "todo",
+      "icon": "layers",
+      "color": "#6b7280"
+    },
+    {
+      "id": "4ca55dc6-0a73-40c4-a0a3-a90a1b57be65",
+      "name": "Intake",
+      "icon": "inbox",
+      "color": "#3b82f6",
+      "autoSpawn": true
+    },
+    {
+      "id": "6041951a-e269-45c9-99dc-7074fb7380b3",
+      "name": "Planning",
+      "icon": "map",
+      "color": "#8b5cf6",
+      "autoSpawn": true,
+      "permissionMode": "plan",
+      "planExitTarget": "Worktree"
+    },
+    {
+      "id": "0d3501a6-9a1b-4db9-b053-615d0bd08a68",
+      "name": "Worktree",
+      "icon": "git-branch",
+      "color": "#6366f1",
+      "autoSpawn": true
+    },
+    {
+      "id": "fcc10940-e94c-4b42-a290-cc243835edd2",
+      "name": "Implementation",
+      "icon": "square-terminal",
+      "autoSpawn": true
+    },
+    {
+      "id": "5f97a3a4-7a47-4141-9f12-59f2c7d5cd15",
+      "name": "Review",
+      "icon": "code",
+      "color": "#f59e0b",
+      "autoSpawn": true
+    },
+    {
+      "id": "96a148f5-87c1-458e-8511-009076edf7ab",
+      "name": "Validation",
+      "icon": "flask-conical",
+      "color": "#06b6d4",
+      "autoSpawn": true
+    },
+    {
+      "id": "ece75621-f1d8-4266-88fc-d23a6891594c",
+      "name": "Ship",
+      "icon": "package",
+      "color": "#f97316",
+      "autoSpawn": true
+    },
+    {
+      "id": "4a63be8e-b8dc-4eb4-bb6d-8ad5fd5ecf70",
+      "name": "Close & Archive",
+      "icon": "archive",
+      "color": "#ec4899",
+      "autoSpawn": true
+    },
+    {
+      "id": "a3432fbe-6600-411a-8802-b63da9d9c559",
+      "name": "Done",
+      "role": "done",
+      "icon": "circle-check-big",
+      "color": "#10b981"
+    }
+  ],
+  "actions": [
+    {
+      "id": "cf471cef-77a6-477f-9b91-d0f52d59c991",
+      "name": "Kill Session",
+      "type": "kill_session",
+      "config": {}
+    },
+    {
+      "id": "741aba76-5fda-4efe-b19e-498c1a905bda",
+      "name": "Start Planning Agent",
+      "type": "spawn_agent",
+      "config": {
+        "promptTemplate": "Run the $marinara-change-request-planning skill for the Planning stage. Use the top-level Codex designer role with the Luna I agent parameter. Read the shared contract and parent AGENTS.md, and produce design/plan artifacts only; do not implement product changes without an approved HLD/plan or direct clear user instruction. {{task_xml}}{{attachments}}"
+      }
+    },
+    {
+      "id": "f87b2b5e-173e-4113-9268-695f9c77dc6a",
+      "name": "Start Intake Agent",
+      "type": "spawn_agent",
+      "config": {
+        "promptTemplate": "Run the $marinara-change-request-intake skill for the Intake stage. Use the top-level Codex worker role with the Luna I agent parameter. Read the shared contract and parent AGENTS.md; create CR records or change tracker state only when the request explicitly authorizes it. Do not push, publish, open or merge pull requests. {{task_xml}}{{attachments}}"
+      }
+    },
+    {
+      "id": "3892e339-7bf3-4b23-a623-9e88596c4eb7",
+      "name": "Start Worktree Agent",
+      "type": "spawn_agent",
+      "config": {
+        "promptTemplate": "Run the $marinara-change-request-worktree skill for the Worktree stage. Use the top-level Codex worker role with the Luna I agent parameter. Read the shared contract and parent AGENTS.md. Create or retire only the required dedicated nested application worktree; never edit product code in the primary nested checkout, and do not push or merge. {{task_xml}}{{attachments}}"
+      }
+    },
+    {
+      "id": "5797bfa8-c93e-42fe-afc5-89ea4ac1e0dc",
+      "name": "Start Implementation Agent",
+      "type": "spawn_agent",
+      "config": {
+        "promptTemplate": "Run the $marinara-change-request-implementation skill for the Implementation stage. Use the top-level Codex worker role with the Luna I agent parameter. Read the shared contract and parent AGENTS.md, implement only approved scope in the dedicated nested application worktree, and commit completed work unless the user directs otherwise. Do not push, publish, open or merge pull requests. {{task_xml}}{{attachments}}"
+      }
+    },
+    {
+      "id": "6f32bd1a-4d39-4d5d-a447-91d6bc76b169",
+      "name": "Start Review Agent",
+      "type": "spawn_agent",
+      "config": {
+        "promptTemplate": "Run the $marinara-change-request-review skill for the Review stage. Use the top-level Codex reviewer role with the Luna I agent parameter. Perform an independent read-only review against the approved contract; report substantive findings and do not fix implementation. {{task_xml}}{{attachments}}"
+      }
+    },
+    {
+      "id": "57320849-453a-4f64-93ec-4667728e7ec7",
+      "name": "Start Validation Agent",
+      "type": "spawn_agent",
+      "config": {
+        "promptTemplate": "Run the $marinara-change-request-validation skill for the Validation stage. Use the top-level Codex validator role with the Luna I agent parameter. Run only proportionate requested checks, report exact results, and stop any server launcher and child processes before handoff. Return non-trivial failures for diagnosis; do not implement fixes. {{task_xml}}{{attachments}}"
+      }
+    },
+    {
+      "id": "5925017b-7dfe-463b-88f4-94ff86789d29",
+      "name": "Start Ship Agent",
+      "type": "spawn_agent",
+      "config": {
+        "promptTemplate": "Run the $marinara-change-request-ship skill for the Ship stage. Use the top-level Codex worker role with the Luna I agent parameter. Prepare only the authorized local integration, release, or upstream-ready artifacts. Do not push, publish, open or merge pull requests, or change release state without explicit user authority. {{task_xml}}{{attachments}}"
+      }
+    },
+    {
+      "id": "e1494534-2f9e-4351-bdd5-8fb5e544a1fa",
+      "name": "Start Close and Archive Agent",
+      "type": "spawn_agent",
+      "config": {
+        "promptTemplate": "Run the $marinara-change-request-close skill for the Close & Archive stage. Use the top-level Codex worker role with the Luna I agent parameter. Update tracker state or close, supersede, or archive CR records only when explicitly authorized; do not claim user validation or archive active work. {{task_xml}}{{attachments}}"
+      }
+    }
+  ],
+  "transitions": [
+    {
+      "from": "*",
+      "to": "Intake",
+      "actions": [
+        "Kill Session",
+        "Start Intake Agent"
+      ]
+    },
+    {
+      "from": "*",
+      "to": "Planning",
+      "actions": [
+        "Kill Session",
+        "Start Planning Agent"
+      ]
+    },
+    {
+      "from": "*",
+      "to": "Worktree",
+      "actions": [
+        "Kill Session",
+        "Start Worktree Agent"
+      ]
+    },
+    {
+      "from": "*",
+      "to": "Implementation",
+      "actions": [
+        "Kill Session",
+        "Start Implementation Agent"
+      ]
+    },
+    {
+      "from": "*",
+      "to": "Review",
+      "actions": [
+        "Kill Session",
+        "Start Review Agent"
+      ]
+    },
+    {
+      "from": "*",
+      "to": "Validation",
+      "actions": [
+        "Kill Session",
+        "Start Validation Agent"
+      ]
+    },
+    {
+      "from": "*",
+      "to": "Ship",
+      "actions": [
+        "Kill Session",
+        "Start Ship Agent"
+      ]
+    },
+    {
+      "from": "*",
+      "to": "Close & Archive",
+      "actions": [
+        "Kill Session",
+        "Start Close and Archive Agent"
+      ]
+    },
+    {
+      "from": "*",
+      "to": "Done",
+      "actions": [
+        "Kill Session"
+      ]
+    }
+  ],
+  "_modifiedBy": "167128620a77"
+}

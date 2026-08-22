@@ -1,0 +1,4 @@
+interface:
+  display_name: "Marinara CR Review"
+  short_description: "Review completed Marinara CR work independently"
+  default_prompt: "Use $marinara-change-request-review to independently review this completed Marinara change request."
