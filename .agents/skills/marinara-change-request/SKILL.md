@@ -22,4 +22,4 @@ Use this index only in `Marinara-Engine-Project/`. It is the entry point for one
 
 Use only the stages needed for the request. For an explicitly directed trivial change, use the fast path in the shared contract: combine minimal CR bookkeeping with implementation rather than creating a separate approval or documentation checkpoint.
 
-For a manual Kangentic setup, use [KANGENTIC_STAGE_MAPPING.md](KANGENTIC_STAGE_MAPPING.md). It is the authoritative mapping reference for this package; it is not a board configuration file.
+Kangentic loads the committed parent-root [`kangentic.json`](../../../kangentic.json) as this workflow's shared board source. Use [KANGENTIC_STAGE_MAPPING.md](KANGENTIC_STAGE_MAPPING.md) with it for lifecycle authority and the documented schema limits. Runtime `.kangentic/config.json` is machine-local and ignored; do not edit it to change the shared workflow.

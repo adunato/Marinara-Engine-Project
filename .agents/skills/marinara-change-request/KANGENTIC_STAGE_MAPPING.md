@@ -1,6 +1,8 @@
 # Kangentic Stage Mapping
 
-This is the manual configuration source for the `$marinara-change-request` skill package. No live `kangentic.json` schema or board configuration was found when this mapping was written, so this document intentionally does not invent one. Configure a Kangentic board manually from this table and keep the shared contract authoritative.
+The committed parent-root [`kangentic.json`](../../../kangentic.json) is the shared Kangentic board source for this package. This companion mapping supplies lifecycle authority that the installed board schema cannot represent directly. Runtime `.kangentic/config.json` is ignored machine-local state, not a shared workflow source.
+
+The confirmed board shape supports columns, `autoSpawn`, Planning's `permissionMode`/`planExitTarget`, `spawn_agent` actions with `promptTemplate`, and transitions. It has no dedicated fields for Codex role, skill, or agent parameter. Each active-stage spawn template therefore states its stage skill, one permitted top-level role, and `Luna I`; it does not create or modify a Codex profile. `To Do` and `Done` do not auto-spawn. The board permits entry to an active stage from any stage so work can be returned for correction; the skill contract and the per-stage prompts retain the approval and safety gates.
 
 | Kangentic stage | Skills invoked | Codex role | Agent parameter | Authority and permissions | Entry evidence | Exit evidence | Exceptions |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -12,6 +14,6 @@ This is the manual configuration source for the `$marinara-change-request` skill
 | Review | `$marinara-change-request-review` | reviewer | `Luna I` | Read-only independent review; no fixes | Completed implementation and stated acceptance criteria | Findings or explicit no-substantive-defect result | CodeRabbit observations also invoke `$marinara-coderabbit-review`. |
 | Validation | `$marinara-change-request-validation` | validator | `Luna I` | Run only proportionate requested checks; stop launched servers | Implementation/review handoff | Exact command results, evidence, and remaining validation decision | Non-trivial failures return for diagnosis; E2E requires user agreement for behavior work. |
 | Ship | `$marinara-change-request-ship` | worker | `Luna I` | Prepare local integration, release artifacts, or upstream-ready branch; no publish/PR/merge without authority | Committed validated work and desired destination | Prepared branch/artifacts and documented release/PR state | Upstream preparation uses `$marinara-upstream-pr`; release versions use the shared contract. |
-| Close and Archive | `$marinara-change-request-close` | worker | `Luna I` | Update parent tracker and move/archive CR docs only when authorized | Final integration, supersession, or archive decision | Accurate tracker state and archived location when applicable | Do not archive work that remains active; do not claim user validation. |
+| Close & Archive | `$marinara-change-request-close` | worker | `Luna I` | Update parent tracker and move/archive CR docs only when authorized | Final integration, supersession, or archive decision | Accurate tracker state and archived location when applicable | Do not archive work that remains active; do not claim user validation. |
 
-Only the listed top-level Codex roles are mapped. This table does not create or modify Codex role profiles.
+Only the listed top-level Codex roles are mapped. This table and the board templates do not create or modify Codex role profiles.
