@@ -1,0 +1,4 @@
+interface:
+  display_name: "Marinara CR Intake"
+  short_description: "Open and register Marinara change requests"
+  default_prompt: "Use $marinara-change-request-intake to open or register a Marinara change request."

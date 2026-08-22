@@ -1,0 +1,4 @@
+interface:
+  display_name: "Marinara CR Validation"
+  short_description: "Validate completed Marinara CR work proportionately"
+  default_prompt: "Use $marinara-change-request-validation to validate this completed Marinara change request."

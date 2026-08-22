@@ -1,0 +1,4 @@
+interface:
+  display_name: "Marinara CR Worktree"
+  short_description: "Manage dedicated Marinara CR worktrees safely"
+  default_prompt: "Use $marinara-change-request-worktree to create or retire this Marinara CR worktree."

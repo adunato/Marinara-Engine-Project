@@ -5,7 +5,7 @@ description: Create or refine the approved design and implementation plan for a 
 
 # Marinara CR Planning
 
-Read the [shared contract](../SHARED_CONTRACT.md). Use this stage for HLD and implementation-plan work only.
+Read the [shared contract](../marinara-change-request/SHARED_CONTRACT.md). Use this stage for HLD and implementation-plan work only.
 
 Ensure `HLD.md` states the title, status, goals, proposed solution, risks, and validation. Ensure `IMPLEMENTATION_PLAN.md` records prerequisites, atomic tasks, affected files, verification, and rollback. Keep plans aligned with parent/nested repository boundaries, branch intent, and any relevant release or E2E decision.
 

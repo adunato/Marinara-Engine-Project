@@ -1,0 +1,4 @@
+interface:
+  display_name: "Marinara CR Close"
+  short_description: "Close or archive Marinara change requests accurately"
+  default_prompt: "Use $marinara-change-request-close to close or archive this Marinara change request."

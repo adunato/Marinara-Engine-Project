@@ -1,0 +1,4 @@
+interface:
+  display_name: "Marinara CR Implementation"
+  short_description: "Implement approved Marinara CR work safely"
+  default_prompt: "Use $marinara-change-request-implementation to implement this approved Marinara change request."
