@@ -1,0 +1,17 @@
+# Kangentic Stage Mapping
+
+This is the manual configuration source for the `$marinara-change-request` skill package. No live `kangentic.json` schema or board configuration was found when this mapping was written, so this document intentionally does not invent one. Configure a Kangentic board manually from this table and keep the shared contract authoritative.
+
+| Kangentic stage | Skills invoked | Codex role | Agent parameter | Authority and permissions | Entry evidence | Exit evidence | Exceptions |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| To Do | `$marinara-change-request` | None | None | Holding state only; no agent action | Request is captured | Work is explicitly selected | Do not assign an agent or mutate repositories. |
+| Intake | `$marinara-change-request-intake` | worker | `Luna I` | Read parent CR records; create parent CR docs/tracker entry only when authorized | Selected request | Number, initial folder/docs, tracker state, and decision/approval need recorded | Trivial direct work may combine with implementation. |
+| Planning | `$marinara-change-request-planning` | designer | `Luna I` | Design and plan artifacts only; no implementation | Intake artifacts or an existing CR | HLD/plan complete and approval state clear | Direct clear implementation instruction is approval. |
+| Worktree | `$marinara-change-request-worktree` | worker | `Luna I` | Nested app branch/worktree operations only; never product edits in primary checkout | Approved work and selected base | Dedicated worktree path and clean-status expectation recorded | Documentation-only CRs may not need an app worktree. |
+| Implementation | `$marinara-change-request-implementation` | worker | `Luna I` | Approved scoped edits in the dedicated worktree | Approved HLD/plan or direct clear instruction | Focused diff, committed implementation, and handoff evidence | Escalate shared-contract or scope conflicts; use trivial fast path when eligible. |
+| Review | `$marinara-change-request-review` | reviewer | `Luna I` | Read-only independent review; no fixes | Completed implementation and stated acceptance criteria | Findings or explicit no-substantive-defect result | CodeRabbit observations also invoke `$marinara-coderabbit-review`. |
+| Validation | `$marinara-change-request-validation` | validator | `Luna I` | Run only proportionate requested checks; stop launched servers | Implementation/review handoff | Exact command results, evidence, and remaining validation decision | Non-trivial failures return for diagnosis; E2E requires user agreement for behavior work. |
+| Ship | `$marinara-change-request-ship` | worker | `Luna I` | Prepare local integration, release artifacts, or upstream-ready branch; no publish/PR/merge without authority | Committed validated work and desired destination | Prepared branch/artifacts and documented release/PR state | Upstream preparation uses `$marinara-upstream-pr`; release versions use the shared contract. |
+| Close and Archive | `$marinara-change-request-close` | worker | `Luna I` | Update parent tracker and move/archive CR docs only when authorized | Final integration, supersession, or archive decision | Accurate tracker state and archived location when applicable | Do not archive work that remains active; do not claim user validation. |
+
+Only the listed top-level Codex roles are mapped. This table does not create or modify Codex role profiles.
