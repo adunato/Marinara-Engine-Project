@@ -15,7 +15,7 @@ A persistent briefing would let the curator carry forward what it has already es
 ## Goals
 
 - Add a **persistent context briefing** to each Conversation chat that uses Two-Pass generation.
-- Provide a **complete, explicit enumeration of all context sources** and let the user assign each one a **role** that controls how it reaches the writer.
+- Provide a **complete, explicit enumeration of the context sources supported by CR037** and let the user assign each one a **role** that controls how it reaches the writer.
 - Update the briefing **on every user message** via a multi-shot curation agent.
 - Use **batched source-tool calls** so the agent requests all relevant sources in one round and receives a single combined result.
 - Support a **fast path** for routine turns that avoids expensive source calls.
@@ -87,7 +87,9 @@ Application code validates only size bounds, non-emptiness, and stable section m
 
 ## Context Sources
 
-This is the complete, explicit enumeration of every context source the Two-Pass stateful pipeline can draw from. Each source is independently configurable (see **Per-Source Configuration** below). Sources not listed here are not part of this pipeline.
+This is the complete, explicit enumeration of the context sources supported by the CR037 stateful Two-Pass pipeline. Each source is independently configurable (see **Per-Source Configuration** below). Sources not listed here are not part of this pipeline.
+
+CR037 intentionally defines a closed, explicit source registry rather than inheriting the complete prepared-context snapshot used by CR032. This gives the user deterministic control over which supported sources are always included, agent curated, or excluded. Marinara may currently have other prompt inputs or context contributors that CR032 can see; they are out of scope for CR037 unless they are added to this registry by a tracked change with an explicit default role.
 
 The enumeration is grouped by origin for clarity. Source identifiers are stable configuration keys; the human labels are for UI display only.
 
@@ -114,6 +116,7 @@ The enumeration is grouped by origin for clarity. Source identifiers are stable 
 - This list is the closed set for this CR. Adding a new source requires a tracked change and an explicit default role.
 - `recentExchange` is special: it is always required for continuity, so its role defaults to **Always include** and may only be set to **Agent curated** (never **Always exclude**). The UI enforces this.
 - Sources that are globally disabled for the chat (for example, no Character Mind built, no Daily Intentions feature on, no connected chats) are reported as **unavailable** by the host and greyed out in the UI; their configured role is retained but has no effect while unavailable.
+- If a source changes to **Always exclude**, or becomes unavailable after previously contributing to the BRIEFING, the existing BRIEFING is invalid because it may still contain derived information from that source. Clear the BRIEFING and force a full build before the next writer call. The configured role itself is retained when a source is unavailable and restored if that source later becomes available.
 - Images and files attached to messages are carried alongside text content within `recentExchange` (and any other source that references message attachments). No separate image/file source is needed.
 - In group chats, **all character cards** for participating characters are included in the SOURCES section with appropriate labels so the writer can distinguish which card applies to which response. There are no other character-specific sources beyond those enumerated here.
 
@@ -131,7 +134,7 @@ Each context source listed above carries a **role** that controls how its conten
 
 ### Defaults
 
-The defaults are chosen to preserve CR032-equivalent coverage while making the curator responsible for trimming:
+The defaults provide practical initial coverage within the explicit CR037 source registry while making the curator responsible for trimming:
 
 | Source | Default role | Rationale |
 |---|---|---|
@@ -168,24 +171,27 @@ The panel sits next to the persistent-briefing inspection panel so users manage 
 - **Always include** sources are resolved by the host before the curation agent runs, packed into a labeled `## Injected Sources` block, and merged into the briefing. The agent prompt is told these blocks are immutable.
 - **Agent curated** sources are the only ones exposed as batched tools.
 - **Always exclude** sources are neither resolved nor registered.
-- The fast-path classifier still runs; on a fast-path turn, **Agent curated** tools are skipped, but **Always include** sources are still injected (they are not optional).
+- The fast-path classifier still runs on turns with a valid existing BRIEFING; on a fast-path turn, **Agent curated** tools are skipped, but **Always include** sources are still injected (they are not optional).
+- If there is no valid existing BRIEFING, the turn must use the full path and the fast-path classifier is skipped.
 
 ## Update Workflow
 
 On every user message in a Two-Pass chat:
 
-1. **Load state.** Load the per-source role map and the previous briefing from chat metadata. If no prior data exists (first use of stateful mode, or after reset), initialize defaults for the role map and create an empty BRIEFING shell.
-2. **Check periodic full rebuild.** If a daily rebuild is due (every day upon first message after midnight), discard the existing BRIEFING content and start from a blank shell. SOURCES are rebuilt fresh; the role map is retained.
+1. **Load state.** Load the per-source role map and the previous briefing from chat metadata. If no valid prior BRIEFING exists (first use of stateful Two-Pass, after reset, or after source-role/source-availability invalidation), initialize defaults as needed, create an empty BRIEFING shell, and mark the turn as **full build required**.
+2. **Check periodic full rebuild.** If a daily rebuild is due (every day upon first message after midnight), discard the existing BRIEFING content, start from a blank shell, retain the role map, and mark the turn as **full build required**. SOURCES are rebuilt fresh.
 3. **Resolve Always include sources.** Resolve all **Always include** sources up front and inject their content into the SOURCES section as immutable, labeled blocks. The agent cannot modify these.
 4. **Build turn delta.** Construct the current turn context: new user message, previous assistant response, and generation metadata.
-5. **Run fast-path classifier.** A lightweight prompt (using a dedicated selectable connection) classifies the turn:
+5. **Run fast-path classifier only when a valid prior BRIEFING exists.** A lightweight prompt (using a dedicated selectable connection) classifies the turn:
    - Output: `{ "fastPath": true/false, "reason": string }`.
+   - If **full build required**, skip the classifier and proceed directly to step 6.
    - If `fastPath: true`, skip batched tool calls and proceed to step 7a.
    - If `fastPath: false`, proceed to step 6 (full path).
-6. **Full path — batched source query.** The curation agent emits a single structured request listing which **Agent curated** sources it wants. Shot 1 is the tool request; Shot 2 receives the combined result block. The agent cannot query **Always exclude** sources (not registered) or **Always include** sources (already in SOURCES).
+6. **Full path — batched source query.** The curation agent emits a single structured request listing which **Agent curated** sources it wants. Shot 1 is the tool request; Shot 2 receives the combined result block. The agent cannot query **Always exclude** sources (not registered) or **Always include** sources (already in SOURCES). A full build reconstructs the BRIEFING from the currently permitted sources rather than preserving content from an invalidated briefing.
 7. **Update BRIEFING section.** The curation agent edits the BRIEFING section in place based on the turn delta and (if full path) batched tool results:
    - **Fast path:** Update only `Recent Exchange (curated)` (extend window if needed), `Last Updated`, and `Emotional State` if sentiment clearly shifted. Do not rewrite `Current Situation`, `Active Threads`, `Key Facts`, `Relationship State`, or `Relevant External Context`.
-   - **Full path:** Assess which BRIEFING sections need change based on the turn delta and tool results. Edit only the affected sections in place; do not rewrite the entire BRIEFING section. Preserve unchanged sections verbatim.
+   - **Full path with a valid prior BRIEFING:** Assess which BRIEFING sections need change based on the turn delta and tool results. Edit only the affected sections in place; do not rewrite the entire BRIEFING section. Preserve unchanged sections verbatim.
+   - **Full build required:** Populate the BRIEFING from the empty shell using the currently permitted sources. Do not carry forward text from the invalidated or cleared BRIEFING.
 8. **Persist.** Save the updated briefing (SOURCES + edited BRIEFING) to chat metadata.
 9. **Pass to writer.** The response writer receives only the complete briefing and its system prompt.
 
@@ -258,7 +264,7 @@ A lightweight first prompt classifies the turn and decides whether full source c
 
 ### Fast-path triggers
 
-The fast path runs when the turn is assessed as a **routine continuation**. Indicators include:
+The fast path runs when the turn is assessed as a **routine continuation** and a valid existing BRIEFING is available. Indicators include:
 
 - Short generic message with no new entities, questions, or references.
 - No unresolved threads from the previous briefing.
@@ -273,6 +279,7 @@ The fast path runs when the turn is assessed as a **routine continuation**. Indi
   - `Last Updated` — always updated with turn metadata.
   - `Emotional State` — updated only if sentiment clearly shifted.
 - Do not rewrite `Current Situation`, `Active Threads`, `Key Facts`, `Relationship State`, or `Relevant External Context` on fast path. These sections are assessed as unchanged and left verbatim.
+- First use, reset, daily rebuild, and source-role/source-availability invalidation never use the fast path; they force a full build from the currently permitted sources.
 
 ### Implementation
 
@@ -295,8 +302,8 @@ If `fastPath` is false, the agent proceeds to Shot 1 (batched source query) and 
 - It survives server restart.
 - It is included in chat duplication, export/import, and full backup/restore.
 - If the chat is switched back to Standard generation, the briefing is retained but not updated.
-- If Two-Pass is re-enabled, the existing briefing is reused.
-- A user-facing **Reset Context Briefing** action clears the briefing; the next message starts from a blank shell.
+- If Two-Pass is re-enabled, the existing briefing is reused unless it has been invalidated by a source-role or source-availability change; an invalid briefing is cleared and fully rebuilt on the next Two-Pass turn.
+- A user-facing **Reset Context Briefing** action clears the briefing; the next message forces a full build from the currently permitted sources.
 
 ## UI / Human Visibility
 
@@ -327,32 +334,33 @@ The existing CR032 isolation boundary is preserved:
 | No write-back | The agent may only update the briefing, not memories/summaries/lore/etc. |
 | Two-pass only | Standard generation does not use or update the briefing. |
 | Batched reads | All source-tool calls for a turn are requested and returned in one round trip. |
-| Fast path | Routine turns skip external source calls. |
+| Fast path | Routine turns with a valid existing BRIEFING may skip external source calls. |
+| Full-build safety | First use, reset, daily rebuild, and source-role/source-availability invalidation force a full build before the writer runs. |
 | Optional inspection | The user may view or reset the briefing, but does not approve each update. |
 | Bounded size | The briefing is capped by token/character budget; overflows are summarized in place. |
-| Closed source set | Only the sources enumerated in **Context Sources** are configurable; adding one requires a tracked change. |
+| Closed source set | Only the sources enumerated in **Context Sources** are part of CR037; adding one requires a tracked change and explicit default role. |
 | Role enforcement | Only **Agent curated** sources are exposed as tools; **Always include** sources are injected and immutable; **Always exclude** sources are never resolved. |
+| Source invalidation | If a previously contributing source becomes excluded or unavailable, the prior BRIEFING is cleared and rebuilt before it can reach the writer again. |
 | Required continuity | `recentExchange` is always present and cannot be excluded. |
 
 ## Risks
 
 | Risk | Mitigation |
 |---|---|
-| **Briefing drift** | Provide visible reset and optional regenerate; consider periodic full rebuild from sources. |
+| **Briefing drift** | Provide visible reset and optional regenerate; periodic daily full rebuild from sources. |
 | **Briefing bloat** | Hard size cap; in-place summarization when sections grow. Note: **Always include** sources are injected verbatim every turn, so over-using that role is the main bloat risk; defaults and the UI description steer users toward **Agent curated** for retrieval sources. |
 | **Latency** | Fast path for routine turns; batched tool calls run in parallel. **Always include** sources are resolved up front on every turn, so marking many large sources as Always include adds fixed latency. |
 | **Cost** | Fast path reduces model calls; full path replaces many fixed retrievals with targeted ones. |
 | **Tool hallucination** | Tool results are explicit and bounded; agent cannot fabricate source outputs. |
-| **Concurrency / group chats** | Per-character briefing variant may be needed for groups. |
-| **Regeneration** | Regenerating a response should not re-trigger briefing update unless the response changes materially. |
+| **Concurrency / group chats** | One shared briefing is intentional for group chats; implementation must avoid concurrent updates overwriting newer briefing state. |
 | **Export privacy** | The briefing may contain sensitive summaries; treat it like debug metadata and persisted chat data. The per-source role map is persisted alongside it and should be treated the same way. |
 
 ## Open Questions
 
 1. **Per-character briefing in group chats?** In a multi-character Conversation, do all characters share one briefing, or does each responding character have their own? ANSWER: share one briefing.
-2. **Periodic full rebuild?** Should the system occasionally rebuild the briefing from primary sources (e.g., every N turns or on reset) to limit drift? ANSWER: full reubuild every day upon first message.
+2. **Periodic full rebuild?** Should the system occasionally rebuild the briefing from primary sources (e.g., every N turns or on reset) to limit drift? ANSWER: full rebuild every day upon first message.
 3. **Fast-path trigger implementation?** Should the classifier be a cheap dedicated Marinara Engine connection/prompt, or the same curation agent connection with constrained output? ANSWER: dedicated selectable Marinara Engine connection (independent of curation agent). All available connections are candidates; user selects in Chat Settings.
-4. **Tool set initial scope?** Which sources are in the first batched tool set? All existing ones, or a subset? ANSWER: All the sources in scope
+4. **Tool set initial scope?** Which sources are in the first batched tool set? All existing ones, or a subset? ANSWER: All the sources in scope.
 5. **Conflict with CR032 shipped implementation?** Does this replace the CR032 curator entirely, or coexist as an optional enhanced mode? ANSWER: Replaces it.
 6. **Per-source configuration defaults?** Are the default roles in **Per-Source Configuration** the right starting point, or should more sources default to **Always include** for parity with the current CR032 flat source package? ANSWER: defaults as drafted; users opt into more Always include only if they want fixed verbatim inclusion.
 7. **Role persistence across feature toggles?** When a source becomes unavailable (e.g., Character Mind is removed) and later available again, should its previously configured role be restored automatically? ANSWER: yes, retained and restored; unavailable sources are greyed out but keep their configured role.
@@ -360,15 +368,18 @@ The existing CR032 isolation boundary is preserved:
 ## Acceptance Criteria
 
 - Two-Pass chats store and load a persistent context briefing with clearly separated SOURCES (immutable) and BRIEFING (editable) sections.
-- The curation agent updates the BRIEFING section on each user message by editing affected sections in place rather than rewriting wholesale.
-- Routine turns use a fast path that skips batched source calls; only `Recent Exchange (curated)`, `Last Updated`, and optionally `Emotional State` are updated.
+- CR037 uses the explicit closed source registry defined in this HLD rather than automatically inheriting every context block present in the CR032 prepared-context snapshot.
+- The curation agent updates the BRIEFING section on each user message by editing affected sections in place rather than rewriting wholesale when a valid prior BRIEFING exists.
+- Routine turns with a valid existing BRIEFING use a fast path that skips batched source calls; only `Recent Exchange (curated)`, `Last Updated`, and optionally `Emotional State` are updated.
+- First use, reset, daily rebuild, and source-role/source-availability invalidation force a full build and cannot take the fast path.
 - Non-routine turns issue a single batched source request scoped to **Agent curated** sources and receive a single combined result, then edit the BRIEFING section in place.
 - **Always include** sources are resolved up front, injected into the SOURCES section, and preserved unchanged by the curation agent.
 - **Always exclude** sources are never resolved or registered.
+- If a source that previously contributed to BRIEFING becomes **Always exclude** or unavailable, the old BRIEFING is cleared before the writer runs and rebuilt from currently permitted sources.
 - A periodic full rebuild occurs every day upon first message after midnight, discarding BRIEFING content while retaining the role map.
 - The writer receives only the updated briefing and its system prompt.
 - Standard generation is unaffected.
 - The briefing and the per-source role map survive restart, duplication, export/import, and backup/restore.
 - The user can view and reset the briefing, configure each context source's role, and select connections for fast-path classifier and curation agent, on request.
-- In group chats, all participating character cards are included in SOURCES with appropriate labels.
+- In group chats, all participating character cards are included in SOURCES with appropriate labels and the chat uses one shared briefing.
 - No changes are written back to memories, summaries, lorebooks, or other stores.
