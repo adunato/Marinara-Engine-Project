@@ -1,6 +1,6 @@
 # Change Request Tracker
 
-Last updated: 2026-08-16
+Last updated: 2026-08-26
 
 ## Repository Branch Alignment
 
@@ -68,3 +68,4 @@ Last updated: 2026-08-16
 | CR035 | merged into main | Character Emotion States and Expression Integration | Extends the Roleplay and Conversation post-generation Expression Engine to persist configured per-character emotions for next-turn card conditionals while driving per-swipe message avatars. | None | Implemented in `96fae6f25`; corrected in `37b6fb683` so Expression Engine configuration is visible and persisted in both Conversation and Roleplay, including compatibility for older Roleplay-only installed manifests. Merged into local application `main`. Shared/server/client typechecks, client lint, the focused emotion schema/macro runtime check, and the Conversation agent-capability regression passed. The repository prompt regression is blocked before CR035 cases by the pre-existing missing `formatAwarenessConversationBlock` export. Focused Playwright E2E remains a user decision. A companion Marinara-Agents manifest/prompt release is still recommended. |
 | CR036 | merged into main | Roleplay Source Chats in Scenes | Includes explicitly selected Source Chats in active Scene generation while keeping connected Conversation context, OOC notes, and influences excluded. | None | Implemented in `b9b22ea6a`, merged into local application `main`; focused context-source regression and `pnpm check` passed. |
 | CR037 | standalone | Stateful Two-Pass Context Briefing | Evolves the Two-Pass Conversation pipeline so the curator maintains a persistent, per-chat context briefing across turns, updated by a multi-shot agent with batched source tools. | CR032 | HLD and implementation plan drafted; pending HLD review and approval. |
+| CR038 | standalone | User Profile Session Segregation | Adds selectable User Profiles that isolate Conversation, Roleplay, and Game history/context while keeping reusable resources and system settings shared. | None | Draft HLD created; implementation plan intentionally deferred pending HLD review. Parent documentation PR #3 is open against `main`. |
