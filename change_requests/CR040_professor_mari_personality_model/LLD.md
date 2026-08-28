@@ -6,7 +6,7 @@ CR040 will add a shared deterministic personality-model compiler, expose it thro
 
 The compiled result remains ordinary Character Card V2 data: the full layered text is written to `data.personality` and the fixed twelve-state configuration is written to the existing `data.extensions.emotionProfile`. No new character persistence schema, client-side character editor, or runtime emotion system is introduced.
 
-One product value remains intentionally unresolved from the HLD: the canonical initial/default mental-state ID. The implementation must set this once in the canonical model before CR040 is considered complete; it must not infer a default per character.
+The canonical initial/default mental-state ID is `wary-grounded` (**Wary / Grounded**, Pearson **Realist**). This is a fixed model-level fallback used only until CR035 persists the first Expression Engine classification; it is never inferred or selected per character.
 
 ---
 
@@ -40,7 +40,7 @@ This file is the single source of truth for the executable CR040 model. It shoul
 - exact approved Pearson runtime descriptions and the fixed mental-state-to-Pearson association;
 - exact approved attachment descriptions;
 - one bounded CR035 classifier description for each mental state;
-- the canonical default-state ID once the outstanding product choice is resolved.
+- `wary-grounded` as the canonical default-state ID.
 
 The public compiler interface should be structurally equivalent to:
 
@@ -67,7 +67,7 @@ The compiler must:
 2. render the selected Enneagram paragraph first;
 3. render one fixed `charEmotion` conditional chain containing all twelve Pearson descriptions in canonical order;
 4. append a blank-line-separated `Attachment Style` heading and selected attachment paragraph;
-5. create an enabled `CharacterEmotionProfile` using the same twelve state IDs and classifier descriptions;
+5. create an enabled `CharacterEmotionProfile` using the same twelve state IDs and classifier descriptions with `defaultStateId: "wary-grounded"`;
 6. validate the generated profile with the existing `characterEmotionProfileSchema` before returning it;
 7. return fresh output objects so callers cannot mutate the canonical definitions;
 8. produce byte-identical personality text for identical inputs.
@@ -249,7 +249,7 @@ Cover at minimum:
 - the generated profile passes `characterEmotionProfileSchema`;
 - all state IDs and labels are unique;
 - each state has a non-empty classifier description within CR035's 500-character limit;
-- the configured default exists in the canonical state set;
+- `emotionProfile.defaultStateId` is exactly `wary-grounded` and that state exists in the canonical state set;
 - unsupported model/type/style IDs fail;
 - repeated compilation of the same input is byte/object equivalent.
 
@@ -293,6 +293,7 @@ Add a concise Professor Mari subsection explaining the optional layered personal
 - Professor Mari can choose an Enneagram core and attachment style when the bundled skill is enabled;
 - Marinara generates the fixed Pearson conditional personality and emotion states automatically;
 - Pearson state selection happens later through the Expression Engine/CR035, not during character creation;
+- the initial fallback state is Wary / Grounded until the Expression Engine persists a classified state;
 - applying the model to an existing character replaces the full Personality field and emotion-state profile, with the normal Keep/Restore review available;
 - ordinary manual personality and Emotional States editing remain supported.
 
@@ -302,7 +303,7 @@ Do not reproduce the entire personality catalogue in user documentation.
 
 ## 3. Cross-File Dependencies
 
-1. `packages/shared/src/utils/character-personality-model.ts` defines the stable IDs and deterministic compiled output used by every other CR040 component.
+1. `packages/shared/src/utils/character-personality-model.ts` defines the stable IDs and deterministic compiled output used by every other CR040 component, including `wary-grounded` as the fixed default.
 2. `packages/shared/src/index.ts` exposes that compiler to the server and regression scripts.
 3. `mari-db.service.ts` consumes the compiler and establishes the actual `character.create` + `character.applyPersonalityModel` behavior through the existing reviewed mutation engine.
 4. `workspace-agent.service.ts` exposes only the corresponding structured action names and selection shape to Professor Mari; it must use the same IDs as the shared model and must not duplicate final prose.
@@ -310,7 +311,7 @@ Do not reproduce the entire personality catalogue in user documentation.
 6. The regression scripts lock the shared compiler, Mari action contract, CR035 compatibility, reversible mutation behavior, and non-destructive seed lifecycle before development is considered complete.
 7. No client changes are required because the seeded skill appears through the existing Skills list and the compiled emotion profile appears through CR035's existing Emotional States UI.
 
-The canonical default mental-state ID must be resolved before the shared model/compiler tests can pass and before CR040 development can be marked complete.
+The default-state decision is complete; shared model/compiler tests should assert `wary-grounded` directly rather than accepting an arbitrary valid state.
 
 ---
 
