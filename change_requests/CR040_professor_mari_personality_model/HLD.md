@@ -51,7 +51,7 @@ At present, Professor Mari's character-write interface does not provide a dedica
   3. a dedicated `Attachment Style` heading followed by the selected canonical attachment description.
 - The Pearson conditional branches must use the approved tendency-oriented, state-agnostic wording. The roleplay LLM must not be told that the active Pearson paragraph is dynamically swapped.
 - The emotion-profile template must use a fixed set of state IDs, labels, classifier descriptions, and Pearson mappings. Mari must not generate or reinterpret those values per character.
-- The operation must enable the CR035 emotion profile and configure the canonical default state.
+- The operation must enable the CR035 emotion profile and use `wary-grounded` (**Wary / Grounded**, Pearson **Realist**) as the canonical initial/default state before the first persisted Expression Engine classification.
 - The personality-model compiler must be reusable by Professor Mari character creation and by an explicit structured operation for applying/reapplying the model to an existing character.
 - Applying the model to an existing character must use Marinara's normal reversible write/review behaviour.
 - Manual character creation and editing must continue to work without using this model.
@@ -98,8 +98,10 @@ The model owns:
 - the one-to-one mental-state-to-Pearson mapping;
 - the twelve approved Pearson runtime descriptions;
 - the fixed CR035 classifier descriptions for those mental states;
-- the canonical CR035 default state;
+- `wary-grounded` as the canonical CR035 default state;
 - the exact conditional personality template generated from those definitions.
+
+`wary-grounded` is chosen as the neutral starting point because its Realist expression is practical, measured, and evidence-oriented without strongly implying optimism, intimacy, conflict, playfulness, inspiration, transformation, protection, or authority. It is only a pre-classification fallback; CR035 replaces it with the persisted classified state once the Expression Engine has run.
 
 A deterministic compiler accepts only the variable selections required for a character, conceptually:
 
@@ -146,7 +148,7 @@ For an existing character, applying the model intentionally replaces the full `p
 2. Mari uses the compact skill and the character discussion to select one Enneagram type and one attachment style.
 3. Mari submits the character data and those two structured selections through `app_data`.
 4. The server validates the selections against the canonical model.
-5. The personality compiler produces the final personality string and the fixed CR035 emotion profile.
+5. The personality compiler produces the final personality string and the fixed CR035 emotion profile, with `wary-grounded` as the initial default.
 6. Marinara persists the complete character through the normal character storage/review path.
 7. On later roleplay turns, CR035 classifies the character's current emotion and resolves the matching Pearson conditional branch.
 8. The roleplay LLM receives an organic personality description consisting of the fixed Enneagram core, the currently active Pearson tendency, and the separately scoped attachment style.
@@ -166,7 +168,7 @@ The canonical model should validate its own invariants, including:
 - every mental-state ID is unique and valid for CR035;
 - every mental state maps to exactly one Pearson expression;
 - every Pearson branch referenced by the generated conditional block exists;
-- the configured default emotion is one of the canonical states.
+- the configured default emotion is exactly the canonical `wary-grounded` state and exists in the state collection.
 
 ### Personality compilation
 
@@ -213,7 +215,7 @@ CR040 reuses the existing character card and CR035 data model.
 The primary persisted outputs are:
 
 - `data.personality` — compiled canonical personality text containing the Enneagram core, Pearson conditionals, and attachment section;
-- `data.extensions.emotionProfile` — the fixed CR035 profile used by the Expression Engine.
+- `data.extensions.emotionProfile` — the fixed CR035 profile used by the Expression Engine, enabled with `defaultStateId: "wary-grounded"`.
 
 No new runtime conversation state is introduced. The active emotional state continues to be persisted and resolved by CR035.
 
@@ -239,6 +241,8 @@ The compiler produces a normal CR035 `emotionProfile`. CR035 remains responsible
 - `charEmotion` prompt context;
 - filtering inactive conditional branches.
 
+Before the first persisted classification, CR035 resolves `wary-grounded`; after classification, the existing persisted state becomes authoritative.
+
 CR040 does not change those runtime contracts unless implementation discovery identifies a compatibility defect.
 
 ---
@@ -263,7 +267,7 @@ Implementation planning should cover evidence that:
 - each Enneagram and attachment selection produces the exact approved description;
 - the compiled personality always contains all twelve Pearson conditional branches in the canonical mapping;
 - the final prompt includes only the CR035-active Pearson branch at runtime;
-- the compiled `emotionProfile` contains the exact canonical state IDs, labels, classifier descriptions, default, and enablement state;
+- the compiled `emotionProfile` contains the exact canonical state IDs, labels, classifier descriptions, `defaultStateId: "wary-grounded"`, and enablement state;
 - the same inputs produce identical compiled output;
 - Professor Mari can create a complete character using only the compact skill plus structured selections;
 - the full Pearson/output catalogue is not duplicated into the Mari skill prompt;
@@ -275,9 +279,9 @@ Implementation planning should cover evidence that:
 
 ---
 
-## 12. Open Questions
+## 12. Resolved Product Decisions
 
-- Which of the twelve canonical mental states should be the fixed CR035 default before a character has a persisted Expression Engine result? The choice must be made once for the model and then owned by the canonical template; Professor Mari must never choose it per character.
+- The canonical initial/default CR035 mental state is `wary-grounded` (**Wary / Grounded**, Pearson **Realist**). It is a fixed model-level fallback used only until CR035 persists the first classified state; Professor Mari never selects it per character.
 
 ---
 
