@@ -23,7 +23,8 @@ The implementation is constrained by these approved HLD decisions:
 - Professor Mari selects only one Enneagram core type and one attachment style. Pearson expression is not a Mari choice.
 - The full canonical output strings and fixed emotion-state mapping are application-owned and deterministic; the LLM must not rewrite them.
 - The compiled `personality` field is ordered as selected Enneagram description, all fixed `charEmotion` Pearson conditional branches, then an `Attachment Style` heading and selected attachment description.
-- The compiler also produces the CR035 `data.extensions.emotionProfile` using one fixed set of state IDs, labels, classifier descriptions, enablement, and default-state configuration.
+- The compiler also produces the CR035 `data.extensions.emotionProfile` using one fixed set of state IDs, labels, classifier descriptions, enablement, and `defaultStateId: "wary-grounded"`.
+- `wary-grounded` (**Wary / Grounded**, Pearson **Realist**) is the fixed pre-classification fallback because it is the most neutral, measured state in the canonical set; CR035 replaces it once a persisted Expression Engine classification exists.
 - CR035 remains the runtime authority for emotion classification, persistence, swipe behaviour, `charEmotion`, and inactive-branch filtering.
 - Model-based character creation should persist a complete compiled card in one coherent mutation; explicit reapplication to an existing character intentionally replaces both `personality` and `emotionProfile` through Marinara's reversible character-change path.
 - Existing characters, manual character editing, and manually authored CR035 profiles remain unchanged unless the model is explicitly applied.
@@ -63,12 +64,12 @@ The definition should contain:
 - the fixed mental-state-to-Pearson association;
 - the exact approved Pearson runtime descriptions;
 - one classifier description for each mental state, bounded to CR035's existing description limit;
-- the canonical CR035 default-state ID once that product choice is resolved;
+- `wary-grounded` as the canonical CR035 default-state ID;
 - enough model metadata to validate/version the compiler input without placing version markers into ordinary character prose unless there is an existing appropriate extension location.
 
 Keep the canonical definitions in normal shared/server application source, not in the Professor Mari skill and not in the parent project documentation at runtime.
 
-Add model-level invariant checks so malformed application-owned definitions fail clearly during tests/development. At minimum, verify unique IDs, complete Enneagram/attachment catalogues, exactly one Pearson mapping per mental state, a valid default state, and compatibility with the existing CR035 emotion-profile schema.
+Add model-level invariant checks so malformed application-owned definitions fail clearly during tests/development. At minimum, verify unique IDs, complete Enneagram/attachment catalogues, exactly one Pearson mapping per mental state, `wary-grounded` as a valid default state, and compatibility with the existing CR035 emotion-profile schema.
 
 ### 4.2 Deterministic Personality Compiler
 
@@ -105,7 +106,7 @@ Allow `character.create` to receive a separate model-selection object alongside 
 - Enneagram ID;
 - attachment-style ID.
 
-These values are command inputs, not arbitrary fields persisted into the character card unless the LLD identifies an existing appropriate metadata location and a concrete need to retain them.
+These values are command inputs, not arbitrary fields persisted into the character card.
 
 Before persistence:
 
@@ -119,7 +120,7 @@ The operation must not create a placeholder or partially configured character if
 
 #### Apply/reapply to an existing character
 
-Add an explicit structured action, preferably a character-scoped action such as `character.applyPersonalityModel`, accepting:
+Add the explicit structured action `character.applyPersonalityModel`, accepting:
 
 - character ID;
 - model ID/version;
@@ -157,7 +158,7 @@ Do not include:
 - CR035 metadata JSON/schema prose;
 - copies of the long final Enneagram or attachment runtime descriptions unless a short selection description happens to match naturally. Selection guidance and final card prose are separate responsibilities.
 
-Provision the skill idempotently. The LLD must choose the exact mechanism for distinguishing the shipped seed from user-created skills and for preserving user edits across application upgrades. Repeated startup/upgrade must not create duplicates or overwrite a user-modified skill unexpectedly.
+Provision the skill idempotently using the LLD's bundled seed-version bookkeeping. Repeated startup/upgrade must not create duplicates or overwrite a user-modified/disabled skill, and deletion after the recorded seed version must not recreate the same seed automatically.
 
 ### 4.5 CR035 Integration
 
@@ -167,7 +168,7 @@ The compiler's twelve state IDs must exactly match the `charEmotion` values used
 
 Do not add another emotion classifier, state store, or runtime selection mechanism. Once a character is saved, CR035 continues to:
 
-- supply the default before a persisted classification exists;
+- supply `wary-grounded` before a persisted classification exists;
 - persist per-swipe emotion state;
 - expose `charEmotion` for the next turn;
 - remove inactive conditionals before final prompt construction.
@@ -190,15 +191,14 @@ Keep `docs/character-personality-model.md` in the parent project as the design/r
 
 ## 5. Implementation Sequence
 
-1. **Resolve the canonical default mental state.** Development of the final model definition cannot be considered complete until the one CR035 default ID is selected. Other detailed design can proceed before this decision.
-2. **Define the canonical model and stable IDs.** Establish all final application-owned strings, state IDs, classifier descriptions, and model invariants before building consumers.
-3. **Implement and test the pure compiler.** Prove exact personality rendering and valid CR035 metadata independently of Professor Mari.
-4. **Extend Professor Mari's structured action schema/dispatcher.** Add typed model selections for create and the explicit apply/reapply action, routing both through the compiler and normal character storage/versioning.
-5. **Implement idempotent skill provisioning.** Establish the shipped compact skill only after the structured action IDs and accepted values are stable.
-6. **Write the compact skill content.** Reference only the finalized structured IDs and selection guidance; avoid fallback copies of canonical output.
-7. **Add focused integration and compatibility tests.** Cover create, reapply, dry-run/reversible update, malformed selections, CR035 macro resolution, existing manual profiles, and skill provisioning.
-8. **Update relevant user/developer documentation.** Keep runtime ownership and reapplication semantics explicit.
-9. **Run repository integrity checks once the cross-package change is complete.** Then hand off to the separate validation stage.
+1. **Define the canonical model and stable IDs.** Establish all final application-owned strings, state IDs, classifier descriptions, `defaultStateId: "wary-grounded"`, and model invariants before building consumers.
+2. **Implement and test the pure compiler.** Prove exact personality rendering and valid CR035 metadata independently of Professor Mari.
+3. **Extend Professor Mari's structured action schema/dispatcher.** Add typed model selections for create and the explicit apply/reapply action, routing both through the compiler and normal character storage/versioning.
+4. **Implement idempotent skill provisioning.** Establish the shipped compact skill only after the structured action IDs and accepted values are stable.
+5. **Write the compact skill content.** Reference only the finalized structured IDs and selection guidance; avoid fallback copies of canonical output.
+6. **Add focused integration and compatibility tests.** Cover create, reapply, dry-run/reversible update, malformed selections, CR035 macro resolution, existing manual profiles, and skill provisioning.
+7. **Update relevant user/developer documentation.** Keep runtime ownership and reapplication semantics explicit.
+8. **Run repository integrity checks once the cross-package change is complete.** Then hand off to the separate validation stage.
 
 The sequence matters because the skill is only a consumer of the structured action, and the structured action is only safe once the canonical compiler contract is stable.
 
@@ -227,6 +227,7 @@ A production build is not required merely to author the change, but should be ru
 - All twelve canonical mental states are rendered exactly once and in stable order in the Pearson conditional block.
 - Every conditional state ID has exactly one matching state in the compiled `emotionProfile`.
 - The compiled profile passes existing `characterEmotionProfileSchema` validation.
+- The compiled profile has `defaultStateId === "wary-grounded"`.
 - Invalid model, Enneagram, or attachment IDs fail without returning partial compiled output.
 - Identical compiler inputs produce identical output.
 - Canonical-definition invariant tests fail for duplicate/missing state mappings or an invalid default state.
@@ -238,7 +239,7 @@ A production build is not required merely to author the change, but should be ru
 - Verify Professor Mari does not need the Pearson catalogue in its skill prompt to complete the creation.
 - Apply/reapply the personality model to an existing character and verify both owned fields change together while unrelated fields remain untouched.
 - Exercise the existing reversible review/Keep/Restore path for reapplication and confirm the previous personality/profile can be restored.
-- Start/use a Conversation or Roleplay with a compiled character and confirm CR035's default/active state selects only the matching Pearson paragraph in the final prompt.
+- Start/use a Conversation or Roleplay with a compiled character and confirm `wary-grounded` is used before the first CR035 classification and that later persisted states select only the matching Pearson paragraph in the final prompt.
 
 ### Other Relevant Validation
 
@@ -251,12 +252,12 @@ A production build is not required merely to author the change, but should be ru
 
 ---
 
-## 8. Open Implementation Questions
+## 8. Resolved Implementation Decisions
 
-- Which canonical mental state is the CR035 default before the first persisted Expression Engine classification? This remains the HLD's only unresolved product choice and must be fixed once for the model rather than selected per character.
-- What exact seeded-skill ownership marker/lifecycle should be used so upgrades can provision the skill idempotently without overwriting user edits? The LLD should resolve this against the existing Skills storage format.
-- Should model-based `character.create` extend the existing command with a nested `personalityModel` input, or should creation use a dedicated higher-level character action that delegates to the same persistence path? The HLD requires one coherent creation mutation; the LLD should choose the narrowest contract consistent with current `app_data` dispatch patterns.
-- Should the selected model ID/Enneagram/attachment classifications be retained as explicit character metadata for later inspection/reapplication, or remain command-time inputs only? The HLD does not require persisted classification metadata. The LLD should retain them only if a concrete maintenance/user-flow benefit justifies adding persisted state.
+- **Default state:** `wary-grounded` is the fixed CR035 pre-classification default; it is never selected per character.
+- **Bundled skill lifecycle:** use the LLD's internal seed-version bookkeeping under the existing Mari Skills runtime storage; once a seed version is recorded, user edits, disablement, and deletion are preserved.
+- **Creation contract:** extend existing `character.create` with a nested top-level `personalityModel` input; do not create a parallel character-creation action.
+- **Persisted classifications:** model ID, Enneagram, and attachment selections remain command-time inputs only in CR040 and are not added to Character Card V2 metadata.
 
 ---
 
@@ -275,17 +276,15 @@ A separate LLD is justified because implementation spans several tightly coupled
 - Professor Mari Skills storage/provisioning lifecycle;
 - integration with existing CR035 runtime conditional resolution.
 
-The HLD fixes the architecture, but important implementation contracts still need to be pinned down before coding. In particular, the LLD should identify the concrete modules/files, exact structured action schemas, where compilation is invoked relative to character validation/persistence, how atomic replacement of `personality` + `emotionProfile` is achieved, how the seeded skill is identified and upgraded safely, and whether any classification metadata is persisted.
+The HLD fixes the architecture, and the completed LLD pins down the concrete modules/files, exact structured action schemas, where compilation is invoked relative to character validation/persistence, how atomic replacement of `personality` + `emotionProfile` is achieved, how the seeded skill is identified and provisioned safely, and that classification metadata is not persisted.
 
 Without an LLD, a developer would need to make several coupled design decisions while editing the code, increasing the risk of duplicated definitions, partial mutations, or a skill lifecycle that overwrites user content.
-
-The unresolved canonical default-state product choice should also be recorded in the LLD but remains a user/design decision rather than something implementation should infer.
 
 ---
 
 ## 10. Implementation Checklist
 
-- [ ] Resolve the canonical CR035 default mental state
+- [x] Resolve the canonical CR035 default mental state as `wary-grounded`
 - [ ] Define the versioned canonical Enneagram/Pearson/attachment model and invariant checks
 - [ ] Implement the deterministic personality + `emotionProfile` compiler
 - [ ] Add focused compiler/schema tests
