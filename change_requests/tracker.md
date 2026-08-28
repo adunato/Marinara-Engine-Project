@@ -1,6 +1,6 @@
 # Change Request Tracker
 
-Last updated: 2026-08-27
+Last updated: 2026-08-28
 
 ## Repository Branch Alignment
 
@@ -70,3 +70,4 @@ Last updated: 2026-08-27
 | CR037 | standalone | Stateful Two-Pass Context Briefing | Evolves the Two-Pass Conversation pipeline so the curator maintains a persistent, per-chat context briefing across turns, updated by a multi-shot agent with batched source tools. | CR032 | HLD and implementation plan drafted; pending HLD review and approval. |
 | CR038 | standalone | User Profile Session Segregation | Adds selectable User Profiles that isolate Conversation, Roleplay, and Game history/context while keeping reusable resources and system settings shared. | None | HLD merged via parent PR #3. Implementation plan merged via parent PR #4. LLD drafted using the OMP `low-level-design` skill; parent LLD PR #5 is open against `main`. Development has not started. |
 | CR039 | standalone | Professor Mari Custom Prompt Injection | Adds one global Professor Mari custom prompt with Enabled, Role (System/User/Assistant), and Content controls, injected as a distinct logical message immediately after the built-in Mari system prompt. | None | HLD and implementation plan proposed via parent PR #7 from `change/CR039-professor-mari-custom-prompt`; application development has not started. |
+| CR040 | standalone | Professor Mari Layered Personality Model Authoring | Lets Professor Mari select an Enneagram core and attachment style while a deterministic server-owned model compiles the full personality field and fixed CR035 emotion/Pearson template without loading the full catalogue into Mari's skill prompt. | CR035 | HLD drafted using the OMP `high-level-design` skill on `change/CR040-professor-mari-personality-model`; implementation plan and LLD intentionally deferred. |
