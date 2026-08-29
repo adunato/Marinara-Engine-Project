@@ -77,6 +77,7 @@ jobs:
           python3 project/scripts/upstream-sync/resolve-2026-08-29.py work analysis/stages
           python3 project/scripts/upstream-sync/fix-merged-package-scripts.py work
           python3 project/scripts/upstream-sync/fix-post-merge-integration.py work
+          python3 project/scripts/upstream-sync/fix-schedule-regression-profile.py work
           cd work
           git add -A
           test -z "$(git ls-files -u)"
