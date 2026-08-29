@@ -1,0 +1,87 @@
+name: Upstream merge analysis
+
+on:
+  push:
+    branches:
+      - analysis/upstream-sync-2026-08-29
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reproduce unresolved merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          OURS=e95df5e09eba365ee3c696ce2d38913f8eb5e0bd
+          THEIRS=1a299369ac7025028c3ce1b80cc59f47b7b0691b
+          EXPECTED_BASE=b50a007e665ff81845228c7db9d1e32e9c4dc3a2
+
+          git clone --no-tags https://github.com/adunato/Marinara-Engine.git work
+          cd work
+          git remote add upstream https://github.com/Pasta-Devs/Marinara-Engine.git
+          git fetch --no-tags origin main upstream-main
+          git fetch --no-tags upstream main
+          git config merge.conflictStyle zdiff3
+          git config rerere.enabled true
+
+          mkdir -p ../analysis/per-file-history
+          {
+            echo "OURS=$OURS"
+            echo "THEIRS=$THEIRS"
+            echo "ORIGIN_MAIN=$(git rev-parse origin/main)"
+            echo "ORIGIN_UPSTREAM_MAIN=$(git rev-parse origin/upstream-main)"
+            echo "UPSTREAM_MAIN=$(git rev-parse upstream/main)"
+            echo "MERGE_BASE=$(git merge-base "$OURS" "$THEIRS")"
+            echo "AHEAD_BEHIND=$(git rev-list --left-right --count "$OURS...$THEIRS")"
+            echo "EXPECTED_BASE=$EXPECTED_BASE"
+          } | tee ../analysis/baseline.txt
+
+          test "$(git merge-base "$OURS" "$THEIRS")" = "$EXPECTED_BASE"
+          test "$(git rev-parse upstream/main)" = "$THEIRS"
+          test "$(git rev-parse origin/upstream-main)" = "$THEIRS"
+
+          git checkout --detach "$OURS"
+          test -z "$(git status --porcelain)"
+          echo "PRE_MERGE_WORKTREE_CLEAN=yes" >> ../analysis/baseline.txt
+
+          set +e
+          git merge --no-commit --no-ff "$THEIRS" > ../analysis/merge-output.txt 2>&1
+          merge_exit=$?
+          set -e
+          echo "MERGE_EXIT=$merge_exit" | tee -a ../analysis/baseline.txt
+
+          git status --porcelain=v1 > ../analysis/status-porcelain.txt
+          git status > ../analysis/status.txt
+          git diff --name-only --diff-filter=U > ../analysis/conflicts.txt
+          git diff --name-status --diff-filter=U > ../analysis/conflicts-name-status.txt
+          git ls-files -u > ../analysis/unmerged-index.txt
+          git diff --cc > ../analysis/combined-conflicts.diff
+          git diff --cached --stat > ../analysis/auto-merged-staged-stat.txt
+          git diff --cached --name-status > ../analysis/auto-merged-staged-name-status.txt
+
+          while IFS= read -r path; do
+            [ -n "$path" ] || continue
+            safe=$(printf '%s' "$path" | sed 's#[/ ]#_#g')
+            git log --oneline --decorate --left-right --merge -- "$path" > "../analysis/per-file-history/${safe}.txt" || true
+          done < ../analysis/conflicts.txt
+
+          echo "=== BASELINE ==="
+          cat ../analysis/baseline.txt
+          echo "=== CONFLICTS ==="
+          cat ../analysis/conflicts-name-status.txt
+          echo "=== UNMERGED INDEX ==="
+          cat ../analysis/unmerged-index.txt
+          echo "=== STATUS ==="
+          cat ../analysis/status.txt
+
+      - name: Upload analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-merge-analysis
+          path: analysis/
+          if-no-files-found: error
+          retention-days: 7
