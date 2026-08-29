@@ -30,7 +30,7 @@ jobs:
           git config merge.conflictStyle zdiff3
           git config rerere.enabled true
 
-          mkdir -p ../analysis/per-file-history
+          mkdir -p ../analysis/per-file-history ../analysis/stages/base ../analysis/stages/ours ../analysis/stages/theirs ../analysis/stages/conflicted
           {
             echo "OURS=$OURS"
             echo "THEIRS=$THEIRS"
@@ -69,6 +69,19 @@ jobs:
             [ -n "$path" ] || continue
             safe=$(printf '%s' "$path" | sed 's#[/ ]#_#g')
             git log --oneline --decorate --left-right --merge -- "$path" > "../analysis/per-file-history/${safe}.txt" || true
+            for stage in base ours theirs; do
+              case "$stage" in
+                base) spec=":1:$path" ;;
+                ours) spec=":2:$path" ;;
+                theirs) spec=":3:$path" ;;
+              esac
+              out="../analysis/stages/$stage/$path"
+              mkdir -p "$(dirname "$out")"
+              git show "$spec" > "$out" || true
+            done
+            out="../analysis/stages/conflicted/$path"
+            mkdir -p "$(dirname "$out")"
+            cp "$path" "$out" || true
           done < ../analysis/conflicts.txt
 
           echo "=== MERGE OUTPUT ==="
@@ -77,10 +90,8 @@ jobs:
           cat ../analysis/baseline.txt
           echo "=== CONFLICTS ==="
           cat ../analysis/conflicts-name-status.txt
-          echo "=== UNMERGED INDEX ==="
-          cat ../analysis/unmerged-index.txt
-          echo "=== STATUS ==="
-          cat ../analysis/status.txt
+          echo "=== STATUS SUMMARY ==="
+          git status --short
 
       - name: Upload analysis
         uses: actions/upload-artifact@v4
