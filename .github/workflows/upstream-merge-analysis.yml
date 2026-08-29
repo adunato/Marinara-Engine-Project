@@ -84,6 +84,8 @@ jobs:
             cp "$path" "$out" || true
           done < ../analysis/conflicts.txt
 
+          tar --exclude='.git' -czf ../analysis/unresolved-worktree.tar.gz .
+
           echo "=== MERGE OUTPUT ==="
           cat ../analysis/merge-output.txt
           echo "=== BASELINE ==="
