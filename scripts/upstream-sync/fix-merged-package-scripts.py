@@ -21,7 +21,10 @@ command = command.replace(
 scripts["regression:user-profiles"] = command
 path.write_text(json.dumps(data, indent=2) + "\n")
 
-# CR038 makes UserProfile.activePersonaId canonical. Apply the focused cache
-# reconciliation after the generic conflict resolver so upstream's legacy
-# global Persona.isActive cache does not regain runtime authority.
+# CR038 makes UserProfile.activePersonaId canonical and adapts the profile
+# switch reset to upstream's current ChatState shape.
 runpy.run_path(str(Path(__file__).with_name("fix-cr038-persona-cache.py")), run_name="__main__")
+
+# CR037 keeps its independently resolved summary runtime while adopting
+# upstream's semantic summary-selection layer for the prompt.
+runpy.run_path(str(Path(__file__).with_name("fix-cr037-summary-runtime.py")), run_name="__main__")
