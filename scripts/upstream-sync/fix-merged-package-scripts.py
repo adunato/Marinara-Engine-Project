@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import runpy
 import sys
 from pathlib import Path
 
@@ -19,3 +20,8 @@ command = command.replace(
 )
 scripts["regression:user-profiles"] = command
 path.write_text(json.dumps(data, indent=2) + "\n")
+
+# CR038 makes UserProfile.activePersonaId canonical. Apply the focused cache
+# reconciliation after the generic conflict resolver so upstream's legacy
+# global Persona.isActive cache does not regain runtime authority.
+runpy.run_path(str(Path(__file__).with_name("fix-cr038-persona-cache.py")), run_name="__main__")
