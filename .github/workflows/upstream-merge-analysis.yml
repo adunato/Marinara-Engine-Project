@@ -25,7 +25,6 @@ jobs:
           OURS=e95df5e09eba365ee3c696ce2d38913f8eb5e0bd
           THEIRS=1a299369ac7025028c3ce1b80cc59f47b7b0691b
           EXPECTED_BASE=b50a007e665ff81845228c7db9d1e32e9c4dc3a2
-
           git clone --no-tags https://github.com/adunato/Marinara-Engine.git work
           cd work
           git remote add upstream https://github.com/Pasta-Devs/Marinara-Engine.git
@@ -35,7 +34,6 @@ jobs:
           git config user.email "upstream-sync-validation@users.noreply.github.com"
           git config merge.conflictStyle zdiff3
           git config rerere.enabled true
-
           mkdir -p ../analysis/stages/base ../analysis/stages/ours ../analysis/stages/theirs ../analysis/stages/conflicted
           {
             echo "OURS=$OURS"
@@ -46,11 +44,9 @@ jobs:
             echo "MERGE_BASE=$(git merge-base "$OURS" "$THEIRS")"
             echo "AHEAD_BEHIND=$(git rev-list --left-right --count "$OURS...$THEIRS")"
           } | tee ../analysis/baseline.txt
-
           test "$(git merge-base "$OURS" "$THEIRS")" = "$EXPECTED_BASE"
           test "$(git rev-parse upstream/main)" = "$THEIRS"
           test "$(git rev-parse origin/upstream-main)" = "$THEIRS"
-
           git checkout --detach "$OURS"
           test -z "$(git status --porcelain)"
           set +e
@@ -59,7 +55,6 @@ jobs:
           set -e
           echo "MERGE_EXIT=$merge_exit" | tee -a ../analysis/baseline.txt
           test "$merge_exit" -eq 1
-
           git diff --name-only --diff-filter=U > ../analysis/conflicts.txt
           test "$(wc -l < ../analysis/conflicts.txt)" -eq 47
           while IFS= read -r path; do
@@ -78,16 +73,13 @@ jobs:
             mkdir -p "$(dirname "$out")"
             cp "$path" "$out"
           done < ../analysis/conflicts.txt
-
           cd ..
           python3 project/scripts/upstream-sync/resolve-2026-08-29.py work analysis/stages
+          python3 project/scripts/upstream-sync/fix-merged-package-scripts.py work
           cd work
           git add -A
           test -z "$(git ls-files -u)"
-          if grep -RIl --include='*.ts' --include='*.tsx' --include='*.js' --include='*.json' --include='*.md' --include='*.yml' --include='*.yaml' '^<<<<<<<\|^>>>>>>>\|^=======$' . --exclude-dir=.git | grep -q .; then
-            echo "Conflict markers remain" >&2
-            exit 1
-          fi
+          ! grep -RIl --include='*.ts' --include='*.tsx' --include='*.js' --include='*.json' --include='*.md' --include='*.yml' --include='*.yaml' '^<<<<<<<\|^>>>>>>>\|^=======$' . --exclude-dir=.git | grep -q .
           git status --short > ../analysis/resolved-status.txt
           git diff --cached --stat > ../analysis/resolved-stat.txt
 
@@ -111,10 +103,9 @@ jobs:
           pnpm --version | tee ../analysis/pnpm-version.txt
           pnpm install --no-frozen-lockfile
           git add pnpm-lock.yaml
-          git diff --cached -- pnpm-lock.yaml > ../analysis/lockfile.diff
           pnpm install --frozen-lockfile
 
-      - name: Format merged TypeScript
+      - name: Format and sanity check
         working-directory: work
         shell: bash
         run: |
@@ -122,8 +113,7 @@ jobs:
           pnpm exec prettier --write "packages/**/*.{ts,tsx}"
           git add -A
           git diff --cached --check
-          git status --short > ../analysis/formatted-status.txt
-          git diff --cached --stat > ../analysis/formatted-stat.txt
+          node -e 'const p=require("./package.json"); for(const [n,c] of Object.entries(p.scripts)){ for(const m of c.matchAll(/pnpm (regression:[A-Za-z0-9:_-]+)/g)){ if(!p.scripts[m[1]]) throw new Error(`${n} references missing ${m[1]}`) } }'
 
       - name: Validate CR038 profile segregation
         working-directory: work
@@ -137,7 +127,6 @@ jobs:
         working-directory: work
         shell: bash
         run: |
-          set -euo pipefail
           pnpm regression:conversation-two-pass
           pnpm regression:conversation-summary-controls
 
@@ -149,7 +138,6 @@ jobs:
         working-directory: work
         shell: bash
         run: |
-          set -euo pipefail
           pnpm regression:professor-mari-custom-prompt
           pnpm build:shared
           pnpm --filter @marinara-engine/server exec tsx ../../scripts/regressions/character-personality-model.regression.ts
@@ -159,7 +147,6 @@ jobs:
         working-directory: work
         shell: bash
         run: |
-          set -euo pipefail
           pnpm regression:providers
           pnpm --filter @marinara-engine/server exec tsx ../../scripts/regressions/rate-limit-aware-provider.regression.ts
           test -f packages/server/src/services/llm/phoenix-tracing-provider.ts
@@ -170,7 +157,6 @@ jobs:
         working-directory: work
         shell: bash
         run: |
-          set -euo pipefail
           pnpm regression:prompt
           pnpm regression:context-sources
           pnpm regression:managed-agents
@@ -182,7 +168,7 @@ jobs:
         working-directory: work
         run: pnpm check
 
-      - name: Save resolved tree and validation metadata
+      - name: Save resolved merge artifact
         if: always()
         shell: bash
         run: |
@@ -192,7 +178,7 @@ jobs:
             git status --short > ../analysis/final-status.txt
             git diff --cached --stat > ../analysis/final-stat.txt
             git diff --cached --binary > ../analysis/final-merge.patch
-            tar --exclude='.git' --exclude='node_modules' -czf ../analysis/resolved-worktree.tar.gz .
+            git write-tree > ../analysis/final-tree-sha.txt
           fi
 
       - name: Upload validation artifact
