@@ -1,4 +1,4 @@
-name: Upstream merge analysis
+name: Upstream merge validation
 
 on:
   push:
@@ -9,10 +9,16 @@ permissions:
   contents: read
 
 jobs:
-  analyze:
+  validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
-      - name: Reproduce unresolved merge
+      - name: Checkout integration tooling
+        uses: actions/checkout@v4
+        with:
+          path: project
+
+      - name: Reproduce and resolve exact merge
         shell: bash
         run: |
           set -euo pipefail
@@ -25,12 +31,12 @@ jobs:
           git remote add upstream https://github.com/Pasta-Devs/Marinara-Engine.git
           git fetch --no-tags origin main upstream-main
           git fetch --no-tags upstream main
-          git config user.name "Upstream Sync Analysis"
-          git config user.email "upstream-sync-analysis@users.noreply.github.com"
+          git config user.name "Upstream Sync Validation"
+          git config user.email "upstream-sync-validation@users.noreply.github.com"
           git config merge.conflictStyle zdiff3
           git config rerere.enabled true
 
-          mkdir -p ../analysis/per-file-history ../analysis/stages/base ../analysis/stages/ours ../analysis/stages/theirs ../analysis/stages/conflicted
+          mkdir -p ../analysis/stages/base ../analysis/stages/ours ../analysis/stages/theirs ../analysis/stages/conflicted
           {
             echo "OURS=$OURS"
             echo "THEIRS=$THEIRS"
@@ -39,7 +45,6 @@ jobs:
             echo "UPSTREAM_MAIN=$(git rev-parse upstream/main)"
             echo "MERGE_BASE=$(git merge-base "$OURS" "$THEIRS")"
             echo "AHEAD_BEHIND=$(git rev-list --left-right --count "$OURS...$THEIRS")"
-            echo "EXPECTED_BASE=$EXPECTED_BASE"
           } | tee ../analysis/baseline.txt
 
           test "$(git merge-base "$OURS" "$THEIRS")" = "$EXPECTED_BASE"
@@ -48,27 +53,17 @@ jobs:
 
           git checkout --detach "$OURS"
           test -z "$(git status --porcelain)"
-          echo "PRE_MERGE_WORKTREE_CLEAN=yes" >> ../analysis/baseline.txt
-
           set +e
           git merge --no-commit --no-ff "$THEIRS" > ../analysis/merge-output.txt 2>&1
           merge_exit=$?
           set -e
           echo "MERGE_EXIT=$merge_exit" | tee -a ../analysis/baseline.txt
+          test "$merge_exit" -eq 1
 
-          git status --porcelain=v1 > ../analysis/status-porcelain.txt
-          git status > ../analysis/status.txt
           git diff --name-only --diff-filter=U > ../analysis/conflicts.txt
-          git diff --name-status --diff-filter=U > ../analysis/conflicts-name-status.txt
-          git ls-files -u > ../analysis/unmerged-index.txt
-          git diff --cc > ../analysis/combined-conflicts.diff
-          git diff --cached --stat > ../analysis/auto-merged-staged-stat.txt
-          git diff --cached --name-status > ../analysis/auto-merged-staged-name-status.txt
-
+          test "$(wc -l < ../analysis/conflicts.txt)" -eq 47
           while IFS= read -r path; do
             [ -n "$path" ] || continue
-            safe=$(printf '%s' "$path" | sed 's#[/ ]#_#g')
-            git log --oneline --decorate --left-right --merge -- "$path" > "../analysis/per-file-history/${safe}.txt" || true
             for stage in base ours theirs; do
               case "$stage" in
                 base) spec=":1:$path" ;;
@@ -77,28 +72,134 @@ jobs:
               esac
               out="../analysis/stages/$stage/$path"
               mkdir -p "$(dirname "$out")"
-              git show "$spec" > "$out" || true
+              git show "$spec" > "$out"
             done
             out="../analysis/stages/conflicted/$path"
             mkdir -p "$(dirname "$out")"
-            cp "$path" "$out" || true
+            cp "$path" "$out"
           done < ../analysis/conflicts.txt
 
-          tar --exclude='.git' -czf ../analysis/unresolved-worktree.tar.gz .
+          cd ..
+          python3 project/scripts/upstream-sync/resolve-2026-08-29.py work analysis/stages
+          cd work
+          git add -A
+          test -z "$(git ls-files -u)"
+          if grep -RIl --include='*.ts' --include='*.tsx' --include='*.js' --include='*.json' --include='*.md' --include='*.yml' --include='*.yaml' '^<<<<<<<\|^>>>>>>>\|^=======$' . --exclude-dir=.git | grep -q .; then
+            echo "Conflict markers remain" >&2
+            exit 1
+          fi
+          git status --short > ../analysis/resolved-status.txt
+          git diff --cached --stat > ../analysis/resolved-stat.txt
 
-          echo "=== MERGE OUTPUT ==="
-          cat ../analysis/merge-output.txt
-          echo "=== BASELINE ==="
-          cat ../analysis/baseline.txt
-          echo "=== CONFLICTS ==="
-          cat ../analysis/conflicts-name-status.txt
-          echo "=== STATUS SUMMARY ==="
-          git status --short
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
 
-      - name: Upload analysis
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+
+      - name: Install and regenerate lockfile
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version | tee ../analysis/node-version.txt
+          pnpm --version | tee ../analysis/pnpm-version.txt
+          pnpm install --no-frozen-lockfile
+          git add pnpm-lock.yaml
+          git diff --cached -- pnpm-lock.yaml > ../analysis/lockfile.diff
+          pnpm install --frozen-lockfile
+
+      - name: Format merged TypeScript
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm exec prettier --write "packages/**/*.{ts,tsx}"
+          git add -A
+          git diff --cached --check
+          git status --short > ../analysis/formatted-status.txt
+          git diff --cached --stat > ../analysis/formatted-stat.txt
+
+      - name: Validate CR038 profile segregation
+        working-directory: work
+        run: pnpm regression:user-profiles
+
+      - name: Validate upstream shared character schedule ownership
+        working-directory: work
+        run: pnpm build:shared && pnpm --filter @marinara-engine/server exec tsx ../../scripts/regressions/character-schedule-ownership.regression.ts
+
+      - name: Validate CR037 two-pass and summaries
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm regression:conversation-two-pass
+          pnpm regression:conversation-summary-controls
+
+      - name: Validate CR035 and CR041 emotion behavior
+        working-directory: work
+        run: pnpm regression:generation-emotion-labels
+
+      - name: Validate Professor Mari CR039 and CR040
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm regression:professor-mari-custom-prompt
+          pnpm build:shared
+          pnpm --filter @marinara-engine/server exec tsx ../../scripts/regressions/character-personality-model.regression.ts
+          pnpm --filter @marinara-engine/server exec tsx ../../scripts/regressions/professor-mari-personality-model.regression.ts
+
+      - name: Validate upstream LLM provider stack with Phoenix retained
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm regression:providers
+          pnpm --filter @marinara-engine/server exec tsx ../../scripts/regressions/rate-limit-aware-provider.regression.ts
+          test -f packages/server/src/services/llm/phoenix-tracing-provider.ts
+          ! test -f packages/server/src/services/llm/transport-retry-provider.ts
+          ! grep -R "withLlmTransportRetries\|transport-retry-provider" packages/server/src --include='*.ts' -n
+
+      - name: Validate other local integration surfaces
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm regression:prompt
+          pnpm regression:context-sources
+          pnpm regression:managed-agents
+          pnpm regression:scene-context
+          pnpm regression:conversation-custom-tracker
+          pnpm regression:character-mind
+
+      - name: Full repository check
+        working-directory: work
+        run: pnpm check
+
+      - name: Save resolved tree and validation metadata
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -d work ]; then
+            cd work
+            git status --short > ../analysis/final-status.txt
+            git diff --cached --stat > ../analysis/final-stat.txt
+            git diff --cached --binary > ../analysis/final-merge.patch
+            tar --exclude='.git' --exclude='node_modules' -czf ../analysis/resolved-worktree.tar.gz .
+          fi
+
+      - name: Upload validation artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: upstream-merge-analysis
+          name: upstream-merge-validation
           path: analysis/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
