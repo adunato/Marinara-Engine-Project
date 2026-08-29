@@ -25,6 +25,8 @@ jobs:
           git remote add upstream https://github.com/Pasta-Devs/Marinara-Engine.git
           git fetch --no-tags origin main upstream-main
           git fetch --no-tags upstream main
+          git config user.name "Upstream Sync Analysis"
+          git config user.email "upstream-sync-analysis@users.noreply.github.com"
           git config merge.conflictStyle zdiff3
           git config rerere.enabled true
 
@@ -69,6 +71,8 @@ jobs:
             git log --oneline --decorate --left-right --merge -- "$path" > "../analysis/per-file-history/${safe}.txt" || true
           done < ../analysis/conflicts.txt
 
+          echo "=== MERGE OUTPUT ==="
+          cat ../analysis/merge-output.txt
           echo "=== BASELINE ==="
           cat ../analysis/baseline.txt
           echo "=== CONFLICTS ==="
