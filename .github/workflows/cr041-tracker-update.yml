@@ -1,0 +1,38 @@
+name: CR041 Tracker Update
+
+on:
+  push:
+    branches:
+      - change/CR041-generation-emotion-labels
+
+permissions:
+  contents: write
+
+jobs:
+  update-tracker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout CR041 documentation branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: change/CR041-generation-emotion-labels
+          fetch-depth: 0
+
+      - name: Record application PR
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('change_requests/tracker.md')
+          source = path.read_text(encoding='utf-8')
+          old = '| CR041 | standalone | Per-Message Generation Emotion Labels | Persists the CR035 emotion state that actually shaped each newly generated Roleplay/Conversation message swipe and displays its human-readable label beneath the character name. | CR035 | HLD, implementation plan, and required LLD prepared on `change/CR041-generation-emotion-labels`; application development has not started. |'
+          new = '| CR041 | PR open into origin main | Per-Message Generation Emotion Labels | Persists the CR035 emotion state that actually shaped each newly generated Roleplay/Conversation message swipe and displays its human-readable label beneath the character name. | CR035 | Implemented in `b5db4669f`; application PR #21 is open against `origin/main`. `pnpm regression:generation-emotion-labels`, `pnpm regression:regeneration-context`, `pnpm check`, and `git diff --check` passed. Focused CR041 Playwright E2E was not added. |'
+          if source.count(old) != 1:
+              raise SystemExit('Expected exactly one CR041 tracker row')
+          path.write_text(source.replace(old, new, 1), encoding='utf-8')
+          PY
+          rm .github/workflows/cr041-tracker-update.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "docs: update CR041 application PR status"
+          git push origin HEAD:change/CR041-generation-emotion-labels
