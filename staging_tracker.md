@@ -1,6 +1,6 @@
 # Local Staging Tracker
 
-Status against local branch `staging` at commit `71e9204b5` as of 2026-09-01. This is a temporary secondary integration tracker; [`change_requests/tracker.md`](change_requests/tracker.md) remains canonical. Copied test data and backups are ignored/local and are not part of the branch or this tracker. “Integrated” means present in local `staging`; it does not mean pushed or merged upstream.
+Status against local branch `staging` at commit `80f688df2` as of 2026-09-01. This is a temporary secondary integration tracker; [`change_requests/tracker.md`](change_requests/tracker.md) remains canonical. Copied test data and backups are ignored/local and are not part of the branch or this tracker. “Integrated” means present in local `staging`; it does not mean pushed or merged upstream.
 
 | CR | Title | Canonical lifecycle status | Staging status | Staging evidence/notes |
 | --- | --- | --- | --- | --- |
@@ -30,7 +30,7 @@ Status against local branch `staging` at commit `71e9204b5` as of 2026-09-01. Th
 | CR024 | Shared LLM Transport Retries | archived | Not integrated | Historical; merged into local application main. |
 | CR025 | Character Mind Page Sessions | archived | Not integrated | Historical; merged into local application main. |
 | CR026 | Character Mind Page Streaming | archived | Not integrated | Historical; merged into local application main. |
-| CR027 | Phoenix Raw Stream Tracing | archived | Not integrated | Historical; merged into local application main. |
+| CR027 | Phoenix Raw Stream Tracing | archived | Integrated (standalone) | Tracing-only slice is present in local `staging` at `80f688df2` after CR042. See [`CR027 standalone staging integration`](change_requests/CR027_phoenix_integration/STAGING_INTEGRATION.md) for the included/excluded scope and fresh-upstream reapplication recipe. CR026 Character Mind logic and CR027 raw-stream enhancements are intentionally excluded. |
 | CR028 | Cross-Chat Daily Memory Awareness | archived | Not integrated | Historical; merged into local application main. |
 | CR029 | Resumable Character Mind Builds | archived | Not integrated | Historical; merged into local application main. |
 | CR030 | Staged Character Mind Editing | archived | Not integrated | Historical; merged into local application main. |
