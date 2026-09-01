@@ -328,12 +328,14 @@ For a character, resolve the embedding source from the resolved Daily Memory for
 
 ### 8.1 Write path
 
-Before a newly formed/manual/edited memory is retrieval-eligible:
+Embedding is best-effort for each valid formed, manual, or edited memory:
 
-1. embed its text with `inputType = document`;
-2. persist JSON vector and the source's stable `spaceId`;
+1. attempt to embed its text with `inputType = document`;
+2. when embedding succeeds, persist the JSON vector and the source's stable `spaceId`;
 3. if no configured source exists and local embedding succeeds, store the existing local-space ID;
-4. if embedding fails, persist the text but leave it non-retrieval-eligible and surface degraded status/logging rather than marking the provider extraction itself as duplicated/unfinished.
+4. when embedding fails, persist the valid memory text, importance, and provenance with both `embedding` and `embeddingSpaceId` null. The row is non-retrieval-eligible.
+
+An embedding failure does not create an embedding-pending/degraded state, fail the source, or schedule a CR-specific retry. The formation result remains durable and is not extracted again solely because vectorization failed.
 
 ### 8.2 Formation connection changes
 
@@ -379,13 +381,14 @@ For each source:
 pending/failed and retry due
     -> running, attempts += 1
     -> extract
-    -> embed each returned memory
-    -> write memories for this runSource
-    -> success OR empty
+    -> persist each valid returned memory and attempt embedding
+    -> success OR empty, regardless of individual embedding outcomes
 
 provider/parse failure
     -> failed + error + nextRetryAt
 ```
+
+An embedding failure is handled on the memory row as described in §8.1; it does not enter the provider/parse failure path. Once valid memories have been persisted, the source is terminal `success` (or `empty` when it returned none), and ordinary retry/reconciliation never repeats extraction for that source.
 
 Never rerun `success` or `empty` run-source rows during ordinary retry/reconciliation.
 
@@ -523,6 +526,8 @@ Load memories that:
 - have non-null embedding;
 - have `embeddingSpaceId` equal to the current query space;
 - are not attached to a deleted day.
+
+Persisted memories whose vectorization failed have null embedding/space and are excluded until a user edit or current maintenance re-vectorization succeeds. There is no CR-specific retry path for those rows.
 
 There is no final top-K cap.
 
