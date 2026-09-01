@@ -1,0 +1,25 @@
+{
+  "theme": "dark",
+  "agent": {
+    "permissionMode": "bypassPermissions"
+  },
+  "git": {
+    "worktreesEnabled": true,
+    "autoCleanup": true,
+    "defaultBaseBranch": "main",
+    "copyFiles": [],
+    "initScript": null,
+    "linkNodeModules": true,
+    "prRefreshIntervalMinutes": 5
+  },
+  "importSources": [
+    {
+      "id": "d213401e-1c77-4966-94e7-2cd2bfb1d3f8",
+      "source": "github_issues",
+      "label": "adunato/Marinara-Engine-Project",
+      "repository": "adunato/Marinara-Engine-Project",
+      "url": "https://github.com/adunato/Marinara-Engine-Project",
+      "createdAt": "2026-08-23T15:31:32.757Z"
+    }
+  ]
+}

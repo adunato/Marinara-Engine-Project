@@ -1,6 +1,6 @@
 # Change Request Tracker
 
-Last updated: 2026-08-27
+Last updated: 2026-08-28
 
 ## Repository Branch Alignment
 
@@ -70,3 +70,4 @@ Last updated: 2026-08-27
 | CR037 | standalone | Stateful Two-Pass Context Briefing | Evolves the Two-Pass Conversation pipeline so the curator maintains a persistent, per-chat context briefing across turns, updated by a multi-shot agent with batched source tools. | CR032 | HLD and implementation plan drafted; pending HLD review and approval. |
 | CR038 | standalone | User Profile Session Segregation | Adds selectable User Profiles that isolate Conversation, Roleplay, and Game history/context while keeping reusable resources and system settings shared. | None | HLD merged via parent PR #3. Implementation plan merged via parent PR #4. LLD drafted using the OMP `low-level-design` skill; parent LLD PR #5 is open against `main`. Development has not started. |
 | CR039 | PR open into origin main | Professor Mari Custom Prompt Injection | Adds one global Professor Mari custom prompt with Enabled, Role (System/User/Assistant), and Content controls, injected as a distinct logical message immediately after the built-in Mari system prompt. | None | HLD and implementation plan proposed via parent PR #7 from `change/CR039-professor-mari-custom-prompt`; application commit/head `8f0fae47ad5264d82be87778b4fbe1afe262ebc3` on `change/CR039-professor-mari-custom-prompt`; application PR #18, [feat(professor-mari): add global custom prompt](https://github.com/adunato/Marinara-Engine/pull/18), is open into `origin/main`. |
+| CR040 | PR prepared, not opened | Preserve Avatar Source Prompt for Normal Character Generation | Preserves the original source prompt for normal Character avatar generation when no reference image is used. | None | Application commit `5e5a4ac74a9db90d3e9ad740fbc972b03613c1c1` on `change/CR040-preserve-avatar-source-prompt`; `git diff --check`, `pnpm regression:prompt`, and `pnpm check` passed. Reviewer-ready `PR.md` prepared for fork `adunato/Marinara-Engine` base `main`; no PR opened.

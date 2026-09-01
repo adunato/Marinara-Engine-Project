@@ -17,6 +17,46 @@ The HLD remains the architectural authority. This plan does not introduce profil
 
 ---
 
+## 1.1 Current implementation status — 2026-08-28
+
+Implementation is in progress on branch `change/CR038-user-profile-session-segregation` in `C:\Users\danie\projects\Marinara-Engine-Project\Marinara-Engine-cr038`. The implementation remains uncommitted.
+
+### Atomic work status and evidence
+
+| Atomic plan work | Status | Evidence / current boundary |
+|---|---|---|
+| Server profile-scoped ownership, `listAll`, and runtime propagation | Complete | Confirmed implemented in the CR038 worktree. |
+| Client folder/chat cache, reorder, and timezone propagation | Complete | Confirmed implemented in the CR038 worktree. |
+| Client TypeScript compilation | Complete | Client `tsc` passes. |
+| Client production build | Complete | Client build passes. |
+| Server lint | Complete | Server lint passes. |
+| Diff integrity | Complete | `git diff --check` passes. |
+| Client persona cache and global active-persona state | Outstanding | Still requires completion; profile-specific persona state is not yet fully isolated. |
+| Profile status/activity/resume/Game reset, restoration, and continuity handling | Outstanding | Full profile-specific state transition and restore behaviour remains incomplete. |
+| Import/backup, notifications, and background-work propagation | Outstanding | These integration surfaces still have known gaps. |
+| Seven CR038 regressions | Outstanding | Seven identified regressions remain to be resolved. |
+| Full validation | Blocked / pending rerun | `pnpm check` has had server TypeScript failures during migration and needs rerun/confirmation after the remaining work. |
+| Commit and implementation hand-off | Pending | Must follow completion of the outstanding implementation and validation work. |
+
+### Outstanding priorities
+
+1. Finish client persona cache isolation and remove reliance on global active-persona state for CR038 runtime behaviour.
+2. Complete profile-specific status/activity/resume/Game reset and restoration, including the remaining continuity paths.
+3. Close the import/backup, notifications, and background-work gaps.
+4. Resolve all seven identified CR038 regressions.
+5. Rerun and confirm the full validation set, including `pnpm check`, after the migration-related server TypeScript failures are addressed.
+6. Commit the completed implementation only after validation evidence is satisfactory.
+
+### Validation and blockers
+
+The focused evidence currently available is: client `tsc` pass, client build pass, server lint pass, and `git diff --check` pass. Full `pnpm check` is not yet confirmed because it has reported server TypeScript failures during migration. Full validation therefore remains pending and is the active blocker to implementation hand-off.
+
+### Rollback and next steps
+
+Rollback remains limited to the uncommitted CR038 worktree: preserve the current worktree state, isolate any corrective edits to the outstanding surfaces, and avoid changing the approved HLD or shared tracker records. The next implementation step is to complete the outstanding client and integration work, rerun the focused checks and full `pnpm check`, resolve any remaining failures, perform the required validation, and then commit the branch for hand-off.
+
+---
+
 ## 2. HLD Reference
 
 The implementation is constrained by these approved design decisions:
