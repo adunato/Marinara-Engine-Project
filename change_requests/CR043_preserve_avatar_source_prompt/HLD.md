@@ -1,8 +1,8 @@
-# CR040 — Preserve Avatar Source Prompt for Normal Character Generation
+# CR043 — Preserve Avatar Source Prompt for Normal Character Generation
 
 ## Status
 
-Implementation completed and validated in application commit `5e5a4ac74a9db90d3e9ad740fbc972b03613c1c1` on `change/CR040-preserve-avatar-source-prompt`.
+Implementation completed and validated in application commit `5e5a4ac74a9db90d3e9ad740fbc972b03613c1c1` on `change/CR043-preserve-avatar-source-prompt`.
 
 ## Goal
 

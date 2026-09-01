@@ -1,12 +1,12 @@
-# CR040 Implementation Plan — Preserve Avatar Source Prompt for Normal Character Generation
+# CR043 Implementation Plan — Preserve Avatar Source Prompt for Normal Character Generation
 
 ## Status
 
-Implemented and validated in application commit `5e5a4ac74a9db90d3e9ad740fbc972b03613c1c1` on `change/CR040-preserve-avatar-source-prompt`.
+Implemented and validated in application commit `5e5a4ac74a9db90d3e9ad740fbc972b03613c1c1` on `change/CR043-preserve-avatar-source-prompt`.
 
 ## Prerequisites
 
-- Implement only in the dedicated nested app worktree on `change/CR040-preserve-avatar-source-prompt`.
+- Implement only in the dedicated nested app worktree on `change/CR043-preserve-avatar-source-prompt`.
 - Preserve unrelated work and leave reference-image and non-Character generation paths unchanged.
 
 ## Atomic Tasks

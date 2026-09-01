@@ -16,7 +16,7 @@ Automated validation also included:
 
 - `pnpm regression:prompt` passed.
 - `git diff --check` passed.
-- Application commit `5e5a4ac74a9db90d3e9ad740fbc972b03613c1c1` is on `change/CR040-preserve-avatar-source-prompt`.
+- Application commit `5e5a4ac74a9db90d3e9ad740fbc972b03613c1c1` is on `change/CR043-preserve-avatar-source-prompt`.
 - No ComfyUI/provider E2E test was performed.
 
 ### Manual verification notes
