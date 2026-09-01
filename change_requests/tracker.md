@@ -1,6 +1,6 @@
 # Change Request Tracker
 
-Last updated: 2026-08-29
+Last updated: 2026-09-01
 
 ## Repository Branch Alignment
 
@@ -74,3 +74,4 @@ Last updated: 2026-08-29
 | CR039 | PR open into origin main | Professor Mari Custom Prompt Injection | Adds one global Professor Mari custom prompt with Enabled, Role (System/User/Assistant), and Content controls, injected as a distinct logical message immediately after the built-in Mari system prompt. | None | Application implementation is complete on `change/CR039-professor-mari-custom-prompt` at `8f0fae47a`; fork PR #18 remains open into `main`. `pnpm regression:professor-mari-custom-prompt`, `pnpm check`, and `git diff --check` passed. No manual verification has been recorded. |
 | CR040 | merged into origin main | Professor Mari Layered Personality Model Authoring | Adds a compact Professor Mari skill that selects Enneagram and attachment classifications, backed by a deterministic application-owned compiler that writes the canonical personality field and CR035 emotion profile. | CR035 | HLD, implementation plan, and LLD completed. Application development and validation completed on `change/CR040-professor-mari-personality-model`; merged via fork PR #16 on 2026-08-28 (`c034b4695`). Personality-model regressions, `pnpm check`, `pnpm build`, Pull Request Checks, and Fork CI Smoke passed. `wary-grounded` is the canonical initial/default CR035 state. |
 | CR041 | merged into origin main | Per-Message Generation Emotion Labels | Persists the CR035 emotion state that actually shaped each newly generated Roleplay/Conversation message swipe and displays its human-readable label beneath the character name. | CR035 | HLD, implementation plan, and LLD completed. Implemented in `b5db4669f` and merged via fork PR #21 on 2026-08-29 (`2d10ad2da`). `pnpm regression:generation-emotion-labels`, `pnpm regression:regeneration-context`, `pnpm check`, and `git diff --check` passed. |
+| CR042 | standalone | Character Daily Memories | Reimplements CR015 from current Pasta-Devs upstream as character-owned daily memories shared across all Conversation-mode chats for that character, with sequential per-Conversation extraction and reliable scheduled/startup catch-up formation. | None | Conceptual successor to archived CR015, but no code dependency. Planned application branch: `change/CR042-character-daily-memories`, based on aligned current upstream `1a299369a`; HLD approved by the user's direct implementation request. |
