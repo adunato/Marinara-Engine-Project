@@ -8,75 +8,124 @@ Status: Approved for implementation
 - Before creating the application worktree, run the repository branch-maintenance workflow and reconcile the clean mirror so `upstream/main`, `origin/upstream-main`, and local `upstream-main` represent the intended upstream base. Updating the Adunato remote mirror remains a separate remote-write action and must follow repository authorization rules.
 - Create application branch `change/CR042-character-daily-memories` from the aligned clean upstream base and use a dedicated temporary application worktree.
 - Read `packages/client/.instructions.md` before client edits.
-- Trace current upstream implementations before selecting exact reuse points: Conversation auto-summary logical-day/timezone helpers, chat/message storage and `Chat.characterIds`, character persistence/cascade behavior, connection resolution, embedding/vector memory infrastructure, Conversation generation context assembly, `SummariesEditorModal`, `CharacterEditor`, server startup/shutdown, and settings synchronization.
-- Keep Roleplay/Game support and automatic migration of archived CR015 records out of scope unless a concrete integration target makes either necessary.
+- Keep Roleplay/Game support and automatic migration of archived CR015 records out of scope.
+
+## Resolved Implementation Decisions
+
+- Daily Memories are persisted in dedicated character-owned tables rather than inside `CharacterData` or Conversation metadata. This avoids card-version churn and gives scheduler state an explicit persistence boundary.
+- The persistence model uses settings, day, run, run-source, and memory records. A day points to its active run. Initial formation may expose successful source results while the day is partial; regeneration is staged in a separate run and becomes active only after the complete replacement succeeds.
+- Automatic scheduling starts from an enablement anchor. Enabling or re-enabling a character makes the most recently completed handover window eligible, then future catch-up covers later missed handovers. It does not automatically backfill the character's entire historical corpus; older completed windows remain manually generatable from the UI.
+- A deleted day leaves a scheduler tombstone rather than becoming silently eligible for automatic re-creation. Manual Generate/Regenerate can explicitly replace that tombstone.
+- The effective timezone is read server-side from synced app setting `ui.conversationTimeZone`, validated with the existing Conversation timezone helpers. Historical day rows persist the timezone, handover, window start, and window end actually used.
+- Source windows are `[windowStart, windowEnd)`. Source discovery uses Conversation-mode chats whose parsed `characterIds` contains the character and which contain eligible messages in the window.
+- Source processing is strictly Conversation-by-Conversation. If a single source transcript must be chunked for provider context limits, all chunks for that source remain contiguous and sequential; chunks from another Conversation are never interleaved.
+- Formation connection resolution is character-scoped: explicit configured connection first, then the default agent connection/fallback infrastructure. It does not fall back to an arbitrary source Conversation's chat connection.
+- Daily Memory embeddings reuse `resolveMemoryRecallEmbeddingSource()` and `embedMemoryRecallTexts()`. The character's resolved formation connection supplies the embedding configuration; local embedding remains the fallback. Stored `embeddingSpaceId` values prevent cross-space comparison.
+- Changing the formation connection triggers character-memory re-vectorization. Retrieval only considers memories in the currently resolved embedding space; ordinary generation continues if vectorization is temporarily unavailable.
+- Scheduler integration belongs in `buildApp()` beside the existing server autonomous scheduler. It uses one global worker by default, persisted idempotency, deferred startup reconciliation, and an `onClose` stop hook.
+- Character Daily Memories APIs are registered as a second `/api/characters` plugin with routes beneath `/:characterId/daily-memories/...`.
+- Conversation generation integration belongs in `packages/server/src/routes/generate/conversation-history-runtime.ts`, preserving existing summary and current memory-recall paths.
+- The Character Editor receives a dedicated `Memories` tab implemented primarily in a focused component rather than expanding `CharacterEditor.tsx` with all memory-management logic.
 
 ## Atomic Tasks
 
-1. Define shared character Daily Memories types and schemas: character settings, memory records, formation-run/source state, structured formation output, ranking configuration, and API request/response contracts.
-2. Add character-owned persistence for Daily Memories settings, stable memory records, source Conversation provenance, importance, window/date identity, formation status, retry metadata, and embedding/vector linkage. Register cascade cleanup for character deletion.
-3. Implement character memory-day helpers that resolve a configured `HH:mm` handover in the effective Conversation timezone and calculate the exact preceding 24-hour completed window, including deterministic DST behavior.
-4. Implement source discovery for one character/day using Conversation-mode chats whose `characterIds` contains the target character and which have eligible messages in the completed window.
-5. Implement speaker-attributed per-source transcript construction and target-character-aware prompt construction without mixing messages from different source Conversations.
-6. Implement sequential per-Conversation formation using the selected connection/model, structured JSON validation, 1–5 importance validation, zero-memory success, source-level failure recording, and embedding-on-write.
-7. Implement idempotent character/day/source execution so duplicate timers, retry, restart, and reconciliation cannot duplicate successful source results.
-8. Implement a character/day orchestration service that freezes the source list, processes pending sources sequentially, marks complete/partial/failed state, and supports bounded retries.
-9. Add a server-owned scheduler service that calculates next due handovers, enqueues due character/day jobs, recalculates after configuration changes, and exposes clean start/stop lifecycle methods.
-10. Integrate scheduler startup reconciliation into the server lifecycle after storage/server readiness: discover all completed missing/retryable windows, enqueue them oldest-first, and ensure a server started after the handover automatically catches up without user activity.
-11. Add character-scoped APIs for reading/updating Daily Memories configuration, listing day-grouped memories and formation status, and obtaining missing completed days.
-12. Add lifecycle APIs for manual memory add/edit/delete, whole-day delete, specific missing-day generation, and destructive day regeneration. Regeneration must build a complete replacement set before swapping the existing day and must reject the current incomplete window.
-13. Implement character-scoped retrieval: embed the configured recent messages from the current Conversation, vector-prefilter the target character's persisted memories, deterministically rerank semantic/importance/recency factors, apply the minimum-rank threshold, and make no memory-selection LLM call.
-14. Integrate retrieved Daily Memories into Conversation generation context. For multi-character Conversations, retrieve independently per enabled character and emit explicitly labelled, date-grouped character blocks while preserving existing summary and memory-recall context paths.
-15. Add a Character Editor `Memories` tab and character-level hooks/API state. Include enablement, handover, connection/model, prompt editing/reset, recent-message count, ranking weights, and minimum-rank controls.
-16. Recreate CR015's day-oriented memory management experience inside the Character Memories tab: day grouping, compact editable cards, importance control, manual add/edit/delete, whole-day delete, missing-day generation, regeneration confirmation, source provenance, save/cancel, and loading/empty/partial/error states.
-17. Add a character-scoped retrieval preview that uses a selected qualifying Conversation as the recent-message query source without modifying memories or exposing unrelated transcript text.
-18. Add focused shared/server/client regression coverage for time windows, source discovery, sequential execution, scheduler catch-up, idempotency, partial failure/retry, CRUD/regeneration, ranking, context injection, and UI state.
-19. Run schema verification as applicable and the repository baseline `pnpm check`; inspect `git diff --check` and ensure the application worktree is clean after the final commit.
-20. Commit the completed application branch. Do not merge it into the clean upstream mirror. Integrate/ship it according to the requested branch strategy only after validation, then update the CR tracker and remove the temporary worktree.
+1. Add shared `character-daily-memory` types, constants, defaults, and Zod schemas for settings, day/run/source status, memory records, formation output, CRUD requests, preview, and ranking configuration.
+2. Add `packages/server/src/db/schema/character-daily-memories.ts` with dedicated settings/day/run/run-source/memory tables; export it from the schema barrel and register the tables with file-backed storage, sharding/protection lists, and character cascades.
+3. Add `createCharacterDailyMemoriesStorage()` for settings persistence, day/run creation, active-run swaps, source state, memory CRUD, tombstones, idempotent lookup, and character-scoped listing.
+4. Extend Conversation timezone helpers with a public zoned wall-clock-to-instant helper and implement CR042 window enumeration: most recent completed handover, next local-calendar handover, exact preceding 24-hour source window, and stable internal day key.
+5. Add server-side resolution of the synced Conversation timezone from app setting `ui`, with safe fallback to current server-local Conversation semantics when the setting is absent/invalid.
+6. Implement source discovery: filter current `chats` to Conversation mode and target `characterIds`, query `[start,end)` messages, reject empty sources, and snapshot source Conversation name/ID for provenance without a destructive FK to the chat.
+7. Implement speaker-attributed transcript construction using current persona/character names and transcript sanitization. Include user, assistant, and narrator content; exclude system/internal prompt messages.
+8. Add character Daily Memory formation connection resolution using explicit character configuration, default agent connection, Local Model/random handling as supported by existing connection infrastructure, and normal agent fallback wrapping.
+9. Implement structured extraction for one source Conversation at a time, including bounded per-source transcript chunking when required, `{ memories: [{ text, importance }] }` validation, zero-memory success, connection/model snapshotting, and no cross-Conversation consolidation pass.
+10. Implement embedding-on-write with the existing memory-recall embedding stack, persisting `embeddingSpaceId`. Add re-vectorization for formation-connection changes and safe retrieval degradation while embeddings are unavailable/stale.
+11. Implement initial day orchestration: freeze source list in a run, create run-source rows, process pending sources sequentially, retain successful source results across retries, and mark the active day `partial`, `complete`, `empty`, or `failed` deterministically.
+12. Implement regeneration as a separate staging run. Do not mutate the active run while replacement work is incomplete; atomically switch `activeRunId` only after every source succeeds/empty-succeeds, then retire the replaced run's memories.
+13. Implement automatic enablement anchors and day tombstones so startup catch-up does not backfill all history and user-deleted days are not silently regenerated.
+14. Implement a single-worker `character-daily-memory-scheduler.service.ts`: next-handover timer, priority queue ordered by window end, duplicate-job suppression, retry/backoff, late-timer reconciliation, startup catch-up, refresh after settings/timezone changes, and clean stop semantics.
+15. Start the scheduler from `packages/server/src/app.ts` after route/runtime setup without blocking startup. Trigger scheduler refresh from Daily Memory settings changes and synced `ui` timezone updates.
+16. Add character-scoped HTTP routes for settings, day listing/status, manual generation, regeneration, day deletion, manual memory CRUD, qualifying Conversation listing, and retrieval preview.
+17. Implement deterministic retrieval using the configured last `N` current-Conversation messages, the character's active memory sets in the current embedding space, cosine semantic score, normalized importance, approximately 30-day exponential recency decay, normalized user weights, and minimum-rank filtering with no final result-count cap.
+18. Integrate retrieval into Conversation history assembly. For each enabled character in the current Conversation, retrieve independently and inject an explicitly delimited character/date-grouped Daily Memories block. Failure must not block ordinary generation.
+19. Add `packages/client/src/hooks/use-character-daily-memories.ts` for settings/day/memory/preview queries and serialized mutations.
+20. Add a `Memories` tab to `CharacterEditor.tsx` and create `CharacterMemoriesTab.tsx` for enablement, handover, formation connection, prompt/reset, recent-message count, ranking controls, preview source, day grouping, compact editable cards, source provenance, manual add/edit/delete, day deletion, missing-day generation, regeneration confirmation, and progress/partial/error states.
+21. Add focused regressions covering window/DST rules, enablement anchor, tombstones, source discovery, per-source sequential execution, structured formation, idempotency, partial retry, regeneration swap, embedding-space changes, ranking, scheduler startup catch-up, and context formatting. Add a focused package script such as `regression:character-daily-memories`.
+22. Run the focused regressions, schema/file-storage verification as applicable, `git diff --check`, and one repository baseline `pnpm check` after the complete cross-cutting implementation.
+23. Commit the completed application branch. Do not merge it into the clean upstream mirror. Integrate/ship it only after validation, then update the tracker and remove the temporary worktree.
 
 ## Expected Files and Areas
 
-Exact paths should be finalized after implementation analysis. Expected areas include:
+### Shared
 
-- `packages/shared/src/types/*` and `packages/shared/src/schemas/*` for character Daily Memories contracts.
-- `packages/server/src/db/schema/*` and file-backed table/cascade registration for character settings, memories, and formation state.
-- `packages/server/src/services/conversation/*` for reusable timezone/window logic where appropriate.
-- New server Daily Memories formation, retrieval, and scheduler services under the existing service organization.
-- `packages/server/src/services/storage/*` or equivalent current storage abstractions for source discovery and memory lifecycle operations.
-- `packages/server/src/routes/*` for character-scoped Daily Memories APIs.
-- `packages/server/src/routes/generate/*` for Conversation prompt-context integration.
-- `packages/server/src/index.ts` or the established server lifecycle hook for scheduler start/stop and startup reconciliation.
-- Existing embedding/vector infrastructure, reused without coupling Daily Memories to unrelated stored-memory ownership.
-- `packages/client/src/hooks/*` for character Daily Memories queries/mutations.
-- `packages/client/src/components/characters/CharacterEditor.tsx` plus focused character-memory UI components/modal(s) as needed.
-- `packages/client/src/components/chat/SummariesEditorModal.tsx` only as a behavior/layout reference unless a reusable abstraction is clearly justified.
-- Focused regression scripts/tests and, if later agreed, `tests/e2e/specs/change-requests/CR042/` in the parent validation harness.
-- Parent documentation: `change_requests/CR042_character_daily_memories/HLD.md`, `IMPLEMENTATION_PLAN.md`, and `change_requests/tracker.md`.
+- `packages/shared/src/types/character-daily-memory.ts` — new public contracts/defaults.
+- `packages/shared/src/schemas/character-daily-memory.schema.ts` — new API/formation validation.
+- shared barrel exports as required.
+
+### Server persistence and services
+
+- `packages/server/src/db/schema/character-daily-memories.ts` — new file-backed tables.
+- `packages/server/src/db/schema/index.ts` — export new schema.
+- `packages/server/src/db/file-backed-store.ts` — table catalog, sharding/cascade registration where required.
+- `scripts/protect-launcher-data.mjs` — keep protected file-backed table inventory aligned when required by the storage format.
+- `packages/server/src/services/storage/character-daily-memories.storage.ts` — persistence boundary.
+- `packages/server/src/services/character-daily-memories/window.ts` — handover/window helpers.
+- `packages/server/src/services/character-daily-memories/connection-resolution.ts` — formation connection resolution.
+- `packages/server/src/services/character-daily-memories/formation.service.ts` — source discovery/transcript/extraction/orchestration.
+- `packages/server/src/services/character-daily-memories/embedding.service.ts` — embedding and re-vectorization boundary.
+- `packages/server/src/services/character-daily-memories/retrieval.service.ts` — ranking and formatting input.
+- `packages/server/src/services/character-daily-memories/scheduler.service.ts` — timer/queue/reconciliation.
+- `packages/server/src/services/conversation/timezone.ts` — export/reuse zoned wall-clock instant conversion.
+- `packages/server/src/services/memory-recall.ts` and `memory-recall-embedding.ts` — reuse existing exported embedding contracts/helpers; modify only if a small shared export is required.
+
+### Server routes/runtime
+
+- `packages/server/src/routes/character-daily-memories.routes.ts` — new character-scoped API.
+- `packages/server/src/routes/index.ts` — register the new routes under `/api/characters`.
+- `packages/server/src/routes/app-settings.routes.ts` — request scheduler refresh when synced Conversation timezone changes.
+- `packages/server/src/routes/generate/conversation-history-runtime.ts` — Daily Memories retrieval/context injection.
+- `packages/server/src/app.ts` — scheduler lifecycle start/stop integration.
+
+### Client
+
+- `packages/client/src/hooks/use-character-daily-memories.ts` — React Query API boundary.
+- `packages/client/src/components/characters/CharacterEditor.tsx` — add `Memories` tab and lazy/focused composition.
+- `packages/client/src/components/characters/CharacterMemoriesTab.tsx` — primary CR042 UI.
+- `packages/client/src/components/chat/SummariesEditorModal.tsx` — reference only unless a small reusable presentation primitive is clearly justified.
+
+### Validation
+
+- `scripts/regressions/character-daily-memories.regression.ts` and/or a focused scheduler companion if separation materially improves clarity.
+- `package.json` — focused regression script.
+- Optional later Playwright specs under parent `tests/e2e/specs/change-requests/CR042/` only after agreement.
 
 ## Verification
 
-- Confirm implementation branch ancestry is the intended aligned current upstream base and contains no unrelated fork-local CR code.
-- Confirm each due character/day uses the exact scheduled 24-hour window and persists stable historical window identity.
-- Confirm qualifying Conversation discovery is character-scoped and mode-scoped, including multi-character Conversations and excluding unrelated/Roleplay/Game chats.
-- Instrument/test formation to prove one provider request contains one source Conversation only and that source Conversations execute sequentially.
-- Confirm structured output accepts zero or more memories, rejects invalid importance values, and writes embeddings before retrieval eligibility.
-- Confirm duplicate job execution is idempotent and restart-safe at character/day/source level.
-- Confirm a failed source can retry without rerunning or duplicating successful sources and that a day exposes partial state until all frozen sources complete.
-- Confirm startup after a missed handover automatically queues the completed window and several missed days are caught up oldest-first.
-- Confirm normal scheduled execution fires without requiring a user message and timer lateness/system sleep is reconciled safely.
-- Confirm configuration changes update future schedule calculations without silently shifting or regenerating historical memory days.
-- Confirm manual add/edit/delete/day-delete/generate/regenerate behavior and embedding maintenance, including atomic replacement semantics for regeneration.
-- Confirm retrieval uses only the target character's pool, makes no selection LLM call, preserves CR015 ranking defaults/controls, and safely fails open when vector retrieval is unavailable.
-- Confirm multi-character Conversation context keeps each character's Daily Memories clearly separated and existing summaries/memory recall remain independent.
-- Confirm Character Memories UI persistence, prompt reset, source provenance, generation progress, partial/error/empty states, scrolling, and responsive layout.
-- Run `pnpm db:push` when the final persistence change requires schema verification.
-- Run `pnpm check` once for the substantive cross-cutting application change, plus focused regressions that cover scheduler and memory behavior without redundant broad validation.
-- After behavior-bearing implementation is complete, agree with the user whether to add focused Playwright API/UI coverage for CR042.
+- Confirm branch ancestry is the intended aligned current upstream base with no unrelated fork-local CR commits.
+- Confirm enable/re-enable anchors begin automatic processing at the most recently completed handover rather than backfilling all historical days.
+- Confirm exact scheduled handover instants and exact preceding 24-hour `[start,end)` windows across normal days and DST transitions.
+- Confirm persisted day identity does not change when handover/timezone settings change later.
+- Confirm source discovery includes every qualifying Conversation for the character and excludes unrelated, Roleplay, Game, empty, and system-only sources.
+- Prove source Conversations execute serially; any transcript chunks for one source finish before the next source begins.
+- Confirm structured output accepts zero or more memories and rejects invalid text/importance values.
+- Confirm successful source results survive another source's failure and retries do not rerun/duplicate terminal source states.
+- Confirm duplicate timers, manual trigger overlap, restart, and startup reconciliation are idempotent at day/run/source level.
+- Confirm regeneration preserves the old active set until the full staging run succeeds, then swaps exactly once.
+- Confirm day deletion leaves a tombstone that prevents automatic re-creation but can be explicitly generated later.
+- Confirm startup after one or several missed handovers queues eligible missing windows oldest-first and requires no user message.
+- Confirm changing handover/timezone refreshes future scheduling without rewriting historical windows.
+- Confirm changing formation connection re-vectorizes existing active memories into the new embedding space and retrieval never compares mismatched vector spaces.
+- Confirm manual add/edit/delete refreshes/removes embeddings consistently.
+- Confirm ranking uses CR015 defaults (50/35/15, ~30-day half-life, 30% threshold), normalizes arbitrary relative weights, applies no final result-count cap, and makes no memory-selection LLM call.
+- Confirm multi-character Conversation generation retrieves each character independently and clearly labels character/date blocks.
+- Confirm Daily Memories failure does not block normal Conversation generation and existing summaries/current memory recall remain independent.
+- Confirm Character Memories UI settings persistence, prompt reset, preview, provenance, CRUD, generation/regeneration progress, tombstone/missing-day behavior, partial/error/empty states, scrolling, and narrow layout.
+- Run `pnpm db:push` only if the current checkout defines/requires it for file-backed schema verification.
+- Run focused CR042 regressions and one `pnpm check` after the complete change.
+- After behavior-bearing implementation is complete, agree whether to add focused Playwright API/UI coverage.
 
 ## Rollback
 
-- Disable/stop the Character Daily Memories scheduler and remove its server lifecycle registration.
-- Remove character Daily Memories context injection so ordinary Conversation generation returns to upstream behavior.
-- Revert character-memory UI and API registration.
-- Preserve persisted Daily Memories records during a code rollback unless an explicit, separately validated migration/removal is required; do not leave orphaned vector entries or partially deleted character data.
-- Revert the CR042 application commit(s) on the change branch rather than modifying the clean `upstream-main` mirror.
+- Stop/remove the Character Daily Memories scheduler lifecycle registration.
+- Remove character Daily Memories context injection and route/UI registration.
+- Revert CR042 application commits from the change branch; never modify the clean `upstream-main` mirror to roll back the feature.
+- Preserve persisted CR042 tables during a code rollback unless a separately validated data-removal migration is explicitly requested. Do not leave orphaned vector records or partially removed character cascades.
