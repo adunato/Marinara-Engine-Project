@@ -250,7 +250,9 @@ The tool:
 
 The agent may issue more than one semantic query within the bounded tool-round budget when the instruction benefits from iterative investigation.
 
-CR044 must not copy CR042 ranking logic into a parallel implementation. If the staging implementation does not yet expose the Conversation retrieval policy as a reusable service, CR044 should first extract that policy into a shared server-side retrieval boundary and have both Conversation injection and the standard agent tool use it.
+Central retrieval is a mandatory implementation prerequisite, not an assumption about staging. Before the Character Briefing tool is registered as usable, implementation must expose the CR042 Conversation retrieval/ranking/filtering/result-selection policy through one reusable server-side boundary. Both Conversation Daily Memory injection and this tool must call that boundary; CR044 must not copy or approximate the ranking algorithm. A fixture with known scores/order must prove that the tool receives the same selected, ranked records that Conversation injection receives.
+
+If the shared retrieval boundary or its required embedding/vector backend is unavailable, the tool must return the normal structured retrieval-unavailable/error result and the current slot must follow the standard tool-failure path. It must never silently substitute an unranked query, a second ranking policy, or unconstrained raw memories. Conversation retrieval continues to use the existing CR042 safe-degradation policy when that policy applies.
 
 ### 5.4 Tool boundaries
 
@@ -306,7 +308,7 @@ The editor always displays the persistent source form, including `[[...]]` instr
 
 #### Generation connection
 
-The tab provides a Character Briefing generation connection selector using the same connection-selection conventions/components as CR042 Character Daily Memories where practical.
+The tab provides a Character Briefing generation connection selector following the existing tab-local Character Daily Memories connection-selection convention. Reuse an already shared primitive only if one exists; creating a new cross-tab selector component is outside CR044 scope.
 
 The setting belongs to Character Briefing and is persisted independently from CR042 settings and Conversation settings.
 
@@ -364,7 +366,9 @@ When a Conversation response is generated for a character with a non-empty Lates
 
 The feature must not suppress or replace existing Character Card, Persona, summary/history, status/context, memory, lorebook, awareness, or other optional prompt sources.
 
-For group Conversations, briefing injection must be character-specific: only the briefing(s) appropriate to the responding character(s) should be exposed according to the existing response-target/visibility model.
+For group Conversations, briefing injection must be character-specific: only the briefing(s) for the resolved responding character target or targets should be exposed according to the existing response-target/visibility model. A group member that is not a current response target contributes no briefing. If multiple characters are valid response targets, add one clearly attributed block per target in the existing target order, with duplicate Character IDs emitted once; do not merge or leak one character's briefing into another character's context.
+
+Architecturally, the existing generation route remains the owner of response-target and visibility resolution and of the `AgentContext` assembled for the final model request. After those targets are resolved, the Character Briefing formatter appends the applicable read-only blocks at that existing context boundary, immediately before the final provider request. This additive seam must leave every existing context source unchanged.
 
 ## 8. Persistence
 
@@ -379,6 +383,10 @@ V1 requires persisted character-level state for at least:
 The data belongs to the Character rather than to individual chats.
 
 No historical briefing archive is required in V1.
+
+The persistence implementation must register the new record in every file-backed persistence layer used by staging: the schema/table definition and export/barrel, the file-backed store's key/index/serializer registration, and any format/version migration or compatibility registry. The record has a required Character relationship/key and a unique one-row-per-Character invariant; `generationConnectionId` is an optional connection reference handled by the repository's existing reference policy. Reads of files created before CR044 must produce the default empty state without backfill, and writes must use the existing atomic file/transaction mechanism.
+
+Character deletion must remove the associated briefing in the same deletion boundary (or the repository's equivalent cascade hook), and connection deletion must follow the established optional-reference cleanup policy. No orphaned briefing row or dangling required Character relationship may remain. Configuration saves and Latest Briefing publication must each preserve the existing data on failure, and publication must update `latestBriefing` and its timestamp atomically.
 
 ## 9. Explicitly Out of Scope for V1
 
@@ -405,8 +413,8 @@ Implementation planning should prefer existing Marinara primitives wherever poss
 
 - canonical Character Card and Lorebook storage/services for deterministic host-side reference resolution;
 - existing Conversation `@mention`/completion interaction as a UI precedent for entity autocomplete;
-- CR042's character-owned Daily Memory store and the same centralized retrieval/ranking/limiting policy used by Conversation injection;
-- CR042's Character-scoped connection-selection/resolution pattern for the Briefing connection selector;
+- CR042's character-owned Daily Memory store and the same centralized retrieval/ranking/limiting policy used by Conversation injection, exposed through the mandatory shared retrieval boundary above;
+- the existing tab-local Character-scoped connection-selection convention for the Briefing selector; do not expand scope to create a shared UI primitive;
 - Marinara's standard built-in tool registry, `AgentToolContext`, and tool executor for `search_character_daily_memories`;
 - existing prompt/context injection mechanisms for adding a new character-specific context block without altering current source behaviour;
 - existing LLM provider/fallback/tracing infrastructure, including the staging Phoenix tracing path.
@@ -423,7 +431,7 @@ The following do not require additional product direction unless implementation 
 - exact constrained terminal-result schema used for one slot replacement;
 - precise context-block formatting and insertion point for the Latest Briefing;
 - persistence schema/table details for the dedicated associated briefing record;
-- exact common connection-selector component reuse where the staging client structure permits it.
+- exact reuse of an already shared connection-selector primitive, if one exists; no new shared selector component is required or implied.
 
 The following are **not** deferred decisions: V1 uses one bounded session per instruction, each slot receives the complete Source Template snapshot and owning Character Card, only current-instruction `$` references are expanded, no Persona is supplied, and the only agentic tool is `search_character_daily_memories(query)`.
 

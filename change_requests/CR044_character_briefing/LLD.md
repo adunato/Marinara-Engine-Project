@@ -142,11 +142,11 @@ created_at                 timestamp
 updated_at                 timestamp
 ```
 
-Use the staging repository's file-backed schema/storage conventions rather than introducing a different database mechanism.
+Use the staging repository's file-backed schema/storage conventions rather than introducing a different database mechanism. The implementation task is explicitly to register `character_briefings` in the schema/table definition and its export/barrel, and in the file-backed store's key/index/serializer registry. Register any format/version migration or compatibility handler required by staging; an older file with no CR044 record must read as the default empty state, without destructive backfill, and an additive migration must preserve unrelated records and unknown fields according to the existing convention.
 
-Character deletion must cascade/remove its Briefing according to existing Character-owned table conventions.
+The required `character_id` key/relation enforces one row per Character. Character deletion must cascade/remove its Briefing in the same deletion boundary (or the repository's equivalent Character-owned cascade hook), so no orphaned briefing row or dangling required Character relation remains. Connection deletion/reference cleanup should follow the existing connection-reference policy. If the repository normally clears optional deleted connection IDs, clear the Briefing reference; otherwise preserve the existing convention and let generation resolution report the invalid configuration.
 
-Connection deletion/reference cleanup should follow the existing connection-reference policy. If the repository normally clears optional deleted connection IDs, clear the Briefing reference; otherwise preserve the existing convention and let generation resolution report the invalid configuration.
+Configuration saves must use the existing atomic file/transaction write boundary. `publishLatest` must update `latestBriefing` and `latestGeneratedAt` together and retain the previous values if validation, conflict detection, or persistence fails.
 
 ### 3.4 Storage operations
 
@@ -160,7 +160,7 @@ publishLatest(characterId, expectedSourceTemplate, latestBriefing, generatedAt)
 
 `publishLatest` must compare the persisted Source Template with `expectedSourceTemplate` inside the persistence/transaction boundary and fail on mismatch.
 
-Do not create historical generation rows in V1.
+Do not create historical generation rows in V1. Verify the table/key/relation registration, compatibility read, deletion cascade/orphan prevention, and atomic write behaviour with focused persistence tests.
 
 ## 4. Source Template Parser
 
@@ -587,9 +587,9 @@ Do not expose:
 
 These remain part of CR042's central retrieval policy.
 
-### 9.7 Reuse CR042's centralized retrieval policy
+### 9.7 Mandatory shared CR042 retrieval boundary
 
-The memory tool must produce results through the same logic used for CR042 Conversation injection.
+The memory tool must produce results through the same logic used for CR042 Conversation injection. On `staging`, this is a prerequisite to enabling the tool: inspect the existing Conversation route/runtime and extract the smallest reusable retrieval service when the policy is currently inline. Do not implement the tool against a guessed or independently copied path.
 
 The reusable service should conceptually accept:
 
@@ -615,7 +615,7 @@ The implementation must preserve existing CR042 semantics for:
 - existing central result-selection/bounding behaviour;
 - safe degradation when vector retrieval is unavailable, according to the CR042 retrieval contract.
 
-If staging currently assembles these steps inside Conversation-generation code, extract the smallest reusable service and have **both** existing Conversation injection and the new tool call it. Do not fork/copy the algorithm.
+Both existing Conversation injection and the new tool must call this service. A known-ranked fixture must assert that both callers receive the same selected records in the same order, including filtering and output bounding. If the service or required vector/embedding backend is unavailable, preserve the CR042 safe-degradation behaviour for Conversation and return the standard structured retrieval-unavailable/error result to the tool; the slot follows normal tool-failure handling. Never substitute an unranked query, raw memories, or a second CR044 ranking implementation.
 
 ### 9.8 Tool output
 
@@ -734,6 +734,14 @@ Trace at minimum:
 - terminal success/failure;
 - no complete private model reasoning.
 
+### 10.6 Conversation `AgentContext` injection seam
+
+The additive Conversation integration belongs at the existing generation-route seam in `packages/server/src/routes/generate.routes.ts`, where the route builds `AgentContext` (the current staging code is in the context-construction area around lines 4040-4119) and before the final provider/model request. Do not inject the briefing while assembling Character Card, Persona, history, CR042 memories, Lorebooks, or other source-specific context, and do not make the briefing generator call the Conversation route.
+
+The generation route owns resolving the response target(s), visibility, and their existing order. It passes that resolved list to a narrow helper such as `appendCharacterBriefingContext(agentContext, responseTargets)`. The helper owns only loading non-empty `latestBriefing` values, formatting an attributable block, and appending it to the existing context. It must not infer targets from group membership or select a Conversation connection. For one target, append only that Character's block. For multiple valid targets, append one block per unique Character ID in the supplied target order. A group member that is not a response target contributes nothing.
+
+Storage-read failure follows the existing optional-context policy; it must not reorder or rebuild the generation route. With no applicable briefing, the helper is a no-op. Target-correct tests must cover zero, single, multiple, duplicate-ID, and non-target group-member cases and assert that all pre-existing `AgentContext` sources remain unchanged.
+
 ## 11. Character Briefing UI
 
 ### 11.1 Character Editor integration
@@ -763,7 +771,7 @@ Saving source does not regenerate.
 
 ### 11.4 Connection selector
 
-Reuse the CR042 Character Daily Memories connection-selection UI primitive/pattern where clean.
+Follow the existing tab-local CR042 Character Daily Memories connection-selection convention. Reuse a connection-selector primitive only if the staging client already exposes one; do not create a new shared cross-tab component or expand CR044 into selector refactoring.
 
 Requirements:
 
@@ -952,6 +960,10 @@ Cover:
 - saving does not clear Latest Briefing;
 - atomic publish;
 - source conflict;
+- schema/export and file-backed key/index/serializer registration;
+- compatibility read of pre-CR044 files and additive migration behaviour;
+- one-row-per-Character relation, Character deletion cascade, and orphan prevention;
+- atomic configuration/publication writes retain prior values on failure;
 - Character deletion cascade/reference handling.
 
 ### 16.3 Connection tests
@@ -996,7 +1008,7 @@ Cover:
 
 ### 16.6 CR042 retrieval-sharing tests
 
-Prove Conversation injection and the new agent tool use the same shared retrieval policy rather than copied algorithms.
+Prove the mandatory shared retrieval boundary is called by both Conversation injection and the new agent tool rather than copied algorithms. With a deterministic fixture of known scores/order, assert identical selected/ranked/bounded records and order. Also assert vector/shared-boundary unavailability follows the CR042 safe-degradation/standard structured error contract and never supplies unranked raw memories.
 
 Regression coverage should preserve CR042's configured semantic/importance/recency weighting, minimum-rank policy, active-run/embedding-space handling and central output-selection behaviour.
 
@@ -1038,7 +1050,8 @@ Cover:
 
 - no Latest Briefing -> no added context;
 - single responding Character gets its Briefing;
-- group target does not leak another Character's Briefing;
+- zero, single, and multiple responding targets receive only their own blocks in target order, duplicate IDs are emitted once, and group members that are not targets do not leak a Briefing;
+- injection occurs at the existing `generate.routes.ts` `AgentContext` seam before the final provider request;
 - existing Character/Persona/history/summaries/CR042/Lorebook context remains unchanged;
 - Briefing block is clearly attributed and additive.
 
@@ -1078,7 +1091,7 @@ Exact names may adjust to existing conventions during implementation.
 ### Server persistence
 
 - `packages/server/src/db/schema/character-briefings.ts`.
-- schema barrel/file-backed-store registration as required.
+- schema export/barrel registration, file-backed store key/index/serializer registration, and the staging format/version migration or compatibility registry as required.
 - `packages/server/src/services/storage/character-briefings.storage.ts`.
 
 ### Server Character Briefing services

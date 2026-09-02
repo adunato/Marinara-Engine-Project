@@ -47,12 +47,12 @@ The staging baseline contains the CR042 character-owned Daily Memory implementat
 - active-memory selection by Character;
 - embeddings and embedding-space handling using the existing Memory Recall embedding infrastructure;
 - character-scoped formation connection configuration;
-- retrieval/ranking configuration used for ordinary Conversation injection;
+- retrieval/ranking configuration used for ordinary Conversation injection, currently subject to verification at the existing Conversation route/runtime boundary;
 - server routes and the Character Card `Memories` tab.
 
 CR044 must consume this existing evidence system rather than creating a second memory store or ranking implementation.
 
-The new Character Briefing tool must use the **same centralized CR042 retrieval/ranking/filtering/result-selection policy used by Conversation injection**. If the current staging implementation keeps part of that policy embedded in a route/runtime function rather than exposing a reusable service, implementation should first extract the smallest shared server-side retrieval boundary and make both existing Conversation injection and the new tool call that shared path.
+The new Character Briefing tool must use the **same centralized CR042 retrieval/ranking/filtering/result-selection policy used by Conversation injection**. Staging must not be treated as already exposing that policy centrally: the first implementation prerequisite is to identify the current Conversation path and extract the smallest reusable server-side retrieval boundary when necessary. Both existing Conversation injection and the new tool must call that boundary. A known-ranked fixture must prove that the tool receives the same selected and ordered records as Conversation injection. If the boundary or required retrieval backend is unavailable, follow the CR042/standard structured unavailable-error or safe-degradation contract; do not ship a parallel, unranked fallback.
 
 ### 3.2 Standard Marinara agent-tool infrastructure
 
@@ -75,11 +75,11 @@ CR044 uses those paths **host-side** to resolve the owning Character and explici
 
 The current Character Editor already supports focused sibling tabs such as the CR042 `Memories` tab. CR044 should follow that pattern with a dedicated Briefing tab.
 
-The CR042 Memories UI also provides the closest existing precedent for a Character-scoped generation connection selector. Reuse its connection-picker conventions/components where practical rather than creating a second interaction pattern.
+The CR042 Memories UI provides the closest existing tab-local precedent for a Character-scoped generation connection selector. Follow that convention and reuse a primitive only if it is already shared; do not create a new shared selector component as part of CR044.
 
 ### 3.5 Existing generation pipeline
 
-Conversation generation already assembles its established character, persona, history/summary, live context, memory, lore and other configured sources. CR044 should add one narrowly formatted Character Briefing block after the responding character(s) are known and before the final model request, leaving existing source construction unchanged.
+Conversation generation already assembles its established character, persona, history/summary, live context, memory, lore and other configured sources. At the existing `generate.routes.ts` AgentContext construction boundary (the route area that builds the context before the final provider request), the route/runtime retains ownership of response-target resolution and ordering. CR044 adds one narrowly formatted Character Briefing block after those responding target(s) are known and before the final model request, leaving existing source construction unchanged. The helper owns only reading/formatting applicable briefings; it must accept the resolved target list rather than infer targets from group membership.
 
 ## 4. Resolved Architecture Decisions
 
@@ -98,6 +98,19 @@ Conversation generation already assembles its established character, persona, hi
 
 ## 5. Implementation Phases
 
+### Phase 0 — Mandatory CR042 retrieval boundary
+
+Before registering the Character Briefing memory tool as usable, inspect the existing Conversation Daily Memory retrieval path on `staging` and extract the smallest reusable server-side boundary if ranking/filtering/result selection is currently route-local. Update Conversation injection to call that boundary without changing CR042 behaviour, then make the future tool call the same boundary.
+
+Deliverables:
+
+- one authoritative retrieval service/interface with host-bound Character scope and system-controlled ranking/filtering/bounding;
+- explicit unavailable/error and CR042 safe-degradation behaviour when vector retrieval or the shared boundary cannot be used;
+- a fixture proving Conversation injection and the tool receive the same selected, ranked, ordered records;
+- a guard against a second CR044 ranking implementation.
+
+This phase blocks Phase 3 and is implemented against nested application `staging`, not `main`.
+
 ### Phase 1 — Persistence and API contract
 
 Create dedicated character-level persistence for CR044 rather than adding mutable generated state to Character Card data.
@@ -108,11 +121,14 @@ Deliverables:
 - fields for Source Template, nullable Briefing generation connection ID, Latest Briefing, latest successful generation timestamp, and timestamps/status required by UI/runtime;
 - storage/service operations to read/create/update briefing state;
 - source/configuration persistence independent of generation;
-- Character deletion behaviour aligned with existing storage conventions;
+- registration in the staging file-backed schema/table export, store key/index/serializer registry, and applicable format/version migration/compatibility mechanism;
+- one-row-per-Character key/relation enforcement and orphan prevention;
+- Character deletion cascade/removal and optional connection-reference cleanup according to existing storage conventions;
+- atomic configuration writes and atomic Latest Briefing + timestamp publication, retaining prior data on failure;
 - server API for reading state, saving Source Template + generation connection, and manually generating/updating the Latest Briefing;
 - connection-reference cleanup/validation aligned with existing connection storage conventions where required.
 
-No historical briefing table or version archive is introduced.
+No historical briefing table or version archive is introduced. Existing pre-CR044 files must read as the default empty state without destructive backfill; any additive migration must be exercised by a compatibility test.
 
 ### Phase 2 — Shared template parsing and stable entity references
 
@@ -145,7 +161,7 @@ Deliverables:
 - new shared built-in tool manifest/registry entry;
 - common tool-executor handler/context callback using existing Marinara tool infrastructure;
 - server-side hidden binding of the owning Character ID so the model cannot select another Character;
-- reuse/extraction of CR042's existing Conversation Daily Memory retrieval path so the tool and Conversation injection share ranking/filtering/result-selection behaviour;
+- call the Phase 0 shared CR042 retrieval boundary so the tool and Conversation injection share ranking/filtering/result-selection behaviour;
 - no model parameters for Character ID, dates, result count, weights, thresholds, or embedding configuration;
 - bounded serialized tool output using the result set already chosen by CR042 retrieval logic;
 - relevant memory content plus existing useful provenance metadata where available;
@@ -199,7 +215,7 @@ Deliverables:
 
 - Source Template Markdown-style textarea/editor;
 - helper copy describing `[[...]]` and `$` behaviour;
-- Character Briefing generation connection selector following CR042 conventions;
+- Character Briefing generation selector following the existing tab-local CR042 convention; reuse an already shared primitive only if present, with no new shared selector component;
 - `$` autocomplete only when the caret is inside an instruction;
 - Character and Lorebook results grouped or clearly labelled by entity type;
 - duplicate-name disambiguation using existing presentation metadata where available;
@@ -223,7 +239,8 @@ Deliverables:
 - fetch only non-empty Latest Briefings for applicable response targets;
 - deterministic attribution by character name/ID;
 - one distinct prompt/context block per applicable character or an equivalently unambiguous combined block;
-- group Conversation behaviour aligned with the existing responding-character / visibility model;
+- group Conversation behaviour aligned with the existing responding-character / visibility model: zero, one, or multiple resolved targets are supported in existing target order, duplicate IDs are emitted once, and non-target group members are excluded;
+- integration at the existing AgentContext-to-final-generation seam, after target resolution and before the final model request;
 - zero output and zero prompt impact when no Latest Briefing exists;
 - no changes to existing Character Card fallback, Persona, summaries/history, CR042 Daily Memories, Lorebooks, awareness, status/context, or other configured sources.
 
@@ -358,7 +375,11 @@ Validate:
 
 ### Persistence and generation
 
-Validate Source Template/config saves without generating, successful generation updates Latest Briefing/timestamp, failure preserves previous Latest Briefing, concurrent generation is rejected, and source changed during generation causes conflict.
+Validate pre-CR044 file compatibility/default state, schema/store key and relation registration, one-row-per-Character enforcement, Character deletion cascade/orphan prevention, atomic configuration/publication writes, Source Template/config saves without generating, successful generation updates Latest Briefing/timestamp, failure preserves previous Latest Briefing, concurrent generation is rejected, and source changed during generation causes conflict.
+
+### Shared retrieval
+
+Using a deterministic ranked fixture, validate that Conversation injection and `search_character_daily_memories` call the same boundary and receive the same selected/order-preserving results. Validate unavailable vector/shared-boundary behaviour follows the CR042/standard structured error or safe-degradation contract and never uses an unranked CR044 fallback.
 
 ### Client
 
@@ -366,7 +387,7 @@ Validate Briefing tab states, connection selection, `$` picker scope/filtering/d
 
 ### Conversation integration
 
-Validate no briefing means no prompt change; applicable Character receives its Latest Briefing; group/targeted generation exposes only applicable briefing context; and existing CR042/standard Conversation context remains present and unmodified.
+Validate no briefing means no prompt change; a single responding Character receives only its own Latest Briefing; multi-character/group targets receive one correctly attributed block per resolved target in target order with no member-only leakage; the existing AgentContext seam is used; and existing CR042/standard Conversation context remains present and unmodified.
 
 ## 9. Expected Files and Areas
 
@@ -380,7 +401,7 @@ Exact paths may vary slightly after code inspection, but implementation is expec
 
 ### Server persistence/services
 
-- dedicated Character Briefing schema/storage.
+- dedicated Character Briefing schema/storage, including schema/export registration, file-backed store key/index/serializer registration, compatibility/migration handling, Character relation, deletion cascade, and atomic write boundary.
 - Character Briefing generation/orchestration service.
 - Character Briefing context formatter/parser integration.
 - CR042 Daily Memory retrieval service extraction/reuse if current Conversation retrieval logic is not already reusable.
@@ -398,7 +419,7 @@ Exact paths may vary slightly after code inspection, but implementation is expec
 - focused `CharacterBriefingTab` component.
 - Character Editor tab registration.
 - Character Briefing data hook/API boundary.
-- reuse/adaptation of existing connection-selector and autocomplete interaction primitives where clean.
+- follow the existing tab-local connection-selector convention; adapt or reuse a primitive only if already shared, and do not create a new shared selector component.
 
 ### Validation
 
