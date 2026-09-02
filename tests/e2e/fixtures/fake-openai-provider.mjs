@@ -61,7 +61,8 @@ function hasTool(body, name) {
 }
 
 function selectResponse(body) {
-  const text = getText(body).toLowerCase();
+  const requestText = getText(body);
+  const text = requestText.toLowerCase();
   const toolText = toolResultsText(body);
   if (toolText) {
     try {
@@ -70,6 +71,37 @@ function selectResponse(body) {
     } catch {
       /* ignore non-JSON tool text */
     }
+  }
+
+  // CR045 keeps the normal generation path but makes the post-processing
+  // Expression Engine deterministic. The character id is supplied by the
+  // app's available-emotions/sprites context, so the fixture does not depend
+  // on generated database ids.
+  if (
+    text.includes("you are a specialized expression-selection agent") &&
+    (text.includes("cr045 emotion mapped probe") ||
+      text.includes("cr045 native fallback probe"))
+  ) {
+    const availableBlock =
+      requestText.match(
+        /<available_(?:emotions|sprites)>[\s\S]*?<\/available_(?:emotions|sprites)>/i,
+      )?.[0] ?? "";
+    const characterId =
+      availableBlock.match(/\(([^()]+)\)/)?.[1] ?? "cr045-character";
+    const mapped = text.includes("cr045 emotion mapped probe");
+    console.log(
+      `[fake-openai] cr045 expression mode=${mapped ? "mapped" : "native-fallback"} character=${characterId}`,
+    );
+    return {
+      content: JSON.stringify({
+        expressions: [
+          mapped
+            ? { characterId, expression: "happy", emotionStateId: "joyful" }
+            : { characterId, expression: "happy" },
+        ],
+      }),
+      toolCalls: [],
+    };
   }
 
   if (text.includes("you are the character briefing agent")) {
