@@ -1,6 +1,6 @@
 # Local Staging Tracker
 
-Status against local branch `staging` at commit `80f688df2` as of 2026-09-01. This is a temporary secondary integration tracker; [`change_requests/tracker.md`](change_requests/tracker.md) remains canonical. Copied test data and backups are ignored/local and are not part of the branch or this tracker. “Integrated” means present in local `staging`; it does not mean pushed or merged upstream.
+Status against local branch `staging` at commit `564147a4a` as of 2026-09-02. This is a temporary secondary integration tracker; [`change_requests/tracker.md`](change_requests/tracker.md) remains canonical. Copied test data and backups are ignored/local and are not part of the branch or this tracker. “Integrated” means present in local `staging`; it does not mean pushed or merged upstream.
 
 | CR | Title | Canonical lifecycle status | Staging status | Staging evidence/notes |
 | --- | --- | --- | --- | --- |
@@ -47,3 +47,4 @@ Status against local branch `staging` at commit `80f688df2` as of 2026-09-01. Th
 | CR041 | Per-Message Generation Emotion Labels | merged into origin main | Not integrated | Present in `origin/main`, not in local staging baseline. |
 | CR042 | Character Daily Memories | standalone | Integrated | CR042 implementation is present in local `staging` at commit `71e9204b5`; based on `upstream-main`. Not pushed or merged upstream by this tracker. |
 | CR043 | Preserve Avatar Source Prompt for Normal Character Generation | PR prepared, not opened | Not integrated | Reviewer-ready branch/PR description exists; no PR opened and not included in staging. |
+| CR044 | Character Briefing | standalone | Integrated | Implemented in `564147a4a` and fast-forwarded into local `staging` from `80f688df2`. Focused CR044 Playwright E2E passed (4 tests); targeted checks passed. `origin/staging` remains at `80f688df2`; no push or upstream merge. Full `pnpm check` remains limited by the repository's pre-existing formatting baseline. |
