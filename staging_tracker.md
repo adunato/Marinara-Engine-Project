@@ -38,13 +38,13 @@ Status against local branch `staging` at commit `564147a4a` as of 2026-09-02. Th
 | CR032 | Two-Pass Conversation Generation | archived | Not integrated | Historical; merged into local application main. |
 | CR033 | Conversation Card Field Injection | archived | Not integrated | Historical; merged into local application main. |
 | CR034 | Managed Conversation Agent Pipeline Exclusion | merged into origin main | Not integrated | Present in `origin/main`, not in local staging baseline. |
-| CR035 | Character Emotion States and Expression Integration | merged into origin main | Not integrated | Present in `origin/main`, not in local staging baseline. |
+| CR035 | Character Emotion States and Expression Integration | merged into origin main | Integrated | CR035 was ported onto the current staging code base through CR045 and is present in local and `origin/staging` at `cac782f1b`. |
 | CR036 | Roleplay Source Chats in Scenes | merged into origin main | Not integrated | Present in `origin/main`, not in local staging baseline. |
 | CR037 | Stateful Two-Pass Context Briefing | merged into origin main | Not integrated | Present in `origin/main`, not in local staging baseline. |
 | CR038 | User Profile Session Segregation | merged into origin main | Not integrated | Present in `origin/main`, not in local staging baseline. |
 | CR039 | Professor Mari Custom Prompt Injection | PR open into origin main | Not integrated | Open fork PR; not included in local staging. |
 | CR040 | Professor Mari Layered Personality Model Authoring | merged into origin main | Not integrated | Present in `origin/main`, not in local staging baseline. |
-| CR041 | Per-Message Generation Emotion Labels | merged into origin main | Not integrated | Present in `origin/main`, not in local staging baseline. |
+| CR041 | Per-Message Generation Emotion Labels | merged into origin main | Integrated | CR041 was ported onto the current staging code base through CR045 and is present in local and `origin/staging` at `cac782f1b`. |
 | CR042 | Character Daily Memories | standalone | Integrated | CR042 implementation is present in local `staging` at commit `71e9204b5`; based on `upstream-main`. Not pushed or merged upstream by this tracker. |
 | CR043 | Preserve Avatar Source Prompt for Normal Character Generation | PR prepared, not opened | Not integrated | Reviewer-ready branch/PR description exists; no PR opened and not included in staging. |
 | CR044 | Character Briefing | standalone | Integrated | Implemented in `564147a4a` and fast-forwarded into local `staging` from `80f688df2`. Focused CR044 Playwright E2E passed (4 tests); targeted checks passed. `origin/staging` remains at `80f688df2`; no push or upstream merge. Full `pnpm check` remains limited by the repository's pre-existing formatting baseline. |
