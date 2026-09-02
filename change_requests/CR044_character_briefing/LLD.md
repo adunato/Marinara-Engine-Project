@@ -241,7 +241,7 @@ Repeated identical instructions must therefore remain unambiguous.
 
 A Source Template with no `[[...]]` slots is valid.
 
-Generate performs no model call and publishes the Source Template verbatim as Latest Briefing after normal source/configuration validation.
+Generate performs no model call and publishes the Source Template verbatim as Latest Briefing after source validation and the normal source-snapshot publication check. Because no model execution occurs, zero-slot generation must not resolve or require a Character Briefing generation connection, provider/model configuration, or tool runtime.
 
 ## 5. Server API
 
@@ -315,13 +315,15 @@ Use existing repository error-envelope conventions rather than introducing a CR0
 
 ### 6.2 Run resolution
 
-At generation start:
+For a run containing one or more instruction slots:
 
 1. snapshot `generationConnectionId` with Source Template;
 2. if non-null, resolve it through the normal connection provider/base-URL/model stack;
 3. if null, resolve the normal default agent connection/fallback path used by existing agent-style background operations;
 4. fail before slot execution if no usable connection can be resolved;
 5. retain the resolved primary/fallback configuration for all slots in the run.
+
+Connection resolution is required only when at least one parsed instruction slot will execute. A zero-slot generation skips connection resolution entirely and succeeds independently of whether a usable generation connection exists.
 
 Do not re-resolve per slot except where the normal provider wrapper itself performs established fallback behaviour.
 
@@ -615,7 +617,9 @@ The implementation must preserve existing CR042 semantics for:
 - existing central result-selection/bounding behaviour;
 - safe degradation when vector retrieval is unavailable, according to the CR042 retrieval contract.
 
-Both existing Conversation injection and the new tool must call this service. A known-ranked fixture must assert that both callers receive the same selected records in the same order, including filtering and output bounding. If the service or required vector/embedding backend is unavailable, preserve the CR042 safe-degradation behaviour for Conversation and return the standard structured retrieval-unavailable/error result to the tool; the slot follows normal tool-failure handling. Never substitute an unranked query, raw memories, or a second CR044 ranking implementation.
+Both existing Conversation injection and the new tool must call this service. A known-ranked fixture must assert that both callers receive the same selected records in the same order, including filtering and output bounding. If the service or required vector/embedding backend is unavailable, preserve the CR042 safe-degradation behaviour for Conversation and return the standard structured retrieval-unavailable/error result to the tool. Never substitute an unranked query, raw memories, or a second CR044 ranking implementation.
+
+For Character Briefing, that structured tool failure is handled through the normal agent-tool protocol. It does not by itself force the slot to fail and it never authorizes an alternate retrieval path. If the standard agent runtime can continue after the structured failure, the model may still produce a valid replacement from the deterministic context already supplied to the slot. The slot succeeds only if it ultimately returns a valid terminal replacement; otherwise the slot and full generation run fail and the previous Latest Briefing remains intact.
 
 ### 9.8 Tool output
 
@@ -660,13 +664,14 @@ try:
     snapshot sourceTemplate
     snapshot generationConnectionId
     parse sourceTemplate
-    resolve generation connection once
-    preflight all typed Character/Lorebook refs
 
     if no slots:
         verify source unchanged
         publish source verbatim as Latest Briefing
         return
+
+    resolve generation connection once
+    preflight all typed Character/Lorebook refs
 
     replacements = []
 
@@ -704,12 +709,14 @@ Any of the following aborts the run without changing Latest Briefing:
 - malformed executable template;
 - invalid typed reference;
 - unresolved Character/Lorebook reference;
-- no usable generation connection;
+- no usable generation connection for a run that contains instruction slots;
 - provider failure not recovered by standard fallback;
-- memory tool failure that causes the slot task to fail;
+- memory tool failure followed by failure to produce a valid terminal replacement;
 - tool-round exhaustion without valid terminal result;
 - invalid terminal result;
 - source changed before publication.
+
+A structured memory-tool failure alone is not an automatic abort when the common agent runtime can continue and the slot still returns a valid terminal replacement from its preloaded context. It must never trigger raw-memory access, alternate ranking, or any other retrieval fallback.
 
 Do not persist a partially reconstructed briefing.
 
@@ -975,7 +982,8 @@ Cover:
 - normal fallback wrapper behaviour;
 - no inheritance from Conversation connection;
 - all slots use same run resolution;
-- invalid/unavailable configuration preserves Latest Briefing.
+- invalid/unavailable configuration preserves Latest Briefing for slot-bearing runs;
+- zero-slot generation does not resolve or require a generation connection.
 
 ### 16.4 Context-construction tests
 
@@ -1010,18 +1018,22 @@ Cover:
 
 Prove the mandatory shared retrieval boundary is called by both Conversation injection and the new agent tool rather than copied algorithms. With a deterministic fixture of known scores/order, assert identical selected/ranked/bounded records and order. Also assert vector/shared-boundary unavailability follows the CR042 safe-degradation/standard structured error contract and never supplies unranked raw memories.
 
+For Character Briefing, cover both outcomes of the standard structured tool failure: the agent may continue and return a valid replacement from preloaded deterministic context, or the slot may fail to produce a valid terminal result. In neither case may CR044 invoke an alternate retrieval mechanism.
+
 Regression coverage should preserve CR042's configured semantic/importance/recency weighting, minimum-rank policy, active-run/embedding-space handling and central output-selection behaviour.
 
 ### 16.7 Generation tests
 
 Cover:
 
-- zero-slot no-model path;
+- zero-slot no-model/no-connection-resolution path;
 - one slot no tool call;
 - one/multiple Daily Memory searches;
 - valid terminal replacement;
 - malformed terminal result;
 - tool-round exhaustion;
+- structured memory-tool failure with valid terminal replacement may succeed;
+- memory-tool failure without a valid terminal replacement aborts publication;
 - one failed slot aborts complete publication;
 - provider failure/fallback;
 - concurrent run rejection;
@@ -1144,12 +1156,13 @@ The following are settled for CR044 V1:
 9. Only entity references contained in the current instruction are expanded into complete Character Cards/Lorebooks for that slot.
 10. Complete referenced Lorebooks are supplied in V1; no hidden semantic Lorebook extraction/query is performed.
 11. Slots execute sequentially in separate bounded sessions and do not see earlier generated replacements.
-12. The Character Briefing generation connection is persisted per Character Briefing and resolved once per run.
+12. The Character Briefing generation connection is persisted per Character Briefing and resolved once per slot-bearing run; zero-slot generation does not require connection resolution.
 13. The only Character Briefing agent tool is the standard built-in `search_character_daily_memories(query)`.
 14. The memory tool exposes only `query`; owner Character scope and all retrieval tuning/bounding are host/system controlled.
 15. The memory tool reuses the same centralized CR042 retrieval policy as Conversation injection; no duplicate CR044 ranking implementation is permitted.
-16. Character Briefing never inherits the complete normal/custom agent tool catalogue.
-17. Host-controlled source-offset reconstruction and atomic publication are mandatory.
-18. Previous Latest Briefing remains intact on any failed or conflicting generation.
-19. Conversation integration is additive and character-specific.
-20. Scheduling, automatic generation, Persona selection, Character/Lorebook agent tools, entity discovery, briefing history and deterministic `{{...}}` macros are out of V1.
+16. A structured memory-tool failure never triggers fallback retrieval and does not automatically fail the slot if the standard agent runtime can still produce a valid terminal replacement from preloaded context.
+17. Character Briefing never inherits the complete normal/custom agent tool catalogue.
+18. Host-controlled source-offset reconstruction and atomic publication are mandatory.
+19. Previous Latest Briefing remains intact on any failed or conflicting generation.
+20. Conversation integration is additive and character-specific.
+21. Scheduling, automatic generation, Persona selection, Character/Lorebook agent tools, entity discovery, briefing history and deterministic `{{...}}` macros are out of V1.
