@@ -72,6 +72,26 @@ function selectResponse(body) {
     }
   }
 
+  if (text.includes("you are the character briefing agent")) {
+    const owner = text.includes("write alpha") ? "alpha" : text.includes("write beta") ? "beta" : "unknown";
+    const marker = owner.includes("alpha")
+      ? "CR044 GENERATED BRIEFING FOR ALPHA"
+      : owner.includes("beta")
+        ? "CR044 GENERATED BRIEFING FOR BETA"
+        : "CR044 GENERATED BRIEFING";
+    console.log(`[fake-openai] cr044 briefing owner=${owner} terminal-json=true`);
+    return { content: JSON.stringify({ replacement: marker }), toolCalls: [] };
+  }
+
+  if (text.includes("cr044 generated briefing")) {
+    const alphaBriefingPresent = text.includes("alpha cr044 generated briefing");
+    const betaBriefingPresent = text.includes("beta cr044 generated briefing");
+    console.log(
+      `[fake-openai] cr044 conversation alpha-briefing=${alphaBriefingPresent} beta-briefing=${betaBriefingPresent}`,
+    );
+    return { content: "CR044 CONVERSATION RESPONSE", toolCalls: [] };
+  }
+
   if (text.includes("cr032 curator system marker")) {
     const rawSourcePresent = text.includes("cr032 raw source marker");
     const latestMessagePresent = text.includes("cr032 latest user marker");
