@@ -1,6 +1,6 @@
 # Change Request Tracker
 
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 ## Repository Branch Alignment
 
@@ -76,3 +76,4 @@ Last updated: 2026-09-01
 | CR041 | merged into origin main | Per-Message Generation Emotion Labels | Persists the CR035 emotion state that actually shaped each newly generated Roleplay/Conversation message swipe and displays its human-readable label beneath the character name. | CR035 | HLD, implementation plan, and LLD completed. Implemented in `b5db4669f` and merged via fork PR #21 on 2026-08-29 (`2d10ad2da`). `pnpm regression:generation-emotion-labels`, `pnpm regression:regeneration-context`, `pnpm check`, and `git diff --check` passed. |
 | CR042 | standalone | Character Daily Memories | Reimplements CR015 from current Pasta-Devs upstream as character-owned daily memories shared across all Conversation-mode chats for that character, with sequential per-Conversation extraction and reliable scheduled/startup catch-up formation. | None | Conceptual successor to archived CR015, but no code dependency. Planned application branch: `change/CR042-character-daily-memories`, based on aligned current upstream `1a299369a`; HLD approved by the user's direct implementation request. |
 | CR043 | PR prepared, not opened | Preserve Avatar Source Prompt for Normal Character Generation | Preserves the original source prompt for normal Character avatar generation when no reference image is used. | None | Application commit `5e5a4ac74a9db90d3e9ad740fbc972b03613c1c1` on `change/CR043-preserve-avatar-source-prompt`; `git diff --check`, `pnpm regression:prompt`, and `pnpm check` passed. Reviewer-ready `PR.md` prepared for fork `adunato/Marinara-Engine` base `main`; no PR opened. |
+| CR045 | standalone | Integrate Character Emotion CRs on Staging | Ports completed CR035 Character Emotion States and Expression Integration and CR041 Per-Message Generation Emotion Labels onto the current staging code base without changing either CR's behavior. | CR035, CR041 | Intake / worktree preparation. Planned application branch `change/CR045-character-emotions-staging-integration` from `staging` at `80f688df25b691ab3dc602c0c33470d32bf6124b`; integrate CR035 before CR041. No merge, push, or staging modification while parallel staging testing continues. |
