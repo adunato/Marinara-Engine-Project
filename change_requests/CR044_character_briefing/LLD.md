@@ -1,253 +1,227 @@
-# CR044 Low-Level Design — Character Briefing
+# Low-Level Design: CR044 — Character Briefing
 
-## Status
+## 1. Change Overview
 
-Ready for implementation after review.
+CR044 adds a manually generated, Character-owned Briefing that captures evolving story understanding across Conversations and is injected additively into normal Conversation generation.
 
-## 1. Scope and Baseline
+Application baseline:
 
-This LLD implements the approved CR044 HLD and Implementation Plan against:
+- repository: `adunato/Marinara-Engine`
+- branch: `staging`
+- planning baseline: `80f688df25b691ab3dc602c0c33470d32bf6124b`
 
-- application repository: `adunato/Marinara-Engine`
-- baseline branch: `staging`
-- verified baseline commit: `80f688df25b691ab3dc602c0c33470d32bf6124b`
-- intended application work branch: `change/CR044-character-briefing`
+The implementation must preserve the normal Marinara prompt pipeline. Character Briefing does not replace the Conversation prompt, Character Card, Persona, history/summaries, CR042 Daily Memories, Lorebooks, live context, or any other existing source.
 
-The design assumes the CR042 Character Daily Memories implementation already present on `staging` and does not assume unrelated Adunato `main` change requests are available.
+V1 is manual-generation only.
 
-V1 remains:
+## 2. Resolved V1 Architecture
 
-- character-owned;
-- manually generated only;
-- additive to existing Conversation context;
-- editable Source Template plus one Latest Briefing;
-- executable only through `[[...]]` instruction spans;
-- ID-backed `$` references to Characters and Lorebooks inside instructions;
-- read-only Character Card, CR042 Daily Memory, and Lorebook evidence;
-- no deterministic `{{...}}` briefing macros;
-- no scheduling, automatic regeneration, history browser, or rich-text entity chips.
+### 2.1 Persisted source and generated result
 
-## 2. Component Overview
+Each Character has at most one Character Briefing record containing:
 
-CR044 adds the following components.
+- editable **Source Template**;
+- nullable Character Briefing generation connection ID;
+- read-only **Latest Briefing**;
+- latest successful generation timestamp;
+- normal persistence timestamps/status as needed.
 
-### Shared
+The Source Template is never replaced by generated content.
 
-- `packages/shared/src/character-briefing-template.ts`
-  - parses `[[...]]` slots;
-  - parses/serializes typed `$` entity references;
-  - exposes source offsets for exact replacement;
-  - exposes caret/query helpers for the editor;
-  - reconstructs a generated document from source + slot results.
+### 2.2 Host-owned replacement
 
-- shared export wiring under the existing `@marinara-engine/shared` barrel structure.
+`[[...]]` spans are parsed by Marinara with exact source offsets. The model generates only the replacement for the current slot. Marinara reconstructs the complete Latest Briefing from original source slices plus validated replacement strings.
 
-### Server persistence
+The model is never asked to rewrite the complete document.
 
-- `packages/server/src/db/schema/character-briefings.ts`
-- schema index export update.
-- next Drizzle migration generated according to current repository practice.
-- `packages/server/src/services/storage/character-briefings.storage.ts`
+### 2.3 Deterministic application entities
 
-### Server runtime
+Character Cards and Lorebooks are not agent-discovery domains in V1.
 
-- `packages/server/src/routes/character-briefings.routes.ts`
-- route registration in `packages/server/src/routes/index.ts`.
-- `packages/server/src/services/character-briefing/generation.service.ts`
-- `packages/server/src/services/character-briefing/tools.ts`
-- `packages/server/src/services/character-briefing/prompt.ts`
-- `packages/server/src/services/generation/character-briefing-context.ts`
-- narrow modification to `packages/server/src/routes/generate.routes.ts` for additive Conversation injection.
+- the owning Character Card is always loaded by the host;
+- `$Character` references in the current instruction are resolved by stable Character ID and their complete Character Cards are loaded by the host;
+- `$Lorebook` references in the current instruction are resolved by stable Lorebook ID and their complete Lorebook resources are loaded by the host;
+- natural-language names are never mapped to application entities by the model;
+- no Character or Lorebook get/search tool is exposed.
 
-File names may be adjusted to match neighbouring staging conventions, but responsibilities and boundaries should remain as defined here.
+### 2.4 One genuinely agentic retrieval capability
 
-### Client
-
-- `packages/client/src/components/characters/CharacterBriefingTab.tsx`
-- `packages/client/src/hooks/use-character-briefing.ts` or the equivalent current query-hook location.
-- modification to `packages/client/src/components/characters/CharacterEditor.tsx` to register/render the new tab.
-
-## 3. Persistence Design
-
-### 3.1 Table
-
-Create a dedicated `character_briefings` table rather than storing briefing state in the versioned Character Card resource.
-
-Required logical fields:
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `characterId` | text / existing character-id type | Unique owning Character; foreign key when current schema conventions permit. |
-| `sourceTemplate` | text | Persistent editable source. Default empty string. |
-| `latestBriefing` | text nullable | Latest fully successful generated result. |
-| `latestGeneratedAt` | timestamp nullable | Timestamp for latest successful generation. |
-| `createdAt` | timestamp | Existing DB timestamp convention. |
-| `updatedAt` | timestamp | Updated on source save or successful generation. |
-
-One Character has at most one CR044 record.
-
-No briefing-history table is added.
-
-### 3.2 Why briefing state is separate from Character Card data
-
-The Source Template and Latest Briefing are mutable runtime state. They must not:
-
-- create Character Card version churn;
-- be exported/imported accidentally as immutable card identity unless a later CR explicitly adds that behaviour;
-- require rewriting the existing Character storage model;
-- couple manual briefing generation to Character Card editing transactions.
-
-### 3.3 Storage service
-
-`character-briefings.storage.ts` should expose a small typed interface similar to:
+The only V1 tool available to the Character Briefing agent is:
 
 ```text
+search_character_daily_memories(query)
+```
+
+It is implemented as a normal Marinara built-in tool, but the Character Briefing runtime exposes it through a hardcoded allowlist containing no other tools.
+
+The tool is host-scoped to the owning Character and reuses the same CR042 Daily Memory retrieval/ranking/filtering/result-selection policy used by ordinary Conversation injection.
+
+### 2.5 Per-slot bounded sessions
+
+Each instruction is executed sequentially in a separate bounded tool-capable model session.
+
+Every slot receives the same Source Template snapshot taken at the start of the run. Generated output from earlier slots is retained by the host for final reconstruction but is not substituted into the template context for later slots.
+
+### 2.6 No Persona in briefing-generation context
+
+Character Briefing is Character-owned and may span Conversations that use different Personas. V1 therefore does not select or inject a Persona Card into briefing generation.
+
+### 2.7 Generation connection
+
+Character Briefing has its own optional generation connection setting.
+
+Resolution follows the existing Character-scoped agent pattern used by CR042 where practical:
+
+1. explicitly configured Character Briefing generation connection;
+2. normal default agent connection/fallback infrastructure when no explicit connection is configured.
+
+The resolved connection is fixed for the entire manual generation run. CR044 never inherits an arbitrary Conversation connection.
+
+## 3. Shared Types and Persistence Model
+
+### 3.1 Shared state contract
+
+Add a shared contract equivalent to:
+
+```ts
+export type CharacterBriefingState = {
+  characterId: string;
+  sourceTemplate: string;
+  generationConnectionId: string | null;
+  latestBriefing: string | null;
+  latestGeneratedAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+```
+
+An existing Character without a persisted CR044 row is represented to the client as the default state:
+
+```ts
+{
+  characterId,
+  sourceTemplate: "",
+  generationConnectionId: null,
+  latestBriefing: null,
+  latestGeneratedAt: null,
+  createdAt: null,
+  updatedAt: null
+}
+```
+
+### 3.2 Configuration patch
+
+Use a shared request schema equivalent to:
+
+```ts
+export type CharacterBriefingPatch = {
+  sourceTemplate?: string;
+  generationConnectionId?: string | null;
+};
+```
+
+At least one property must be present.
+
+The server, not the client, validates that a non-null connection ID is usable according to existing connection-resolution semantics.
+
+### 3.3 Dedicated table
+
+Prefer a dedicated one-row-per-Character table rather than putting generated state in versioned Character Card JSON.
+
+Logical schema:
+
+```text
+character_briefings
+-------------------
+character_id              PK / Character reference
+generation_connection_id  nullable connection reference
+source_template            text, not null
+latest_briefing            nullable text
+latest_generated_at        nullable timestamp
+created_at                 timestamp
+updated_at                 timestamp
+```
+
+Use the staging repository's file-backed schema/storage conventions rather than introducing a different database mechanism.
+
+Character deletion must cascade/remove its Briefing according to existing Character-owned table conventions.
+
+Connection deletion/reference cleanup should follow the existing connection-reference policy. If the repository normally clears optional deleted connection IDs, clear the Briefing reference; otherwise preserve the existing convention and let generation resolution report the invalid configuration.
+
+### 3.4 Storage operations
+
+Create a focused storage boundary with operations equivalent to:
+
+```ts
 get(characterId)
-saveSourceTemplate(characterId, sourceTemplate)
+saveConfiguration(characterId, patch)
 publishLatest(characterId, expectedSourceTemplate, latestBriefing, generatedAt)
-deleteForCharacter(characterId) // only if required by current deletion conventions
 ```
 
-`get()` should allow the API layer to represent an absent row as an empty default state without eagerly inserting a database record.
+`publishLatest` must compare the persisted Source Template with `expectedSourceTemplate` inside the persistence/transaction boundary and fail on mismatch.
 
-`publishLatest()` must be conditional on the source still matching the source snapshot used for generation. This can be implemented either:
+Do not create historical generation rows in V1.
 
-- as one conditional SQL update using `characterId + sourceTemplate`; or
-- inside the existing database transaction abstraction after a re-read.
+## 4. Source Template Parser
 
-The invariant is what matters: a generation started from source A must never publish against later source B.
+### 4.1 Parsed slot shape
 
-## 4. Source Template Grammar
+Shared parser output should contain exact source coordinates:
 
-### 4.1 Executable syntax
-
-Only complete, non-nested `[[...]]` spans are executable.
-
-Examples:
-
-```markdown
-# Relationships
-
-[[Assess my current relationship with $[character:abc123|Amy].]]
+```ts
+export type CharacterBriefingInstructionSlot = {
+  slotIndex: number;
+  startOffset: number;
+  endOffsetExclusive: number;
+  raw: string;             // includes [[ and ]]
+  instruction: string;     // inner text
+  references: CharacterBriefingEntityReference[];
+};
 ```
 
-Multiline instructions are valid:
+### 4.2 Entity reference shape
 
-```markdown
-[[Review recent memories involving $[character:abc123|Amy].
-Summarise our current relationship and unresolved issues.]]
+```ts
+export type CharacterBriefingEntityReference = {
+  type: "character" | "lorebook";
+  id: string;
+  label: string;
+  startOffset: number;     // relative or absolute, choose one convention and test it
+  endOffsetExclusive: number;
+};
 ```
 
-Ordinary Markdown outside the spans is inert.
+### 4.3 Serialized token
 
-`$` outside an instruction is ordinary text.
-
-### 4.2 Invalid syntax
-
-Generation rejects at least:
-
-- unclosed `[[`;
-- nested `[[...[[...]]...]]`;
-- malformed typed entity tokens inside instructions;
-- unsupported entity-reference types;
-- empty/missing stable entity IDs.
-
-Literal square brackets that are not `[[` or `]]` remain normal Markdown.
-
-The parser should report a machine-readable error code plus source offset so the client can identify the faulty region.
-
-### 4.3 Instruction-slot representation
-
-The shared parser should produce ordered slots containing at least:
+Use a readable typed token equivalent to:
 
 ```text
-slotIndex
-startOffset        // opening '[' of '[['
-endOffsetExclusive // first character after closing ']]'
-instructionText    // brackets removed
-entityRefs[]
+$[character:<stable-id>|Amy]
+$[lorebook:<stable-id>|Asteria]
 ```
 
-Slots are identified by index/source offset, not by instruction text. Identical instruction text appearing twice must still map to two independent replacements.
+The parser must treat type + stable ID as authoritative. `label` is display text only.
 
-## 5. Stable Entity Reference Format
+If labels can contain token delimiters, define deterministic escaping in the shared parser/serializer. Do not permit client and server to maintain separate ad-hoc token grammars.
 
-### 5.1 Serialized form
+### 4.4 Parser rules
 
-V1 should use a readable typed token embedded directly in Source Template text:
+Generation-time parsing must:
 
-```text
-$[character:<stable-id>|<display-label>]
-$[lorebook:<stable-id>|<display-label>]
-```
+- support multiline instructions;
+- identify exact `[[...]]` ranges;
+- reject nested instruction spans;
+- reject an unclosed instruction;
+- identify typed `$` tokens only inside instruction spans;
+- reject malformed typed tokens inside executable spans;
+- permit ordinary `$` text outside instructions;
+- permit a Source Template with zero instructions.
 
-Examples:
+The client may save temporarily malformed source while the user is editing. Strict executable validation occurs when Generate is invoked.
 
-```text
-$[character:ch_123|Amy]
-$[lorebook:lb_456|Kingdom of Asteria]
-```
+### 4.5 Exact reconstruction
 
-The authoritative identity is `(type, stable-id)`.
-
-The display label is presentation only. It may become stale after an entity rename and must never be used as a runtime lookup fallback when a valid ID is present.
-
-### 5.2 Escaping
-
-The shared serializer/parser should support labels containing reserved token characters by escaping at least:
-
-- `\`
-- `|`
-- `]`
-
-The serializer must be the only client path that creates tokens; the server parser remains defensive against manually edited malformed tokens.
-
-### 5.3 Deleted entity behaviour
-
-Before the first model call, generation resolves every explicit typed reference in every slot.
-
-If any explicit Character or Lorebook no longer exists:
-
-- return a deterministic generation error;
-- identify the unresolved reference sufficiently for UI display;
-- do not substitute a same-name object;
-- do not invoke the model;
-- do not change Latest Briefing.
-
-### 5.4 Discovery versus explicit references
-
-The briefing model may have search tools for discovering untagged evidence when an instruction is general.
-
-However, when the user supplied an explicit `$` token, that stable reference is authoritative and search must not reinterpret it.
-
-## 6. Shared Parser API
-
-Suggested exported functions/types:
-
-```text
-parseCharacterBriefingTemplate(source)
-parseCharacterBriefingEntityToken(token)
-serializeCharacterBriefingEntityRef(ref)
-getCharacterBriefingInstructionAtCaret(source, cursor)
-getCharacterBriefingEntityQueryAtCaret(source, cursor)
-reconstructCharacterBriefing(source, slots, replacements)
-```
-
-Suggested types:
-
-```text
-CharacterBriefingEntityRef
-CharacterBriefingInstructionSlot
-CharacterBriefingTemplateParseResult
-CharacterBriefingTemplateError
-CharacterBriefingEntityQuery
-```
-
-### 6.1 Reconstruction algorithm
-
-The host application owns document reconstruction.
-
-Pseudocode:
+Reconstruct from offsets, never by matching instruction text:
 
 ```text
 cursor = 0
@@ -259,666 +233,910 @@ for slot in slots ordered by startOffset:
     cursor = slot.endOffsetExclusive
 
 output += source[cursor:]
-return output
 ```
 
-Never call `string.replace(instructionText, ...)` because repeated identical instructions would be ambiguous and model output must not determine source boundaries.
+Repeated identical instructions must therefore remain unambiguous.
 
-### 6.2 Zero-slot template
+### 4.6 Zero-slot generation
 
-A Source Template containing no `[[...]]` slots is valid.
+A Source Template with no `[[...]]` slots is valid.
 
-Manual generation should:
+Generate performs no model call and publishes the Source Template verbatim as Latest Briefing after normal source/configuration validation.
 
-- make no model call;
-- publish the Source Template verbatim as Latest Briefing;
-- update `latestGeneratedAt`.
+## 5. Server API
 
-This makes inert Markdown useful without introducing a second execution syntax.
+Register Character Briefing routes under the existing Character route namespace.
 
-## 7. Server API
+### 5.1 Read state
 
-### 7.1 Read briefing state
-
-`GET /api/characters/:characterId/briefing`
-
-Logical response:
-
-```json
-{
-  "characterId": "...",
-  "sourceTemplate": "...",
-  "latestBriefing": "... or null",
-  "latestGeneratedAt": "... or null",
-  "updatedAt": "... or null"
-}
+```http
+GET /api/characters/:characterId/briefing
 ```
 
-An existing Character with no CR044 row returns the empty/default state rather than 404.
+Behaviour:
 
-Unknown Character returns 404.
+- unknown Character -> 404;
+- Character without CR044 row -> default empty state;
+- otherwise return persisted state.
 
-### 7.2 Save Source Template
+### 5.2 Save configuration
 
-`PUT /api/characters/:characterId/briefing`
+```http
+PATCH /api/characters/:characterId/briefing
+```
 
 Body:
 
 ```json
 {
-  "sourceTemplate": "..."
+  "sourceTemplate": "optional replacement source",
+  "generationConnectionId": "optional connection id or null"
 }
 ```
 
 Behaviour:
 
 - validate Character exists;
-- persist Source Template only;
-- do **not** clear or regenerate Latest Briefing;
-- return current briefing state.
+- validate request schema;
+- persist only fields present in the patch;
+- saving Source Template does not clear Latest Briefing;
+- saving/changing connection does not implicitly regenerate Latest Briefing;
+- return current state.
 
-Saving malformed executable syntax is allowed so the user can edit incrementally. Syntax validity is enforced when Generate is invoked.
+### 5.3 Manual generation
 
-Apply the repository's existing request-size/body limits; if a specific route cap is needed, use a bounded value sufficient for a human-authored briefing (for example 128 KiB) rather than allowing unbounded text.
+```http
+POST /api/characters/:characterId/briefing/generate
+```
 
-### 7.3 Manual generation
+No model-tuning, tool, date, or entity parameters are accepted from the client. Generation uses the currently persisted Source Template and generation-connection setting.
 
-`POST /api/characters/:characterId/briefing/generate`
-
-The endpoint uses the currently persisted Source Template. The client should save current edits before invoking generation.
-
-Success returns the updated briefing state.
-
-Suggested errors:
+Suggested response/error semantics:
 
 | Status | Condition |
 | --- | --- |
-| `400` | Malformed template or malformed typed entity token. |
-| `404` | Owning Character or an explicitly referenced entity does not exist. |
-| `409` | A generation for this Character is already active, or Source Template changed before publication. |
-| existing provider/runtime error mapping | LLM/provider/tool failure. |
+| `200` | complete generation succeeded |
+| `400` | malformed template/reference or other invalid briefing input |
+| `404` | owner Character or explicitly referenced entity does not exist |
+| `409` | same Character already generating or source changed before publication |
+| existing provider/runtime mapping | connection/provider/tool failure |
 
-Do not invent a new global error shape; use current route conventions.
+Use existing repository error-envelope conventions rather than introducing a CR044-only global shape.
 
-## 8. Manual Generation Service
+## 6. Generation Connection Resolution
 
-### 8.1 Per-character generation lock
+### 6.1 Persisted setting
 
-Maintain a process-local lock/set keyed by Character ID, matching other single-server runtime patterns where appropriate.
+`generationConnectionId` belongs to Character Briefing. It is independent of:
 
-Generation flow:
+- CR042 `formationConnectionId`;
+- a Conversation's connection;
+- the connection used later to generate a chat response containing Latest Briefing.
+
+### 6.2 Run resolution
+
+At generation start:
+
+1. snapshot `generationConnectionId` with Source Template;
+2. if non-null, resolve it through the normal connection provider/base-URL/model stack;
+3. if null, resolve the normal default agent connection/fallback path used by existing agent-style background operations;
+4. fail before slot execution if no usable connection can be resolved;
+5. retain the resolved primary/fallback configuration for all slots in the run.
+
+Do not re-resolve per slot except where the normal provider wrapper itself performs established fallback behaviour.
+
+### 6.3 Reuse
+
+Prefer extracting/reusing the connection-resolution helper already used by CR042 or the common agent runtime if the staging implementation does not expose it cleanly. Do not duplicate provider/base-URL/fallback rules inside Character Briefing.
+
+### 6.4 Tracing snapshot
+
+Trace/log the resolved connection ID/model/provider according to existing diagnostics conventions. Do not persist a briefing-generation history table solely for this metadata.
+
+## 7. Reference Preflight and Deterministic Context Loading
+
+### 7.1 Run-level preflight
+
+Before any model call:
+
+1. load the owning Character through canonical Character storage;
+2. parse Source Template;
+3. collect all typed references grouped by slot;
+4. de-duplicate `(type, id)` for efficient host-side lookup;
+5. resolve Character IDs through canonical Character storage;
+6. resolve Lorebook IDs through canonical Lorebook storage;
+7. fail immediately if any reference cannot be resolved;
+8. retain a map of resolved resources keyed by `(type, id)`.
+
+Preflight validates all explicit references before token-expensive agent work begins.
+
+### 7.2 Complete Character Card representation
+
+The host should supply the canonical Character Card content useful to Marinara generation, including the normal card fields rather than a search summary.
+
+At minimum preserve the semantic card fields represented in the current Character resource, including where present:
+
+- name;
+- description;
+- personality;
+- backstory;
+- appearance;
+- scenario;
+- example dialogue;
+- system prompt;
+- post-history instructions;
+- other card-authored fields that the canonical Character representation already exposes and that are not runtime-only secrets.
+
+Prefer a shared Character-to-context formatter if one already exists rather than inventing a CR044-specific reduced card format.
+
+### 7.3 Complete Lorebook representation
+
+For a `$Lorebook` reference in the current slot, load the exact Lorebook by ID and include the complete book and its entries/content in the slot context.
+
+V1 deliberately does **not** perform semantic extraction or a query inside that Lorebook. It does not call existing `search_lorebook` on behalf of the briefing agent.
+
+If very large Lorebooks later prove problematic, optimisation is a future design change rather than hidden V1 heuristics.
+
+## 8. Exact Per-Slot Agent Input Context
+
+This section is normative. Do not replace it with heuristic “relevant context” selection.
+
+For slot `N`, construct one explicit context payload containing the following sections.
+
+### 8.1 Owning Character Card — always present
+
+Supply the complete owning Character Card loaded during preflight.
+
+Mark it clearly as the Character whose Briefing is being generated. State that first-person terms such as “my” in the current instruction refer to this Character unless the instruction explicitly says otherwise.
+
+No tool call is required to access the owner card.
+
+### 8.2 Persona — absent
+
+Do not include a Persona Card.
+
+Do not infer a Persona from the most recent Conversation or from one source memory. Character Briefing is intentionally independent of a particular chat/persona pairing.
+
+### 8.3 Complete Source Template snapshot — always present
+
+Supply the entire Source Template snapshot exactly as persisted at run start.
+
+Clearly label it as **context only / read-only**. Tell the model:
+
+- it may use the whole template to understand document structure and intended coverage;
+- it must not rewrite the template;
+- other `[[...]]` instructions are not tasks in this model call;
+- `$` tokens elsewhere in the template are contextual text only unless expanded in the current-slot entity section.
+
+Every slot receives the same snapshot. Do not replace earlier instruction slots with their generated outputs before executing later slots.
+
+### 8.4 Current instruction — always present
+
+Identify the exact current instruction separately:
 
 ```text
-if characterId is already generating:
-    return conflict
-
-mark generating
-try:
-    load owner Character
-    load briefing state
-    snapshot sourceTemplate
-    parse sourceTemplate
-    preflight all explicit entity refs
-
-    replacements = []
-    for slot in source order:
-        replacements[slot] = executeSlot(slot, owner, resolvedRefs)
-
-    reconstructed = reconstruct(sourceTemplate, slots, replacements)
-
-    re-read current briefing source
-    if current source != source snapshot:
-        return conflict without publishing
-
-    atomically publish reconstructed Latest Briefing + generated timestamp
-    return state
-finally:
-    clear generating marker
+slotIndex
+instruction text without [[ ]]
 ```
 
-The client should also disable Generate while its own request is active, but server-side locking is authoritative.
+Tell the model that this is the **only** instruction it must answer in the current session.
 
-### 8.2 One bounded session per slot
+The model does not need source offsets; offsets remain host metadata.
 
-V1 executes instruction slots sequentially with a separate bounded tool-capable model session per slot.
+### 8.5 Current-slot referenced Characters — conditional
 
-Reasons:
+For every `$Character` reference appearing inside the current instruction, include the complete pre-resolved Character Card.
 
-- deterministic mapping between one source slot and one terminal result;
-- failure attribution is straightforward;
-- tool context stays focused;
-- no model-owned whole-document state is required;
-- partial results can be held in memory and discarded if a later slot fails.
+Do not expand `$Character` references that occur only in other Source Template instructions.
 
-A later CR may optimise batching if evidence shows the extra calls are problematic.
+### 8.6 Current-slot referenced Lorebooks — conditional
 
-### 8.3 Slot prompt contract
+For every `$Lorebook` reference appearing inside the current instruction, include the complete pre-resolved Lorebook and its entries.
 
-Each slot invocation receives host-generated context containing:
+Do not expand `$Lorebook` references that occur only in other Source Template instructions.
 
-- owning Character identity and stable ID;
-- the exact instruction text without `[[` / `]]`;
-- resolved explicit entity references as structured metadata;
-- current date/time;
-- limited surrounding Source Template text when needed for headings/semantic context;
-- tool descriptions;
-- strict terminal-output instructions.
+### 8.7 Current date/time — always present
 
-The model is told that first-person references such as “my” refer to the owning Character unless the instruction explicitly says otherwise.
+Supply current date/time using the same application timezone semantics used for other user-facing Conversation temporal context where practical.
 
-It is **not** sent the complete normal Conversation prompt.
+This provides an anchor for words such as “current”, “recent”, “today”, or “last few days”.
 
-### 8.4 Terminal result
+It does not imply date parameters on the memory-search tool.
 
-Use a constrained structured terminal result equivalent to:
+### 8.8 Allowed tool — always present
+
+Expose only:
+
+```text
+search_character_daily_memories(query)
+```
+
+The model is told that the tool searches Daily Memories belonging to the owning Character.
+
+### 8.9 Terminal result contract — always present
+
+Require a constrained final result equivalent to:
 
 ```json
 {
-  "replacement": "generated Markdown/text for this slot only"
+  "replacement": "generated Markdown/text for this instruction only"
 }
 ```
 
-The service must reject:
+Reject:
 
-- no terminal result;
-- invalid structure;
+- missing terminal result;
+- invalid structured result;
 - non-string replacement;
-- protocol output that cannot be associated with the current slot.
+- model output that cannot be associated with the current slot.
 
-The model must not be asked to echo the instruction, return a full Markdown document, or add generic commentary.
+The prompt must explicitly prohibit:
 
-## 9. Read-Only Agent Tools
+- reproducing the full Source Template;
+- explaining reasoning;
+- reporting tool calls;
+- restating the instruction;
+- modifying neighbouring sections;
+- adding generic wrappers/headings unless the instruction itself asks for them.
 
-CR044 should define its own narrow tool set while reusing existing underlying storage/services.
+## 9. Standard Agent Tool: `search_character_daily_memories`
 
-### 9.1 Character Card tools
+### 9.1 Why it is a tool
 
-Suggested tool surface:
+Daily Memories form an open evidence corpus. The model benefits from deciding what semantic query to ask, inspecting evidence, and optionally issuing a more focused follow-up query within the bounded tool-round budget.
 
-```text
-briefing_character_get(characterId)
-briefing_character_search(query, limit)
-```
+Character Cards and Lorebooks do not share this property in V1 because every permitted application entity is already explicitly identified by an ID-backed `$` reference and preloaded by the host.
 
-`briefing_character_get` returns the fields useful for contextual understanding from the canonical Character Card, bounded according to existing server practices.
+### 9.2 Shared built-in manifest
 
-`briefing_character_search` is optional discovery support for instructions that refer generally to another Character without a `$` token. Explicit references remain authoritative.
-
-No create/update/delete Character capability is exposed.
-
-### 9.2 Lorebook tools
-
-Suggested surface:
+Add a standard built-in manifest under the existing shared function-call tool structure, conceptually:
 
 ```text
-briefing_lorebook_get(lorebookId)
-briefing_lorebook_search(query, limit)
-briefing_lorebook_entries(lorebookId, query?, limit?)
-briefing_lorebook_entry_get(lorebookId, entryId)
+packages/shared/src/features/function-calls/tools/
+  search-character-daily-memories/
+    manifest.ts
 ```
 
-Prefer staged retrieval:
+Definition:
 
-1. identify Lorebook;
-2. inspect bounded entry summaries/index;
-3. read selected entry bodies.
+```ts
+{
+  name: "search_character_daily_memories",
+  description: "Search the current character's Daily Memories for evidence relevant to a query.",
+  parameters: {
+    type: "object",
+    properties: {
+      query: {
+        type: "string",
+        description: "Semantic description of the memories/evidence to retrieve."
+      }
+    },
+    required: ["query"]
+  }
+}
+```
 
-Do not preload entire large Lorebooks into every slot prompt.
+No other parameters are exposed.
 
-No Lorebook mutation capability is exposed.
+Run the existing shared feature-registry generation/build so the generated `BUILT_IN_TOOLS` registry includes the new manifest.
 
-### 9.3 Character Daily Memory tool
+### 9.3 Common tool executor integration
 
-Expose a briefing-specific read/search tool backed by the CR042 character-owned memory store.
+Extend the normal server tool execution context with a host-injected callback analogous to existing host-bound built-in capabilities:
 
-Suggested model-facing contract:
+```ts
+export type CharacterDailyMemorySearchFn = (
+  query: string,
+) => Promise<CharacterDailyMemoryToolResult[]>;
+
+export interface ToolExecutionContext {
+  // existing fields...
+  searchCharacterDailyMemories?: CharacterDailyMemorySearchFn;
+}
+```
+
+Add execution handling for `search_character_daily_memories` to the existing built-in tool executor rather than implementing a CR044-only dispatch loop.
+
+If the callback is absent, return the normal structured tool-unavailable error. This ensures registering the standard tool does not grant memory access to every runtime automatically.
+
+### 9.4 Character Briefing hardcoded allowlist
+
+The CR044 slot runtime builds an `AgentToolContext` whose `tools` array contains only the standard definition for `search_character_daily_memories`.
+
+Its execution callback must reject any tool name outside that one-name set before delegating to the common executor.
+
+Do not include:
+
+- `search_lorebook`;
+- `web_search`;
+- `read_chat_summary`;
+- Character tools;
+- Lorebook get/search tools;
+- mutation tools;
+- Spotify/game tools;
+- user custom tools;
+- Professor Mari workspace commands.
+
+### 9.5 Hidden Character scope
+
+`characterId` is never part of the model schema.
+
+The Character Briefing runtime creates the tool callback by closing over the owning Character ID:
+
+```ts
+const searchCharacterDailyMemories = (query: string) =>
+  retrieval.searchForCharacter({
+    characterId: ownerCharacterId,
+    query,
+  });
+```
+
+The model therefore cannot request another Character's memories by changing arguments.
+
+### 9.6 Query-only retrieval contract
+
+Do not expose:
+
+- `fromDate` / `toDate`;
+- `limit`;
+- `characterId`;
+- semantic/importance/recency weights;
+- minimum rank percentage;
+- embedding source/model;
+- active-run selection.
+
+These remain part of CR042's central retrieval policy.
+
+### 9.7 Reuse CR042's centralized retrieval policy
+
+The memory tool must produce results through the same logic used for CR042 Conversation injection.
+
+The reusable service should conceptually accept:
+
+```ts
+retrieveCharacterDailyMemories({
+  characterId,
+  query,
+  // internally resolved settings / embedding source
+})
+```
+
+and return already-selected/ranked active memories.
+
+The implementation must preserve existing CR042 semantics for:
+
+- active memory-set selection;
+- embedding-space compatibility;
+- semantic score;
+- importance weighting;
+- recency weighting;
+- normalized configured weights;
+- minimum-rank filtering;
+- existing central result-selection/bounding behaviour;
+- safe degradation when vector retrieval is unavailable, according to the CR042 retrieval contract.
+
+If staging currently assembles these steps inside Conversation-generation code, extract the smallest reusable service and have **both** existing Conversation injection and the new tool call it. Do not fork/copy the algorithm.
+
+### 9.8 Tool output
+
+Return the selected memory records in a bounded JSON-compatible shape containing useful evidence already available in CR042, for example:
+
+```ts
+{
+  id: string;
+  text: string;
+  importance: number;
+  date?: string;
+  sourceConversationId?: string | null;
+  sourceConversationName?: string | null;
+  score?: number;
+}
+```
+
+Do not expose raw embeddings to the model.
+
+The tool does not accept a model-chosen limit; any output-size protection is deterministic host/system behaviour.
+
+## 10. Manual Generation Service
+
+### 10.1 Per-Character lock
+
+Maintain a process-local in-flight set/lock keyed by Character ID, consistent with current single-server runtime patterns.
+
+A second generation request for the same Character returns conflict while the first is active.
+
+Different Characters may generate independently subject to the normal provider/rate-limit infrastructure.
+
+### 10.2 Run flow
 
 ```text
-briefing_memory_search(query?, fromDate?, toDate?, limit?)
+if owner character already generating:
+    conflict
+
+mark owner generating
+try:
+    load owner Character
+    load briefing/default state
+    snapshot sourceTemplate
+    snapshot generationConnectionId
+    parse sourceTemplate
+    resolve generation connection once
+    preflight all typed Character/Lorebook refs
+
+    if no slots:
+        verify source unchanged
+        publish source verbatim as Latest Briefing
+        return
+
+    replacements = []
+
+    for slot in source order:
+        context = buildSlotContext(
+            ownerCard,
+            sourceTemplateSnapshot,
+            slot,
+            resolvedCurrentSlotRefs,
+            currentDateTime,
+            memoryTool
+        )
+
+        replacements[slot.index] = executeBoundedSlot(
+            resolvedRunConnection,
+            context
+        )
+
+    reconstructed = reconstruct(
+        sourceTemplateSnapshot,
+        slots,
+        replacements
+    )
+
+    atomically publish only if persisted source still equals snapshot
+    return updated state
+finally:
+    clear owner generating marker
 ```
 
-Important security/scope rule:
+### 10.3 Failure behaviour
 
-- **do not expose `characterId` as a model-supplied argument**;
-- the generation service injects the owning Character ID into the tool implementation;
-- the tool can therefore read only the briefing owner's CR042 memory corpus.
+Any of the following aborts the run without changing Latest Briefing:
 
-Return bounded active memory records containing useful evidence such as:
+- malformed executable template;
+- invalid typed reference;
+- unresolved Character/Lorebook reference;
+- no usable generation connection;
+- provider failure not recovered by standard fallback;
+- memory tool failure that causes the slot task to fail;
+- tool-round exhaustion without valid terminal result;
+- invalid terminal result;
+- source changed before publication.
 
-- memory text/content;
-- logical date/date range;
-- source Conversation attribution where stored by CR042;
-- other existing non-sensitive metadata useful for interpreting chronology.
+Do not persist a partially reconstructed briefing.
 
-The implementation should use the actual CR042 storage/query primitives present on staging. If CR042 does not expose a reusable semantic-search API, CR044 should add only the smallest adapter necessary for bounded date/text filtering or reuse existing embedding utilities if there is already an appropriate query path. The LLD does **not** require inventing a second independent vector-memory subsystem.
+### 10.4 Tool rounds
 
-### 9.4 Tool limits
+Use the existing bounded tool-round configuration/executor behaviour rather than an unlimited CR044 loop.
 
-All list/search tools must:
+A slot may call `search_character_daily_memories` repeatedly if the common tool-round budget permits it.
 
-- cap result counts;
-- cap serialized output size;
-- support narrowing rather than returning complete corpora;
-- count toward a bounded maximum tool-round limit per slot.
+### 10.5 Provider and tracing
 
-The slot runtime should reuse existing provider/tool execution and tracing facilities where possible, including staging's current Phoenix tracing path rather than implementing CR044-specific LLM transport.
+Use the normal provider registry, connection fallback wrapper, rate-limit infrastructure, model parameters and Phoenix tracing available on staging.
 
-## 10. Explicit Reference Preflight
+CR044 must not introduce a separate provider client solely for briefing generation.
 
-Before invoking any slot model session:
+Trace at minimum:
 
-1. collect every typed entity token from parsed slots;
-2. de-duplicate by `(type, id)`;
-3. resolve Characters through canonical Character storage;
-4. resolve Lorebooks through canonical Lorebook storage;
-5. construct a resolved-reference map;
-6. fail immediately if any reference is unresolved.
-
-This provides:
-
-- zero token cost for deterministically broken references;
-- stable behaviour with duplicate names;
-- no accidental LLM disambiguation;
-- the ability to give every relevant slot exact resolved metadata.
+- Character ID;
+- slot index;
+- selected/resolved connection/model;
+- tool calls and duration through existing tracing hooks;
+- terminal success/failure;
+- no complete private model reasoning.
 
 ## 11. Character Briefing UI
 
-### 11.1 Tab integration
+### 11.1 Character Editor integration
 
-Modify `CharacterEditor.tsx` to add **Briefing** as a sibling Character tab, following the same lifecycle/loading conventions used by existing focused tabs such as `CharacterMemoriesTab`.
+Add **Briefing** as a sibling tab in `CharacterEditor.tsx`, following focused tab composition used by `CharacterMemoriesTab`.
 
-The Briefing tab should not be hidden behind Conversation settings because the resource belongs to the Character.
+Primary implementation should live in a dedicated `CharacterBriefingTab` rather than expanding the Character Editor with all logic inline.
 
 ### 11.2 Layout
 
-`CharacterBriefingTab` contains three logical regions:
+The tab contains:
 
-1. **Source Template**
-   - explanatory helper text;
-   - editable textarea/Markdown-style editor;
-   - Save action/status.
+1. **Source Template** editor;
+2. **Generation connection** selector;
+3. **Generate Briefing / Update Briefing** action and status;
+4. **Latest Briefing** read-only output.
 
-2. **Generation controls**
-   - `Generate Briefing` when no Latest Briefing exists;
-   - `Update Briefing` when one exists;
-   - busy state while generation runs;
-   - error/status feedback.
+No history browser is included.
 
-3. **Latest Briefing**
-   - read-only rendered/preformatted content;
-   - last successful generated timestamp;
-   - empty state before first generation.
+### 11.3 Source editor
 
-Do not add history navigation.
+Use a normal textarea/Markdown-style editor.
 
-### 11.3 Save semantics
+It supports ordinary text and `[[...]]` syntax without a rich-text dependency.
 
-The Source Template must be saveable without generating.
+Saving source does not regenerate.
 
-Generate should:
+### 11.4 Connection selector
 
-1. ensure the latest editor text is persisted;
-2. wait for successful save;
-3. invoke the manual generation endpoint;
-4. refresh the query state from the server response.
+Reuse the CR042 Character Daily Memories connection-selection UI primitive/pattern where clean.
 
-While the local generation request is active, disable Source Template editing and generation controls in that tab to avoid misleading local edits. Server source-snapshot protection still handles cross-client changes.
+Requirements:
 
-### 11.4 `$` autocomplete trigger
+- show current explicit connection or default-agent behaviour;
+- permit selecting a different available connection;
+- permit returning to default/unset when supported by the existing selector convention;
+- persist to `generationConnectionId`;
+- clearly separate this setting from the Daily Memories formation connection;
+- changing it does not mutate Latest Briefing until Generate/Update is run.
 
-Autocomplete opens only when all conditions hold:
+### 11.5 `$` autocomplete trigger
 
-- editor has focus;
-- caret is inside an open/complete `[[...]]` instruction region according to shared parser/caret logic;
-- the text immediately preceding the caret represents an active `$` query rather than an already completed typed token.
+Autocomplete opens only when:
+
+- the editor has focus;
+- caret is inside a `[[...]]` instruction according to shared parser/caret logic;
+- text before the caret represents an active `$` query rather than a completed token.
 
 `$` elsewhere remains ordinary text.
 
-### 11.5 Picker contents
+### 11.6 Picker content
 
-Picker shows two clearly differentiated groups:
+The picker contains two groups:
 
 - Characters;
 - Lorebooks.
 
-Filtering should use the query typed after `$` and existing client-side list/search primitives where practical.
+The **editor** may search/filter application entities because the user is explicitly choosing the authoritative ID. This is not agentic entity discovery.
 
-Duplicate names must be disambiguated before selection. Prefer existing available metadata:
+Duplicate names must be disambiguated before selection using existing UI metadata where possible.
 
-- Character: avatar plus secondary identifier/detail if available;
-- Lorebook: category/description or another existing secondary label.
+Selection serializes the stable typed token and positions the caret after it.
 
-Do not expose raw stable IDs as the primary user-facing differentiator unless no better metadata exists.
+Support Arrow Up/Down, Enter/Tab, Escape, mouse click and touch.
 
-### 11.6 Keyboard and pointer behaviour
+### 11.7 Save then generate
 
-Support at minimum:
+Generate/Update flow on the client:
 
-- Arrow Up / Down: move selection;
-- Enter or Tab: choose active result;
-- Escape: close picker;
-- mouse click;
-- touch selection.
+1. persist latest Source Template and generation-connection selection;
+2. wait for successful save;
+3. call generation endpoint;
+4. disable editing/generation controls while the local request is active;
+5. refresh state from successful response;
+6. on failure, keep displaying the previously successful Latest Briefing and show the error.
 
-Selection calls the shared serializer and inserts the complete stable token at the active `$` query range. The caret moves immediately after the inserted token.
+Server-side source-snapshot protection remains authoritative against other clients.
 
-### 11.7 Existing mention UI precedent
+### 11.8 Latest Briefing
 
-`ConversationInput.tsx` already contains mention/completion interaction patterns. Reuse utility or interaction logic where doing so remains clean, but do not couple CR044 to chat-specific composer state merely for code sharing.
+Show read-only content plus last successful generation timestamp.
 
-A small shared completion utility is preferable only if extraction materially reduces duplicate keyboard/query-position logic without dragging Conversation-specific dependencies into CharacterEditor.
+Before first generation, show a simple empty state.
+
+Do not allow direct editing of Latest Briefing in V1.
 
 ## 12. Client Data Hooks
 
-The Briefing tab should use TanStack Query / existing API client conventions.
+Follow current TanStack Query/API-client conventions.
 
 Logical hooks:
 
 ```text
 useCharacterBriefing(characterId)
-useSaveCharacterBriefingSource(characterId)
+useSaveCharacterBriefing(characterId)
 useGenerateCharacterBriefing(characterId)
 ```
 
-Query key should be Character-specific, for example:
+The save mutation accepts Source Template and/or `generationConnectionId` patch values.
 
-```text
-["character-briefing", characterId]
-```
+Entity autocomplete should reuse existing Character/Lorebook list/search client APIs. No new agent-facing discovery API is implied by the editor picker.
 
-Successful source save updates/invalidates the briefing query.
+## 13. Conversation-Time Integration
 
-Successful generation replaces cached briefing state with the server response.
+### 13.1 Read-only access
 
-Failure does not clear cached Latest Briefing.
+Conversation generation only reads `latestBriefing`. It does not trigger briefing generation.
 
-For autocomplete, prefer existing Character/Lorebook list hooks. Add a dedicated search endpoint only if current APIs cannot support bounded picker discovery cleanly.
+### 13.2 Injection rule
 
-## 13. Conversation Context Injection
+For each applicable responding Character:
 
-### 13.1 Context helper
-
-Add a generation-side helper such as:
-
-`packages/server/src/services/generation/character-briefing-context.ts`
-
-Responsibilities:
-
-- receive applicable responding/visible Character IDs from the existing generation flow;
-- load non-empty Latest Briefings in deterministic Character order;
-- format clear Character attribution;
-- return no block when none exist.
-
-Suggested semantic format:
-
-```markdown
-## Character Briefing — Amy
-
-<latest briefing text>
-```
-
-If existing staging prompt helpers use XML-like context delimiters, use that existing convention instead. The invariant is unambiguous source/Character attribution.
-
-### 13.2 Integration point
-
-Modify `generate.routes.ts` only after the existing flow has resolved which Character(s) are applicable to the response and before final provider submission.
-
-CR044 should append its prepared context as a distinct generated context message/block in the same broad phase as other contextual injections.
-
-It must **not**:
-
-- replace the Conversation system prompt;
-- suppress Character Card fallback;
-- suppress Persona;
-- suppress current history or automatic summaries;
-- change CR042 Daily Memory injection/retrieval;
-- change Lorebook activation;
-- change Cross-Chat Awareness;
-- change current live status/context;
-- change response-target selection.
+1. read Character Briefing state;
+2. if `latestBriefing` is null/empty, add nothing;
+3. otherwise format a clearly attributed Character Briefing context block;
+4. add it to the existing prompt/context assembly without suppressing any current sources.
 
 ### 13.3 Group Conversations
 
-For group Conversation generation:
+Use the existing responding-character/visibility targeting decisions. Do not inject every Character Briefing simply because the Character is a member of a group chat.
 
-- use the existing response-target / visibility decision as source of truth;
-- inject only briefing(s) belonging to applicable responding Character(s);
-- never dump every group member's briefing merely because they are present in the chat;
-- preserve deterministic attribution/order.
+### 13.4 Failure handling
 
-### 13.4 Empty briefing
+Briefing-storage read failure during ordinary Conversation generation should follow the repository's normal optional-context failure policy and must not redesign the complete generation route.
 
-No row, null Latest Briefing, empty string, or whitespace-only Latest Briefing produces no CR044 prompt block.
+### 13.5 No prompt effect when absent
 
-This guarantees zero behavioural/prompt difference for Characters that do not use CR044.
+Characters with no Latest Briefing must produce byte/semantic-equivalent existing prompt behaviour apart from unavoidable internal code-path bookkeeping.
 
-## 14. Error and Failure Handling
+## 14. Error, Concurrency and Atomicity
 
-### Template errors
+### 14.1 Source/configuration edits
 
-- generation stops before model work;
-- return location/code/message;
-- previous Latest remains.
+Source Template and connection configuration may be edited/saved independently of Latest Briefing.
 
-### Missing explicit entity
+A newer Source Template does not invalidate/delete the previous Latest Briefing automatically. The UI may indicate that Latest Briefing predates the source if useful, but no history/version system is required.
 
-- generation stops during preflight;
-- indicate type/display label where possible;
-- no name fallback;
-- previous Latest remains.
+### 14.2 Generation lock
 
-### Tool/model failure
+One active generation per Character.
 
-- current slot fails;
-- discard all in-memory replacements from this run;
-- previous Latest remains.
+### 14.3 Source snapshot conflict
 
-### Invalid terminal output
+The run snapshots Source Template at start. Before publication, storage verifies it is still current.
 
-- treat as failed generation;
-- use existing bounded protocol-repair behaviour only if there is a reusable standard mechanism;
-- do not accept a whole-document response as a replacement.
+A mismatch returns 409 and leaves Latest Briefing unchanged.
 
-### Concurrent generation
+A connection setting change during a run does not need to invalidate the current run because the run already snapped/resolved its connection at start; the new setting applies to the next run. Source text remains the publication conflict key because it determines generated document structure/content.
 
-- return conflict for the second run;
-- do not queue hidden background work.
+### 14.4 Atomic publication
 
-### Source changed during run
+Publish `latestBriefing` and `latestGeneratedAt` together only after complete success.
 
-- reconstruct result in memory;
-- conditional publish fails / source comparison detects change;
-- return conflict;
-- previous Latest remains.
+## 15. Security and Capability Boundaries
 
-### Character deleted during run
+### 15.1 Tool access
 
-- publication must fail cleanly through current storage/foreign-key semantics;
-- no orphaned Latest Briefing should be published.
+Character Briefing V1 has exactly one model-callable tool:
 
-## 15. Observability
+```text
+search_character_daily_memories
+```
 
-Reuse staging's existing logging and LLM tracing.
+### 15.2 Character scope
 
-Useful non-content metadata to record:
+Owning Character ID is host-bound in the tool callback and never model supplied.
 
-- character ID;
-- instruction-slot count;
-- current slot index;
-- tool name/count;
-- generation success/failure category;
-- elapsed timing;
-- stale-source conflict.
+### 15.3 Application entity scope
 
-Do not add a second independent tracing framework.
+Only explicit ID-backed `$` references in the current instruction are expanded into full Character/Lorebook data.
 
-Prompt/tool outputs may contain roleplay/private narrative content; follow the existing tracing configuration and data-handling rules rather than increasing logging scope specifically for CR044.
+Natural-language entity names never trigger application-data lookup.
 
-## 16. Migration and Backward Compatibility
+### 15.4 Read-only feature
 
-Migration is additive.
+The agent cannot mutate:
 
-After migration:
+- Character Cards;
+- Lorebooks;
+- Daily Memories;
+- Conversations;
+- application settings;
+- external systems.
 
-- existing Characters have no briefing rows;
-- GET returns an empty logical briefing state;
-- normal Conversation generation is unchanged until Latest Briefing exists;
-- CR042 tables/data are untouched;
-- Character Card JSON/version history is untouched.
+Its only persisted effect is the host-controlled publication of validated replacement content into Latest Briefing after the full run succeeds.
 
-No data backfill is necessary.
+### 15.5 No user custom tools
 
-## 17. Test Design
+Do not merge `activeToolIds`, custom tools, or regular chat tool settings into the Character Briefing allowlist.
 
-### Shared parser tests
+## 16. Validation Plan
+
+### 16.1 Parser/reference tests
 
 Cover:
 
-- no slots;
-- one slot;
-- multiple slots;
-- multiline slot;
-- identical instruction strings at different offsets;
-- text preservation before/between/after slots;
-- unclosed slot;
-- nested slot;
-- valid typed Character ref;
-- valid typed Lorebook ref;
-- escaped labels;
-- malformed token;
-- `$` outside instruction;
-- caret/query detection for autocomplete;
-- reconstruction by slot index/offset.
+- zero/one/multiple/multiline slots;
+- repeated identical instructions;
+- exact offsets and reconstruction;
+- nested/unclosed instruction rejection;
+- `$` outside instruction inert;
+- valid Character/Lorebook tokens;
+- malformed tokens;
+- escaping/labels;
+- slot-to-reference association.
 
-### Storage tests
+### 16.2 Persistence/API tests
 
 Cover:
 
-- absent row default;
-- source upsert;
-- successful latest publication;
-- publication conditional on expected source;
-- failed stale-source publication;
-- no Latest clearing on source save.
+- default state for existing Character;
+- 404 for unknown Character;
+- source-only save;
+- connection-only save;
+- combined save;
+- saving does not clear Latest Briefing;
+- atomic publish;
+- source conflict;
+- Character deletion cascade/reference handling.
 
-### Route tests
-
-Cover:
-
-- GET missing Character vs empty briefing;
-- PUT source save;
-- POST successful generation;
-- malformed source;
-- deleted referenced entity;
-- concurrent generation conflict;
-- stale-source conflict;
-- provider/tool failure leaves previous Latest.
-
-### Tool tests
+### 16.3 Connection tests
 
 Cover:
 
-- Character read/search bounds;
-- Lorebook staged retrieval;
-- memory result bounds/date filtering;
-- owning Character ID cannot be overridden by tool arguments;
-- no mutation tools registered.
+- explicit connection selected;
+- default agent connection when unset;
+- normal fallback wrapper behaviour;
+- no inheritance from Conversation connection;
+- all slots use same run resolution;
+- invalid/unavailable configuration preserves Latest Briefing.
 
-### Generation-service tests
+### 16.4 Context-construction tests
 
-Use mocked provider/tool results to verify:
+Assert the actual serialized model context for representative slots:
 
-- one slot;
-- several slots execute in order;
-- terminal JSON accepted;
-- malformed terminal result rejected;
-- slot 2 failure discards slot 1 in-memory result;
-- exact source reconstruction;
-- zero-slot generation skips provider;
-- preflight happens before provider call.
+- full owning Character Card included;
+- Persona absent;
+- full Source Template snapshot included;
+- current instruction separately identified;
+- current-slot Character refs fully expanded;
+- current-slot Lorebook refs fully expanded;
+- references in another slot not expanded;
+- current date/time included;
+- only one tool definition included;
+- later slots see the same source snapshot, not earlier generated replacements.
 
-### Client tests
+### 16.5 Standard tool tests
 
 Cover:
 
-- Briefing tab rendering;
-- load/empty state;
-- source save;
-- `$` picker blocked outside instruction;
-- picker opens inside instruction;
-- query filtering;
-- grouped Character/Lorebook results;
-- duplicate-name secondary labels;
-- keyboard/pointer selection;
+- built-in manifest/registry includes `search_character_daily_memories`;
+- schema requires only `query`;
+- common executor validates query;
+- callback absent -> standard unavailable failure;
+- CR044 context binds owner Character ID;
+- attempted extra arguments are rejected by tool schema;
+- no alternate Character scope can be supplied;
+- tool result excludes embeddings;
+- Character Briefing allowlist rejects every other built-in/custom tool.
+
+### 16.6 CR042 retrieval-sharing tests
+
+Prove Conversation injection and the new agent tool use the same shared retrieval policy rather than copied algorithms.
+
+Regression coverage should preserve CR042's configured semantic/importance/recency weighting, minimum-rank policy, active-run/embedding-space handling and central output-selection behaviour.
+
+### 16.7 Generation tests
+
+Cover:
+
+- zero-slot no-model path;
+- one slot no tool call;
+- one/multiple Daily Memory searches;
+- valid terminal replacement;
+- malformed terminal result;
+- tool-round exhaustion;
+- one failed slot aborts complete publication;
+- provider failure/fallback;
+- concurrent run rejection;
+- source edit during generation conflict;
+- previous Latest Briefing survives all failures.
+
+### 16.8 UI tests
+
+Cover:
+
+- tab load/default state;
+- connection selector persistence;
+- Source Template persistence;
+- `$` autocomplete only inside instruction;
+- Character/Lorebook groups;
+- duplicate-name display;
+- keyboard/pointer/touch selection;
 - stable token insertion;
-- Generate waits for Save;
-- busy state;
-- failed generation preserves displayed Latest.
+- Generate save-before-run behaviour;
+- busy/error state;
+- prior Latest Briefing retained after failed update.
 
-### Conversation regression
+### 16.9 Conversation regression tests
 
-Add/extend focused prompt regression coverage:
+Cover:
 
-- no Latest => prompt equivalent to baseline;
-- one responding Character => one attributed briefing block;
-- group target => only target briefing(s);
-- existing standard context still present;
-- CR042 Daily Memory behaviour unchanged.
+- no Latest Briefing -> no added context;
+- single responding Character gets its Briefing;
+- group target does not leak another Character's Briefing;
+- existing Character/Persona/history/summaries/CR042/Lorebook context remains unchanged;
+- Briefing block is clearly attributed and additive.
 
-### Integrated validation
+## 17. Implementation Sequence
 
-Run:
+1. Create shared Character Briefing state/request/parser/reference contracts.
+2. Add dedicated persistence schema/storage with nullable `generationConnectionId`.
+3. Add Character Briefing GET/PATCH routes.
+4. Implement/verify canonical host-side full Character Card and full Lorebook loading by stable ID.
+5. Refactor/extract CR042 Conversation Daily Memory retrieval into a reusable service if necessary, preserving existing behaviour.
+6. Add standard `search_character_daily_memories(query)` tool manifest and regenerate the shared built-in registry.
+7. Extend common `ToolExecutionContext` / built-in executor with the host-bound Character Daily Memory search callback.
+8. Implement Character Briefing connection resolution by reusing CR042/common agent connection infrastructure.
+9. Implement reference preflight and the normative per-slot context builder.
+10. Implement sequential bounded slot execution through the common agent executor/provider/tool stack with a one-tool allowlist.
+11. Implement exact reconstruction, source-snapshot recheck and atomic Latest Briefing publication.
+12. Add manual generation route.
+13. Add client data hooks and Character Briefing tab.
+14. Add generation connection selector using CR042 UI precedent.
+15. Add instruction-aware `$` autocomplete and stable token insertion.
+16. Add Latest Briefing display/generation states.
+17. Add narrow additive Conversation context injection.
+18. Add focused regressions across parser, context, tool scope, connection, CR042 retrieval sharing, generation and Conversation integration.
+19. Run repository checks/build required by staging and resolve only CR044-related failures.
 
-- shared/server/client typechecks;
-- lint checks required by staging;
-- focused CR044 tests/regressions;
-- existing Conversation prompt regression suite;
-- production build;
-- focused Playwright manual-generation path where harness support is available.
+## 18. Expected Files and Areas
 
-## 18. Implementation Order
+Exact names may adjust to existing conventions during implementation.
 
-Recommended order:
+### Shared
 
-1. shared template parser + tests;
-2. DB schema/migration + storage + tests;
-3. read/save briefing routes;
-4. narrow Character/Lorebook/CR042 memory tool adapters;
-5. slot generation service + atomic publication + tests;
-6. manual generation endpoint;
-7. client query hooks + Briefing tab;
-8. `$` autocomplete behaviour;
-9. Conversation context helper + narrow `generate.routes.ts` integration;
-10. prompt regression / Playwright / full validation.
+- `packages/shared/src/types/character-briefing.ts` or equivalent.
+- shared Character Briefing schema/parser exports.
+- `packages/shared/src/features/function-calls/tools/search-character-daily-memories/manifest.ts`.
+- `packages/shared/src/features/function-calls/tool-registry.generated.ts` regenerated, not hand-maintained beyond the repository's normal generator workflow.
 
-This order keeps each layer independently testable and avoids building UI against unstable server contracts.
+### Server persistence
 
-## 19. Development Guardrails
+- `packages/server/src/db/schema/character-briefings.ts`.
+- schema barrel/file-backed-store registration as required.
+- `packages/server/src/services/storage/character-briefings.storage.ts`.
 
-During implementation:
+### Server Character Briefing services
 
-- branch from the verified `staging` baseline, not Adunato `main`;
-- do not pull unrelated fork CR behaviour into CR044;
-- do not redesign CR042 memory formation;
-- do not introduce scheduling infrastructure;
-- do not reintroduce `{{...}}` briefing macros;
-- do not add a rich-text editor dependency for V1;
-- do not let the model rewrite the complete Source Template;
-- do not expose broad application mutation tools;
-- do not let explicit `$` references fall back to name resolution;
-- keep Conversation integration additive and narrowly scoped.
+- `packages/server/src/services/character-briefing/parser/context` modules as separation warrants.
+- generation/orchestration service.
+- connection-resolution adapter/reused helper.
 
-## 20. LLD Completion Criteria
+### CR042/shared retrieval
 
-The implementation satisfies this LLD when:
+- existing `packages/server/src/services/character-daily-memories/...` area for the reusable retrieval service if one is not already isolated.
+- existing Conversation Daily Memory injection call site changed only to call the shared retrieval service rather than duplicate logic.
 
-- Character Briefing state is persisted independently of Character Card versioned data;
-- shared parsing provides exact deterministic instruction boundaries and stable typed entity references;
-- the Character Card Briefing tab supports Source Template authoring, contextual `$` autocomplete, manual generation, and Latest Briefing display;
-- each `[[...]]` slot is executed as a bounded read-only agent task and returns one validated replacement;
-- CR042 memory access is scoped to the owning Character server-side;
-- all explicit entity references are preflighted by stable ID;
-- the host reconstructs the complete Latest Briefing and publishes it only after complete success and source-snapshot validation;
-- no failure destroys the previous Latest Briefing;
-- normal Conversation generation receives only the applicable responding Character briefing as additive context;
-- the application remains behaviourally identical to the staging baseline for Characters without a Latest Briefing.
+### Standard tool runtime
+
+- `packages/server/src/services/tools/tool-executor.ts` for `searchCharacterDailyMemories` callback type/context and built-in execution case.
+- generation/agent tool-context builder only where required to expose the new standard built-in to runtimes that explicitly allow it.
+
+CR044 itself should construct a one-tool `AgentToolContext`; it should not adopt the complete chat tool resolver with chat/custom-tool state merely to obtain one definition.
+
+### Server routes/runtime
+
+- Character Briefing routes under `/api/characters`.
+- route registration.
+- narrow Conversation prompt-injection integration point.
+
+### Client
+
+- `CharacterBriefingTab.tsx`.
+- Character Editor tab registration.
+- `use-character-briefing.ts` or equivalent API hook.
+- reuse/adaptation of connection-selector/autocomplete primitives where clean.
+
+### Validation
+
+- focused unit/regression coverage following current repository conventions.
+
+## 19. Resolved LLD Decisions
+
+The following are settled for CR044 V1:
+
+1. Character Briefing state is persisted separately from versioned Character Card content.
+2. Source Template and Latest Briefing are separate persisted views.
+3. `[[...]]` is the only executable Source Template syntax.
+4. `$` typed references are special only inside instructions and persist stable entity IDs.
+5. Character/Lorebook references are resolved by the host; the agent cannot discover or guess application entities.
+6. The complete owning Character Card is always supplied directly.
+7. No Persona Card is supplied.
+8. Every slot receives the complete, unchanged Source Template snapshot.
+9. Only entity references contained in the current instruction are expanded into complete Character Cards/Lorebooks for that slot.
+10. Complete referenced Lorebooks are supplied in V1; no hidden semantic Lorebook extraction/query is performed.
+11. Slots execute sequentially in separate bounded sessions and do not see earlier generated replacements.
+12. The Character Briefing generation connection is persisted per Character Briefing and resolved once per run.
+13. The only Character Briefing agent tool is the standard built-in `search_character_daily_memories(query)`.
+14. The memory tool exposes only `query`; owner Character scope and all retrieval tuning/bounding are host/system controlled.
+15. The memory tool reuses the same centralized CR042 retrieval policy as Conversation injection; no duplicate CR044 ranking implementation is permitted.
+16. Character Briefing never inherits the complete normal/custom agent tool catalogue.
+17. Host-controlled source-offset reconstruction and atomic publication are mandatory.
+18. Previous Latest Briefing remains intact on any failed or conflicting generation.
+19. Conversation integration is additive and character-specific.
+20. Scheduling, automatic generation, Persona selection, Character/Lorebook agent tools, entity discovery, briefing history and deterministic `{{...}}` macros are out of V1.
