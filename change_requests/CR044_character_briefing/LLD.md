@@ -1166,3 +1166,114 @@ The following are settled for CR044 V1:
 19. Previous Latest Briefing remains intact on any failed or conflicting generation.
 20. Conversation integration is additive and character-specific.
 21. Scheduling, automatic generation, Persona selection, Character/Lorebook agent tools, entity discovery, briefing history and deterministic `{{...}}` macros are out of V1.
+
+## 20. Post-Implementation UX Remediation — Issue #14
+
+Issue #14 records findings from inspection of the implemented CR044 feature on `adunato/Marinara-Engine` `staging`. This section defines the follow-up remediation contract. It preserves the original V1 architecture except where explicitly extended below.
+
+### 20.1 Confirmed staging findings
+
+The staging implementation currently has the following gaps relative to the intended user experience:
+
+- the Character Editor tab registration supplies `editor.tabs.briefing` as a label even though `EditorTabNavigation` localizes English display labels through `useLocalizedUiText`, allowing the internal key to be exposed to the user;
+- `CharacterBriefingTab` implements `$` suggestions as a flat collection of buttons below the textarea rather than the complete instruction-aware, caret-context picker defined by CR044;
+- the shared entity type/parser/runtime currently support only `character | lorebook`, so Persona references are not available;
+- the Source Template is rendered as an ordinary textarea with no visual distinction for `[[...]]` or `$` reference syntax;
+- the existing CR044 UI E2E verifies tab access and save/generate/display behaviour but does not exercise the autocomplete contract or syntax presentation.
+
+### 20.2 Tab-label correction
+
+`CharacterEditor.tsx` must register the Briefing tab using the label contract expected by `EditorTabNavigation`. The visible desktop tab and compact-menu entry must both render a clean user-facing value such as **Briefing** and must never expose an i18n/localization key.
+
+Validation must assert the visible/accessible tab name rather than relying only on navigation to the Briefing content.
+
+### 20.3 Complete entity picker
+
+`CharacterBriefingTab` must provide a real picker/popover for an active `$` query while the caret is inside a `[[...]]` instruction. The picker must be visually associated with the editing context and remain absent when `$` is typed outside an instruction.
+
+The picker must:
+
+- show distinct **Personas**, **Characters**, and **Lorebooks** groups;
+- filter all groups from the text typed after `$`;
+- preserve enough secondary metadata to disambiguate duplicate names;
+- support Arrow Up/Down navigation;
+- support Enter or Tab selection;
+- support Escape dismissal;
+- support mouse and touch selection;
+- insert the selected stable token and restore the caret immediately after the inserted token;
+- avoid reopening against a completed serialized reference.
+
+The existing shared caret/query helper should remain the source of truth for whether the caret is inside an active instruction query; client and parser logic must not drift into separate syntaxes.
+
+### 20.4 Persona reference grammar and resolution
+
+Issue #14 extends the deterministic reference grammar. For remediation work, the shared type becomes conceptually:
+
+```ts
+export type CharacterBriefingEntityType = "character" | "persona" | "lorebook";
+```
+
+The serialized forms are:
+
+```text
+$[character:<stable-id>|Amy]
+$[persona:<stable-id>|Daniele]
+$[lorebook:<stable-id>|Asteria]
+```
+
+The shared serializer, parser, malformed-token validation, reference offsets and active-query completion logic must recognize `persona` using the same escaping and stable-ID rules as the existing types.
+
+Generation preflight must resolve explicit Persona IDs through the canonical Persona storage/service. For a Persona reference in the **current instruction**, the complete canonical Persona Card is supplied as deterministic read-only context for that slot. An unresolved/deleted Persona reference fails preflight in the same way as an unresolved Character or Lorebook reference and leaves the previous Latest Briefing intact.
+
+This extension does **not** change the Character-owned model of the Briefing:
+
+- no Persona is inferred from a Conversation;
+- no active/default/recent Persona is automatically added;
+- a slot with no explicit `$[persona:...]` reference still receives no Persona Card;
+- Persona discovery remains a user-side picker capability, not an agent tool;
+- no Persona search/get tool is added to the Character Briefing agent allowlist.
+
+Accordingly, earlier V1 statements that “Persona is absent” remain correct for automatic context. Earlier type declarations that restrict explicit references to `character | lorebook` are superseded by this section for Issue #14 remediation.
+
+### 20.5 Server/context impact
+
+The deterministic entity map used by Character Briefing generation must accept Persona entities in addition to Character and Lorebook entities. Context formatting must clearly identify referenced Persona data separately from referenced Character Cards.
+
+Run-level preflight must de-duplicate and resolve all `(type, id)` references across all slots before model execution, including Personas. Per-slot context expansion must continue to include only references contained in that slot.
+
+No change is required to `search_character_daily_memories(query)`, generation connection resolution, reconstruction, atomic publication, or Conversation-time Latest Briefing injection.
+
+### 20.6 Source Template syntax highlighting
+
+The Source Template editor must visually distinguish CR044-specific syntax while retaining plain-text persistence and editing semantics.
+
+At minimum, the rendered editing experience must distinguish:
+
+- complete and in-progress `[[...]]` instruction spans;
+- persisted `$[character:...]`, `$[persona:...]`, and `$[lorebook:...]` references;
+- the active `$query` being used to drive the picker where practical.
+
+The implementation may use a lightweight syntax-aware editor or a synchronized highlighting layer around a textarea, but it must not require changing the persisted format, introducing rich entity chips, or turning the Source Template into WYSIWYG content. Selection, caret offsets, copy/paste, multiline editing, save semantics, and the shared parser contract must remain based on the underlying plain-text source.
+
+The visual treatment should use existing theme/editor variables and remain legible in supported themes; exact colours are not part of the persistence or parser contract.
+
+### 20.7 Validation additions
+
+Add focused regression coverage for the remediation:
+
+- Briefing tab displays the clean label in full and compact navigation;
+- `$` outside `[[...]]` remains inert;
+- `$` inside `[[...]]` opens the picker even with an empty query;
+- filtering updates Persona, Character and Lorebook results;
+- all three groups are visibly distinguishable;
+- keyboard navigation, Enter/Tab selection and Escape dismissal work;
+- pointer/touch selection works;
+- duplicate names show useful distinguishing metadata;
+- Character, Persona and Lorebook selections serialize the correct stable typed token;
+- parser/reference tests cover valid and malformed Persona tokens and escaping;
+- Persona preflight/context tests prove only explicitly referenced Personas are supplied;
+- deleted/unresolved Persona references abort generation without replacing Latest Briefing;
+- syntax presentation visibly distinguishes `[[...]]` and serialized `$` references;
+- existing save-before-generate, generation, CR042 retrieval, atomic publication and Conversation injection tests remain green.
+
+The UI E2E must interact with the picker directly; successful briefing generation alone is not sufficient evidence that the authoring UX contract is implemented.

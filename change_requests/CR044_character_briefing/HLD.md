@@ -419,26 +419,45 @@ Implementation planning should prefer existing Marinara primitives wherever poss
 - existing prompt/context injection mechanisms for adding a new character-specific context block without altering current source behaviour;
 - existing LLM provider/fallback/tracing infrastructure, including the staging Phoenix tracing path.
 
-The intent is to add one narrow character-level capability while minimising changes to core Conversation context assembly and avoiding parallel application-data or tool architectures.
+## 11. Post-Implementation UX Remediation — Issue #14
 
-## 11. Implementation Decisions Deferred to Planning / LLD
+Issue #14 records UX findings identified after CR044 was implemented and validated on the Adunato `staging` branch. This section supplements the original V1 design without rewriting its historical scope. Where this section extends the original V1 entity-reference scope, the remediation requirement below is authoritative for follow-up work.
 
-The following do not require additional product direction unless implementation investigation exposes a material trade-off:
+### 11.1 Clean Character Briefing tab label
 
-- exact serialized/escaping syntax for ID-backed entity references;
-- exact shared/reused editor autocomplete component structure;
-- exact internal extraction/refactor required to make CR042's current Conversation Daily Memory retrieval policy callable from the standard tool executor;
-- exact constrained terminal-result schema used for one slot replacement;
-- precise context-block formatting and insertion point for the Latest Briefing;
-- persistence schema/table details for the dedicated associated briefing record;
-- exact reuse of an already shared connection-selector primitive, if one exists; no new shared selector component is required or implied.
+The Character configuration UI must expose a normal user-facing tab label such as **Briefing** or **Character Briefing**. Internal localization identifiers such as `editor.tabs.briefing` must never be rendered as visible tab text.
 
-The following are **not** deferred decisions: V1 uses one bounded session per instruction, each slot receives the complete Source Template snapshot and owning Character Card, only current-instruction `$` references are expanded, no Persona is supplied, and the only agentic tool is `search_character_daily_memories(query)`.
+This is a defect in the implemented UI rather than a new feature.
 
-## 12. Acceptance Summary
+### 11.2 Complete `$` entity picker behaviour
 
-CR044 V1 is complete when a user can open a Character Card, select the Character Briefing tab, choose the generation connection, edit a free-form Source Template containing self-replacing `[[...]]` instructions and ID-backed `$` Character/Lorebook references inside those instructions, and manually generate a briefing.
+The original V1 requirement for `$` autocomplete remains mandatory. When the caret is inside a `[[...]]` instruction and the user starts an active `$` query, the editor must present a visible picker adjacent to the editing context rather than relying on an undifferentiated inline list below the textarea.
 
-For each instruction, Marinara must deterministically supply the owning Character Card, complete Source Template snapshot, current instruction, current date/time, and complete data for Character/Lorebook references occurring in that instruction. The model may investigate only the owning Character's CR042 Daily Memories through the standard built-in `search_character_daily_memories(query)` tool.
+The picker must preserve the original interaction requirements: filtering while typing, clear entity-type categorisation, duplicate-name disambiguation, keyboard navigation/selection, mouse/touch selection, and stable ID-backed token insertion. `$` outside `[[...]]` remains ordinary text and must not trigger the picker.
 
-The generated Latest Briefing must be constructed host-side by replacing only the exact `[[...]]` instruction spans, leaving the Source Template unchanged and retaining the previous Latest Briefing on failure. The latest successful briefing must then be included as additional character-specific context during normal Conversation generation without changing existing Conversation context behaviour.
+The implemented staging behaviour that renders only a flat set of suggestion buttons is therefore incomplete against the approved V1 design.
+
+### 11.3 Explicit Persona references
+
+Issue #14 extends the editor reference model so the user can explicitly select **Personas** alongside Characters and Lorebooks from the `$` picker.
+
+This does **not** introduce automatic Persona selection or make any Conversation Persona authoritative for a Character-owned Briefing. The existing rule that no Persona Card is automatically injected remains unchanged. A Persona is supplied only when the user explicitly inserts an ID-backed Persona reference in the current `[[...]]` instruction; that selected Persona is then deterministic host-resolved context for that instruction in the same spirit as explicit Character and Lorebook references.
+
+The picker must therefore distinguish three categories:
+
+- **Personas**;
+- **Characters**;
+- **Lorebooks**.
+
+### 11.4 Briefing-syntax visual distinction
+
+The Source Template must make CR044-specific syntax visibly distinguishable from ordinary Markdown/prose. At minimum:
+
+- `[[...]]` instruction spans must have a distinct visual treatment;
+- `$...` / persisted ID-backed entity references must have a distinct visual treatment.
+
+The exact colours or editor technology are not prescribed. This requirement does not imply WYSIWYG editing, rich entity chips, or a general rich-text dependency; the persisted Source Template remains plain text. The purpose is to make executable/reference syntax recognisable at a glance and reduce authoring errors.
+
+### 11.5 Validation expectation
+
+Follow-up validation must explicitly cover the clean tab label, the complete picker interaction rather than only save/generate behaviour, Persona selection and stable reference insertion, and visible distinction of briefing-specific syntax. The existing CR044 generation and Conversation-context behaviour must remain unchanged by these UX remediations.
