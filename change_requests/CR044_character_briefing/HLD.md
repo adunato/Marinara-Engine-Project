@@ -1,6 +1,6 @@
 # CR044 — Character Briefing
 
-_Status: Approved HLD_
+_Status: Implemented and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; fast-forwarded into local `staging`._
 
 ## 1. Purpose
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Ready for implementation after review of this plan and the accompanying LLD.
+Implemented and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; fast-forwarded into local `staging`. The staging production build passed. Focused Playwright E2E was declined by the user.
 
 ## 1. Objective
 
