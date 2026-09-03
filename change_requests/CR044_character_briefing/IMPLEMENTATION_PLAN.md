@@ -2,7 +2,7 @@
 
 ## Status
 
-Original implementation completed and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; fast-forwarded into local `staging`. The staging production build passed. Focused Playwright E2E was declined by the user. The Issue #14 picker-correctness amendment is active on `change/CR044-picker-entity-correctness`, based on current local `staging`.
+Original implementation completed and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; fast-forwarded into local `staging`. The staging production build passed. Focused Playwright E2E was declined by the user. The Issue #14 picker-correctness amendment was implemented in application commit `736e9873b`, fast-forwarded into local `staging`, and its staging production build passed. Local `staging` is two commits ahead of `origin/staging`; no remote push was performed.
 
 ## 1. Objective
 
@@ -517,5 +517,5 @@ design.
 
 ### Rollback
 
-Revert the amendment commit. The original CR044 briefing generation,
+Revert application commit `736e9873b` if rollback is required. The original CR044 briefing generation,
 persistence, token format, and Conversation integration remain intact.

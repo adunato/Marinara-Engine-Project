@@ -1,6 +1,6 @@
 # CR044 — Character Briefing
 
-_Status: Original implementation completed and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; the Issue #14 picker-correctness amendment is active on `change/CR044-picker-entity-correctness`, based on current local `staging`._
+_Status: Original implementation completed and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; the Issue #14 picker-correctness amendment is implemented in application commit `736e9873b` and fast-forwarded into local `staging`. The staging production build passed; staging remains local and unpushed._
 
 ## 1. Purpose
 
@@ -481,3 +481,8 @@ entity persistence, token format, generation semantics, or Conversation
 context behaviour. Focused validation must cover nested Character-name
 normalization, ID fallback, and lists containing more than five entities in
 each category.
+
+The amendment was implemented in application commit `736e9873b` and
+fast-forwarded into local `staging`. The staging production build passed. No
+remote push was performed; local `staging` is two commits ahead of
+`origin/staging`.
