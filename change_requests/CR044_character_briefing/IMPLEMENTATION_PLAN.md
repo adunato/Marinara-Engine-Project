@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; fast-forwarded into local `staging`. The staging production build passed. Focused Playwright E2E was declined by the user.
+Original implementation completed and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; fast-forwarded into local `staging`. The staging production build passed. Focused Playwright E2E was declined by the user. The Issue #14 picker-correctness amendment is active on `change/CR044-picker-entity-correctness`, based on current local `staging`.
 
 ## 1. Objective
 
@@ -18,6 +18,11 @@ V1 must let the user:
 - manually generate a Latest Briefing using deterministic host-supplied Character/Lorebook context plus agentic retrieval from the owning Character's CR042 Daily Memories;
 - retain the Source Template unchanged while generated content replaces only the instruction spans in the Latest Briefing;
 - automatically include the latest successful briefing as additional context when that character generates a Conversation response.
+
+The active Issue #14 amendment additionally requires the picker to show
+canonical Character names (including names nested in serialized API `data`,
+with ID fallback) and to display every loaded entity in all three categories
+without a fixed category limit.
 
 Scheduling, automatic generation, briefing history, deterministic `{{...}}` briefing macros, Character/Lorebook agent discovery, Persona injection, and rich-text entity chips remain out of scope.
 
@@ -217,7 +222,9 @@ Deliverables:
 - helper copy describing `[[...]]` and `$` behaviour;
 - Character Briefing generation selector following the existing tab-local CR042 convention; reuse an already shared primitive only if present, with no new shared selector component;
 - `$` autocomplete only when the caret is inside an instruction;
-- Character and Lorebook results grouped or clearly labelled by entity type;
+- Persona, Character, and Lorebook results grouped or clearly labelled by entity type;
+- canonical user-facing entity names, with stable IDs retained in inserted tokens and a readable ID fallback;
+- no fixed first-N slice or equivalent presentation cap in any category;
 - duplicate-name disambiguation using existing presentation metadata where available;
 - keyboard navigation and selection, plus mouse/touch selection;
 - insertion of a stable ID-backed textual reference while keeping the token readable;
@@ -255,6 +262,7 @@ Deliverables:
 - client interaction tests for instruction-aware `$` completion and connection selection;
 - Conversation prompt regression coverage;
 - focused end-to-end flow where practical: edit → reference insertion → connection selection → manual generation → Latest Briefing → Conversation injection;
+- picker correctness checks for nested Character-name normalization, ID fallback, and more than five loaded entities in each category;
 - repository checks required by the staging baseline and production build.
 
 ## 6. Detailed Behavioural Requirements
@@ -469,3 +477,45 @@ CR044 implementation is complete when:
 - normal Conversation generation receives the applicable Latest Briefing as additive character context;
 - existing Conversation context behaviour remains unchanged;
 - focused tests, regressions and production build pass on the CR044 branch.
+
+## 13. Issue #14 Picker-Correctness Amendment
+
+This amendment is intentionally limited to the existing `CharacterBriefingTab`
+picker presentation and its focused client tests. It does not reopen CR044
+generation, persistence, API, token serialization, or Conversation-context
+design.
+
+### Prerequisites
+
+- Use the current local `staging` checkout as the application base.
+- Create the dedicated application branch `change/CR044-picker-entity-correctness`.
+- Preserve the existing ID-backed token contract and all unrelated working-tree
+  changes.
+
+### Atomic implementation tasks
+
+1. Normalize Character suggestion display names from the canonical row shape,
+   including the serialized `data` payload, while retaining the entity ID for
+   insertion and falling back to that ID only when no usable name exists.
+2. Remove every fixed category slice/cap from the picker so all loaded
+   Personas, Characters, and Lorebooks participate in filtering and display.
+3. Add focused regression coverage for nested-name resolution, ID fallback,
+   and more-than-five entities per category.
+
+### Affected files
+
+- Existing client Character Briefing picker component and its local data-shape
+  normalization helper, if extraction improves testability.
+- Focused client test files covering Character Briefing picker behaviour.
+- No server, shared contract, persistence, API, or release files.
+
+### Verification
+
+- Run the focused picker/typecheck or client test command available on staging.
+- Inspect `git diff --check` and confirm no category cap remains in the picker.
+- Run the staging production build when the implementation branch is ready.
+
+### Rollback
+
+Revert the amendment commit. The original CR044 briefing generation,
+persistence, token format, and Conversation integration remain intact.

@@ -1,6 +1,6 @@
 # CR044 — Character Briefing
 
-_Status: Implemented and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; fast-forwarded into local `staging`._
+_Status: Original implementation completed and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; the Issue #14 picker-correctness amendment is active on `change/CR044-picker-entity-correctness`, based on current local `staging`._
 
 ## 1. Purpose
 
@@ -461,3 +461,23 @@ The exact colours or editor technology are not prescribed. This requirement does
 ### 11.5 Validation expectation
 
 Follow-up validation must explicitly cover the clean tab label, the complete picker interaction rather than only save/generate behaviour, Persona selection and stable reference insertion, and visible distinction of briefing-specific syntax. The existing CR044 generation and Conversation-context behaviour must remain unchanged by these UX remediations.
+
+### 11.6 Picker entity display and completeness amendment
+
+The Issue #14 remediation also includes two correctness constraints for the
+implemented picker:
+
+- Character suggestions must display a canonical user-facing name when one is
+  available, including when the `/characters` response stores the name inside
+  its serialized `data` payload. The stable entity ID remains the persisted
+  token value; if no usable name can be resolved, the ID is the deliberate
+  readable fallback.
+- The picker must not impose a presentation cap on any entity category. All
+  loaded Personas, Characters, and Lorebooks are eligible for display and
+  filtering; no fixed first-N slice or equivalent category limit is allowed.
+
+This is a local UI correctness amendment only. It does not change the API,
+entity persistence, token format, generation semantics, or Conversation
+context behaviour. Focused validation must cover nested Character-name
+normalization, ID fallback, and lists containing more than five entities in
+each category.
