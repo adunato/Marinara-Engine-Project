@@ -12,17 +12,20 @@ retrieval returns an empty or differently ranked set.
 
 ## 2. Goals
 
-- Reuse the existing Memories-tab retrieval settings as the canonical policy,
-  including semantic, importance, recency, threshold, and any other
-  already-supported retrieval controls. The current persisted settings do not
+- Reuse the existing character-owned Memories-tab retrieval settings as the
+  canonical policy, including semantic, importance, recency, threshold, and
+  the configured recent-message count. The current persisted settings do not
   define a result-limit setting; retrieval therefore remains unlimited unless
-  a future, explicitly persisted limit is added.
+  a future, explicitly persisted limit is added. The recency half-life remains
+  the existing implementation default rather than introducing a new setting.
 - Ensure Preview, Chat, and Character Briefing search the same active
-  character-owned Daily Memory corpus/index with the same user/character scope,
+  character-owned Daily Memory corpus/index with the same character scope,
   eligibility rules, ranking, and result selection.
 - Preserve the intended query-source difference:
-  - Preview uses the user's manually entered query.
-  - Chat derives a query from the last configured `N` messages.
+  - Preview derives a query from the selected Conversation's last configured
+    `N` visible messages.
+  - Chat derives a query from the current Conversation's last configured `N`
+    visible messages.
   - Character Briefing asks its generation model to formulate a dedicated
     query for the current briefing instruction.
 - Keep legacy `extensions.characterMemories` / Scene summaries outside this
@@ -32,14 +35,26 @@ retrieval returns an empty or differently ranked set.
 
 ## 3. Proposed Solution
 
-Reuse `retrieveDailyMemories` in `daily-memory.service.ts` as the one
-server-side retrieval boundary. It accepts a query, the owning Daily Memory
-chat scope, normalized persisted settings, and the embedding source. Route the
-Memories preview, Conversation injection, and Character Briefing tool through
-that boundary. The boundary owns validation, corpus/index selection, filtering,
-scoring, ranking, and structured unavailable/error handling. Do not add a
-tool-only result cap: the existing service returns every record above the
-configured threshold, and callers may format or inject the returned set.
+Reuse `createCharacterDailyMemoryRetrievalService().searchForCharacter()` in
+`services/character-daily-memories/retrieval.service.ts` as the one
+server-side retrieval boundary. It already loads the character-owned active
+memory pool, reads the persisted character settings, resolves the configured
+embedding source, and ranks the indexed memories. Extend that boundary only
+as needed to remove caller-specific behavior and to return every memory that
+passes the configured threshold. Do not create a second generic
+`memory-recall` algorithm and do not add a tool-only result cap.
+
+The existing Preview route already exposes a `previewRetriever` adapter
+contract in `routes/character-daily-memories.routes.ts`; wire that callback to
+the shared retrieval service. The current staging Chat path does not yet call
+the character-owned retrieval service: add a thin adapter at the existing
+Conversation history assembly boundary, `prepareConversationPromptHistory`
+in `routes/generate/conversation-history-runtime.ts`, invoked from the
+Conversation branch of `routes/generate.routes.ts`. That adapter receives the
+known current Conversation messages and character IDs, derives each enabled
+character's query from its configured last `N` visible messages, and injects
+separate character-labelled blocks. The existing generic `memory-recall`
+path remains independent.
 
 The Character Briefing tool remains model-facing as
 `search_character_daily_memories(query)`. Its implicit owning-character scope
@@ -54,8 +69,8 @@ other callers where the shared backend is unavailable.
 
 ## 4. Invariants and Boundaries
 
-- A given character, user scope, policy, and equivalent query produce the same
-  eligible records, order, and limit regardless of caller.
+- A given character-owned active-memory scope, policy, and equivalent query
+  produce the same eligible records and order regardless of caller.
 - Query construction is caller-specific; retrieval policy and corpus scope are
   not.
 - Retrieval never includes legacy character-card memories unless a future CR
@@ -63,14 +78,17 @@ other callers where the shared backend is unavailable.
 - The model cannot widen scope or override persisted retrieval settings.
 - Existing Memories settings and existing Chat/Briefing contracts remain
   backward compatible unless a migration is required and documented.
-- The three callers must use the same settings resolver and embedding source;
-  a missing/disabled retrieval runtime produces the existing unavailable
-  result rather than a raw or differently scoped query.
+- The three callers must use the same persisted character settings and
+  embedding-space validation; a missing/disabled retrieval runtime produces
+  the existing unavailable result rather than a raw or differently scoped
+  query.
 
 ## 5. Risks and Mitigations
 
-- **Different callers currently assemble filters independently.** Centralize
-  the policy and add fixture-based parity tests for selected records/order.
+- **Character Daily Memories currently have a Briefing/Preview retrieval
+  service but no Chat adapter.** Add the thin Chat adapter at the existing
+  history assembly boundary and centralize policy in the character retrieval
+  service; add fixture-based parity tests for selected records/order.
 - **Persisted settings may be missing or malformed.** Normalize through the
   existing defaults and validate once at the shared boundary.
 - **Embedding/index availability may differ by route.** Preserve structured
@@ -83,10 +101,10 @@ other callers where the shared backend is unavailable.
 ## 6. Validation Expectations
 
 - Server tests prove all three callers invoke the shared retrieval boundary and
-  receive identical ranked/limited fixture results for equivalent queries.
-- Tests cover persisted semantic/importance/recency/threshold/limit settings,
-  character/user scoping, unavailable backends, empty results, and malformed
-  configuration defaults.
+  receive identical ranked fixture results for equivalent queries.
+- Tests cover persisted semantic/importance/recency/threshold settings,
+  character scoping, the no-cap result contract, unavailable backends, empty
+  results, and malformed configuration defaults.
 - Character Briefing tool tests prove its query remains model-generated and its
   contract exposes no tuning arguments.
 - Run the proportionate server/client checks and production build required by

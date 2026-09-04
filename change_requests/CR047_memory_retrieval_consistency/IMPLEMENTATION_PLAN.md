@@ -7,37 +7,50 @@ _Status: Planning complete; approved for implementation._
 - CR042 Character Daily Memories is available on the staging base.
 - CR044 Character Briefing and its `search_character_daily_memories` tool are
   available on the staging base.
-- The existing canonical retrieval implementation is
-  `packages/server/src/services/conversation/daily-memory.service.ts`;
-  `retrieveDailyMemories` already applies semantic, importance, recency,
-  minimum-rank, and recency-half-life settings. There is currently no persisted
-  result-limit setting, so this CR must not invent a tool-only cap.
-- Confirm the existing Preview, Chat, and Briefing call paths against the LLD
-  before editing; the observed Briefing empty-array defect is an adapter/scope
-  mismatch, not a reason to create a second retrieval algorithm.
+- The current staging retrieval boundary is
+  `packages/server/src/services/character-daily-memories/retrieval.service.ts`;
+  `createCharacterDailyMemoryRetrievalService().searchForCharacter()` already
+  loads the character-owned active pool, persisted weights/threshold, and
+  embedding source. The current implementation has no persisted result-limit
+  setting, so this CR must remove its default cap rather than invent a
+  tool-only cap. Its recency half-life remains the existing implementation
+  default unless a later CR persists that control.
+- The Preview route's `previewRetriever` callback is an existing adapter seam.
+  Staging has no Character Daily Memory Chat adapter yet: the implementation
+  must add a thin adapter at
+  `packages/server/src/routes/generate/conversation-history-runtime.ts`
+  (`prepareConversationPromptHistory`), called from the Conversation branch
+  of `generate.routes.ts`. The generic `memory-recall` path is a separate
+  feature and must not be mistaken for this adapter.
 - Create the dedicated application worktree and branch
   `change/CR047-memory-retrieval-consistency` from local `staging`.
 
 ## 2. Atomic Tasks
 
-1. Trace and, where necessary, normalize the persisted retrieval settings and
-   runtime resolver once; do not duplicate defaults in a caller.
-2. Make the Preview route use `retrieveDailyMemories` with the selected
-   character/chat scope and the manual query, preserving its existing response
-   shape and UI.
-3. Route Conversation Daily Memory retrieval through the same function and
-   settings resolver while retaining last-`N` message query derivation.
-4. Route Character Briefing's `search_character_daily_memories` adapter through
-   the same function, passing the host-owned character's Daily Memory chat
-   scope and its dedicated generated query. Keep retrieval parameters out of
-   the model-facing schema.
-5. Add privacy-safe trace metadata (caller, scope kind, query/result counts,
-   availability, and policy version/values as appropriate) without recording
-   memory contents or raw queries.
-6. Preserve legacy `extensions.characterMemories` behavior as a separate
-   implementation and update only relevant documentation/comments if needed.
-7. Add focused server regressions for policy parity, settings, scope, limits,
-   empty/unavailable results, and both tool/query-source contracts.
+1. Trace and, where necessary, normalize the persisted character retrieval
+   settings at the retrieval service boundary; do not duplicate defaults in a
+   caller.
+2. Make the Preview route's existing `previewRetriever` seam call the shared
+   retrieval service, preserving its current response shape and UI.
+3. Add the Conversation adapter at `prepareConversationPromptHistory`. For
+   each enabled character in the current Conversation, take the last configured
+   `N` visible messages, derive the retrieval query in chronological order, and
+   call the shared character retrieval service. Inject distinct
+   character-labelled blocks while preserving safe degradation.
+4. Route Character Briefing's `search_character_daily_memories` callback
+   through the same retrieval service, retaining the dedicated LLM-generated
+   query and host-owned character scope. Keep retrieval parameters out of the
+   model-facing schema.
+5. Remove the retrieval service's default result cap and keep ranking,
+   threshold, active-run, character-scope, and embedding-space rules shared by
+   Preview, Chat, and Briefing.
+6. Add privacy-safe trace metadata (caller, scope kind, candidate/eligible/
+   returned counts, and availability) without recording memory contents or raw
+   queries.
+7. Preserve legacy `extensions.characterMemories` and generic `memory-recall`
+   behavior as separate implementations. Add focused server regressions for
+   policy parity, settings, scope, no-cap results, empty/unavailable results,
+   and both query-source contracts.
 8. Run focused checks, the required staging build/checks, and inspect the final
    diff before handing off for review and validation.
 
@@ -45,17 +58,21 @@ _Status: Planning complete; approved for implementation._
 
 Exact paths require codebase inspection during planning. Expected surfaces are:
 
-- `packages/server/src/services/conversation/daily-memory.service.ts` (shared
-  retrieval and settings normalization);
-- `packages/server/src/services/generation/daily-memory-agent-runtime.ts`
-  (persisted settings/runtime resolution);
-- `packages/server/src/routes/daily-memories.routes.ts` (Preview Retrieval);
-- `packages/server/src/routes/generate.routes.ts` and
-  `packages/server/src/services/generation/conversation-*` (Chat query and
-  context assembly);
+- `packages/server/src/services/character-daily-memories/retrieval.service.ts`
+  (shared retrieval, ranking, settings, scope, embedding-space, and no-cap
+  policy);
+- `packages/server/src/services/storage/character-daily-memories.storage.ts`
+  and `packages/shared/src/types/character-daily-memory.ts` (persisted
+  settings/defaults, only if normalization requires a compatible correction);
+- `packages/server/src/routes/character-daily-memories.routes.ts` (Preview
+  `previewRetriever` adapter and response mapping);
+- `packages/server/src/routes/generate/conversation-history-runtime.ts`
+  (`prepareConversationPromptHistory` Chat adapter/query derivation and
+  character-labelled context injection), with its call site in
+  `packages/server/src/routes/generate.routes.ts`;
 - `packages/server/src/services/character-briefing.service.ts`,
-  `packages/server/src/routes/character-briefing.routes.ts`, and
-  `packages/server/src/services/tools/tool-executor.ts` (Briefing adapter);
+  `packages/server/src/services/tools/tool-executor.ts` (Briefing adapter and
+  existing tool response contract);
 - corresponding shared tool manifest, server tests, and focused trace tests;
 - focused server/unit/regression tests and any narrowly relevant docs.
 
@@ -65,13 +82,14 @@ agent tools, or the Character Briefing editor/parser.
 ## 4. Verification
 
 - Run the focused retrieval parity regression with a fixture corpus containing
-  known semantic, importance, and recency scores and a constrained limit.
+  known semantic, importance, and recency scores and enough records to prove
+  there is no implicit result cap.
 - Verify equivalent Preview, Chat, and Briefing queries return the same records
-  in the same order under the same character/user scope.
+  in the same order under the same character-owned active-memory scope.
 - Verify changing each persisted setting affects all three callers and no
   caller can override it through tool arguments.
-- Verify no caller applies an undocumented result cap and that all records
-  meeting the shared threshold remain eligible.
+- Verify no caller or shared service applies an undocumented result cap and
+  that all records meeting the shared threshold remain eligible.
 - Verify missing index/backend and empty corpus behavior follows the existing
   structured availability/safe-degradation contract.
 - Run the smallest applicable typecheck/lint/test checks, then the staging
