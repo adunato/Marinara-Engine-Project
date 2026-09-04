@@ -1,6 +1,6 @@
 # CR047 — Consistent Character Daily Memory Retrieval
 
-_Status: Intake complete; ready for planning._
+_Status: Planning complete; approved for implementation._
 
 ## 1. Purpose
 
@@ -13,8 +13,10 @@ retrieval returns an empty or differently ranked set.
 ## 2. Goals
 
 - Reuse the existing Memories-tab retrieval settings as the canonical policy,
-  including semantic, importance, recency, threshold, result-limit, and any
-  other already-supported retrieval controls.
+  including semantic, importance, recency, threshold, and any other
+  already-supported retrieval controls. The current persisted settings do not
+  define a result-limit setting; retrieval therefore remains unlimited unless
+  a future, explicitly persisted limit is added.
 - Ensure Preview, Chat, and Character Briefing search the same active
   character-owned Daily Memory corpus/index with the same user/character scope,
   eligibility rules, ranking, and result selection.
@@ -30,12 +32,14 @@ retrieval returns an empty or differently ranked set.
 
 ## 3. Proposed Solution
 
-Expose the CR042 retrieval pipeline through one server-side retrieval boundary
-that accepts a query plus the owning scope and applies the persisted retrieval
-configuration. Route the Memories preview, Conversation injection, and
-Character Briefing tool through that boundary. The boundary owns validation,
-corpus/index selection, filtering, scoring, ranking, limit application, and
-structured unavailable/error handling.
+Reuse `retrieveDailyMemories` in `daily-memory.service.ts` as the one
+server-side retrieval boundary. It accepts a query, the owning Daily Memory
+chat scope, normalized persisted settings, and the embedding source. Route the
+Memories preview, Conversation injection, and Character Briefing tool through
+that boundary. The boundary owns validation, corpus/index selection, filtering,
+scoring, ranking, and structured unavailable/error handling. Do not add a
+tool-only result cap: the existing service returns every record above the
+configured threshold, and callers may format or inject the returned set.
 
 The Character Briefing tool remains model-facing as
 `search_character_daily_memories(query)`. Its implicit owning-character scope
@@ -59,6 +63,9 @@ other callers where the shared backend is unavailable.
 - The model cannot widen scope or override persisted retrieval settings.
 - Existing Memories settings and existing Chat/Briefing contracts remain
   backward compatible unless a migration is required and documented.
+- The three callers must use the same settings resolver and embedding source;
+  a missing/disabled retrieval runtime produces the existing unavailable
+  result rather than a raw or differently scoped query.
 
 ## 5. Risks and Mitigations
 

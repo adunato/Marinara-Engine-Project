@@ -1,29 +1,39 @@
 # CR047 — Implementation Plan
 
-_Status: Intake complete; ready for planning._
+_Status: Planning complete; approved for implementation._
 
 ## 1. Prerequisites
 
 - CR042 Character Daily Memories is available on the staging base.
 - CR044 Character Briefing and its `search_character_daily_memories` tool are
   available on the staging base.
-- Confirm the existing persisted Memories-tab retrieval configuration and the
-  current Preview, Chat, and Briefing call paths during planning.
+- The existing canonical retrieval implementation is
+  `packages/server/src/services/conversation/daily-memory.service.ts`;
+  `retrieveDailyMemories` already applies semantic, importance, recency,
+  minimum-rank, and recency-half-life settings. There is currently no persisted
+  result-limit setting, so this CR must not invent a tool-only cap.
+- Confirm the existing Preview, Chat, and Briefing call paths against the LLD
+  before editing; the observed Briefing empty-array defect is an adapter/scope
+  mismatch, not a reason to create a second retrieval algorithm.
 - Create the dedicated application worktree and branch
   `change/CR047-memory-retrieval-consistency` from local `staging`.
 
 ## 2. Atomic Tasks
 
-1. Trace the existing persisted retrieval settings, normalization/defaults,
-   corpus/index lookup, and ranking/filtering implementation.
-2. Define a small shared server-side retrieval boundary that accepts the
-   caller's query and owning scope while applying the persisted policy.
-3. Move or adapt Memories Preview to use the boundary without changing its
-   manual-query UX.
-4. Route Conversation Daily Memory retrieval through the boundary while
-   retaining last-`N` message query derivation.
-5. Route Character Briefing tool retrieval through the boundary while retaining
-   its dedicated LLM-generated query and no model-supplied tuning parameters.
+1. Trace and, where necessary, normalize the persisted retrieval settings and
+   runtime resolver once; do not duplicate defaults in a caller.
+2. Make the Preview route use `retrieveDailyMemories` with the selected
+   character/chat scope and the manual query, preserving its existing response
+   shape and UI.
+3. Route Conversation Daily Memory retrieval through the same function and
+   settings resolver while retaining last-`N` message query derivation.
+4. Route Character Briefing's `search_character_daily_memories` adapter through
+   the same function, passing the host-owned character's Daily Memory chat
+   scope and its dedicated generated query. Keep retrieval parameters out of
+   the model-facing schema.
+5. Add privacy-safe trace metadata (caller, scope kind, query/result counts,
+   availability, and policy version/values as appropriate) without recording
+   memory contents or raw queries.
 6. Preserve legacy `extensions.characterMemories` behavior as a separate
    implementation and update only relevant documentation/comments if needed.
 7. Add focused server regressions for policy parity, settings, scope, limits,
@@ -35,11 +45,18 @@ _Status: Intake complete; ready for planning._
 
 Exact paths require codebase inspection during planning. Expected surfaces are:
 
-- CR042 Daily Memory persistence/settings and shared retrieval service;
-- Memories tab Preview Retrieval server route and client adapter, if Preview
-  currently bypasses the shared service;
-- Conversation Daily Memory context assembly;
-- CR044 Character Briefing memory tool and its service adapter;
+- `packages/server/src/services/conversation/daily-memory.service.ts` (shared
+  retrieval and settings normalization);
+- `packages/server/src/services/generation/daily-memory-agent-runtime.ts`
+  (persisted settings/runtime resolution);
+- `packages/server/src/routes/daily-memories.routes.ts` (Preview Retrieval);
+- `packages/server/src/routes/generate.routes.ts` and
+  `packages/server/src/services/generation/conversation-*` (Chat query and
+  context assembly);
+- `packages/server/src/services/character-briefing.service.ts`,
+  `packages/server/src/routes/character-briefing.routes.ts`, and
+  `packages/server/src/services/tools/tool-executor.ts` (Briefing adapter);
+- corresponding shared tool manifest, server tests, and focused trace tests;
 - focused server/unit/regression tests and any narrowly relevant docs.
 
 No changes are planned to legacy character-card memory storage, unrelated
@@ -53,6 +70,8 @@ agent tools, or the Character Briefing editor/parser.
   in the same order under the same character/user scope.
 - Verify changing each persisted setting affects all three callers and no
   caller can override it through tool arguments.
+- Verify no caller applies an undocumented result cap and that all records
+  meeting the shared threshold remain eligible.
 - Verify missing index/backend and empty corpus behavior follows the existing
   structured availability/safe-degradation contract.
 - Run the smallest applicable typecheck/lint/test checks, then the staging
