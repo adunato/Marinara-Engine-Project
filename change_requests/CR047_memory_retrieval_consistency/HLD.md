@@ -1,6 +1,6 @@
 # CR047 — Consistent Character Daily Memory Tool Retrieval
 
-_Status: Amended; approved for implementation._
+_Status: Merged into local staging._
 
 ## 1. Purpose
 
@@ -121,3 +121,15 @@ this feature.
 - Corrected application branch: `change/CR047-tool-retrieval-correction`.
 - Parent documentation remains in this repository; application work uses a
   dedicated nested worktree.
+
+## 9. Implementation and integration record
+
+- The corrected application implementation is committed as `934e07d6d` and
+  is merged into local `staging`.
+- The earlier Conversation prompt-history Daily Memory retrieval and
+  injection were removed. The existing Chat custom tool path was retained,
+  and Chat and Character Briefing now use the same retrieval boundary as
+  Preview while preserving their distinct query construction.
+- The staging production build passed after integration.
+- Local `staging` is six commits ahead of `origin/staging`; no remote push was
+  performed. Focused Playwright coverage remains out of scope by agreement.

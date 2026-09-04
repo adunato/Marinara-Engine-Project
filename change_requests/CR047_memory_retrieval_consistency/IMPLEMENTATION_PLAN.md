@@ -1,6 +1,6 @@
 # CR047 — Implementation Plan
 
-_Status: Amended; approved for implementation._
+_Status: Implemented and merged into local staging._
 
 ## 1. Prerequisites
 
@@ -118,7 +118,12 @@ settings are modified, and no schema migration is expected.
 
 ## 7. Handoff
 
-Implementation is performed in a dedicated nested worktree on
-`change/CR047-tool-retrieval-correction`. Review and validation must confirm
-that the old Conversation prompt-history adapter is gone and the existing Chat
-and Briefing tool paths share Preview's retrieval contract.
+Implementation was performed in a dedicated nested worktree on
+`change/CR047-tool-retrieval-correction` and integrated into local `staging` as
+application commit `934e07d6d`. The corrected implementation removes the old
+Conversation prompt-history retrieval/injection adapter and preserves the
+existing Chat and Briefing tool paths on Preview's shared retrieval contract.
+
+The staging production build passed after integration. Local `staging` is six
+commits ahead of `origin/staging`; no remote push was performed. Focused
+Playwright coverage was not agreed for this change.
