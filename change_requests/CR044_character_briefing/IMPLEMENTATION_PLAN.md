@@ -2,7 +2,7 @@
 
 ## Status
 
-Original implementation completed and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; fast-forwarded into local `staging`. The staging production build passed. Focused Playwright E2E was declined by the user. The Issue #14 picker-correctness amendment was implemented in application commit `736e9873b`, fast-forwarded into local `staging`, and its staging production build passed. Local `staging` is two commits ahead of `origin/staging`; no remote push was performed.
+Original implementation completed and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; fast-forwarded into local `staging`. The staging production build passed. Focused Playwright E2E was declined by the user. The Issue #14 picker-correctness amendment was implemented in application commit `736e9873b`, fast-forwarded into local `staging`, and its staging production build passed. A parser-boundary correction is now active on application branch `change/CR044-instruction-token-boundary`; local `staging` remains unpushed.
 
 ## 1. Objective
 
@@ -519,3 +519,55 @@ design.
 
 Revert application commit `736e9873b` if rollback is required. The original CR044 briefing generation,
 persistence, token format, and Conversation integration remain intact.
+
+## 14. Instruction-boundary token parsing amendment
+
+### Problem
+
+`parseCharacterBriefingTemplate()` currently finds the first `]]` with a
+plain substring search. When an ID-backed `$[...]` reference is the final
+content in a `[[...]]` instruction, the token's closing `]` is adjacent to the
+instruction terminator and the source contains `]]]`. The naive boundary
+selects the token close plus the first outer bracket, leaving the instruction
+unterminated and causing a valid reference such as
+`$[lorebook:md1PVBtepwdFsuejhZnPJ|Voss Family Dynamics]` to fail with
+`malformed entry reference`.
+
+### Scope and invariants
+
+- Update only the shared Character Briefing template parser and its focused
+  regression tests on the dedicated branch
+  `change/CR044-instruction-token-boundary`, based on current `staging`.
+- Preserve the existing ID-backed token formats, display labels, escaping
+  rules, slot offsets/reconstruction contract, and malformed-reference
+  rejection behaviour.
+- Treat a final Character, Persona, or Lorebook `$[...]` reference as part of
+  the instruction before recognizing the outer `]]` terminator; do not consume
+  the token's closing bracket as part of the instruction boundary.
+- Do not change entity resolution, generation orchestration, persistence, UI
+  picker behaviour, or Conversation context integration.
+
+### Implementation and validation tasks
+
+1. Replace the first-substring boundary assumption with boundary-aware parsing
+   that distinguishes a token closing bracket from the enclosing instruction
+   terminator while retaining existing escaped-label handling.
+2. Keep ordinary `]]` instruction termination and malformed/incomplete input
+   rejection deterministic.
+3. Add focused parser regressions for final Lorebook, Character, and Persona
+   references, ordinary `]]`, an escaped `\\]` label, and incomplete/malformed
+   references.
+4. Run the focused shared parser test/typecheck available on `staging`, then
+   inspect `git diff --check` and run the staging production build after the
+   application correction is integrated.
+
+### Acceptance criteria
+
+- The reported final Lorebook example parses without `malformed entry
+  reference`, resolves by its stable ID, and remains associated with its
+  instruction slot.
+- Equivalent final Character and Persona references pass the same boundary
+  case.
+- Existing valid ordinary instructions and escaped labels remain unchanged.
+- Incomplete or malformed references continue to fail before generation, with
+  no change to the prior Latest Briefing.

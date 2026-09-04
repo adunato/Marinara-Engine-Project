@@ -1,6 +1,6 @@
 # CR044 — Character Briefing
 
-_Status: Original implementation completed and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; the Issue #14 picker-correctness amendment is implemented in application commit `736e9873b` and fast-forwarded into local `staging`. The staging production build passed; staging remains local and unpushed._
+_Status: Original implementation completed and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; the Issue #14 picker-correctness amendment is implemented in application commit `736e9873b` and fast-forwarded into local `staging`. A parser-boundary correction is active on application branch `change/CR044-instruction-token-boundary`; staging remains local and unpushed._
 
 ## 1. Purpose
 
@@ -486,3 +486,31 @@ The amendment was implemented in application commit `736e9873b` and
 fast-forwarded into local `staging`. The staging production build passed. No
 remote push was performed; local `staging` is two commits ahead of
 `origin/staging`.
+
+### 11.7 Instruction-boundary token parsing amendment
+
+The existing ID-backed entity-reference syntax remains valid when a reference
+is the final content in an instruction. For example, this complete instruction
+must parse and resolve successfully:
+
+```text
+[[Consider Jace's personality and latest events. $[lorebook:md1PVBtepwdFsuejhZnPJ|Voss Family Dynamics]]]
+```
+
+The closing bracket of the `$[...]` token and the first bracket of the outer
+`[[...]]` terminator are adjacent, producing `]]]`. The parser must identify
+the outer instruction boundary without consuming the token's closing bracket,
+so the stored entity reference remains valid and is associated with the
+correct instruction slot. The same rule applies to Character and Persona
+references at the end of an instruction.
+
+This is a parser correctness amendment, not a change to token serialization,
+reference escaping, entity resolution, generation context, or UI behaviour.
+The boundary-aware parser must continue to preserve ordinary `]]` text where
+the existing syntax permits it, honour escaped `\\]` label content, and reject
+incomplete or malformed references deterministically.
+
+Focused regression coverage is required for a final Lorebook reference, final
+Character reference, final Persona reference, an ordinary `]]` instruction
+terminator, an escaped `\\]` label, and incomplete/malformed references. The
+existing CR044 and Issue #14 picker behaviour must remain unchanged.
