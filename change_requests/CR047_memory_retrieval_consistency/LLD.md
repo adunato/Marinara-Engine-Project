@@ -1,148 +1,142 @@
-# CR047 — Low-Level Design: Consistent Character Daily Memory Retrieval
+# CR047 — Low-Level Design: Consistent Character Daily Memory Tool Retrieval
 
-_Status: Approved for implementation; derived from the CR047 HLD and staging
-code inspection._
+_Status: Amended; approved for implementation._
 
-## 1. Scope and design decision
+## 1. Scope and correction
 
-Use the existing
-`createCharacterDailyMemoryRetrievalService().searchForCharacter()` as the
-canonical retrieval boundary. This is a wiring and contract-parity change, not
-a new search algorithm or schema migration. The character Memories-tab policy
-is the source of truth and is already loaded by the retrieval service through
-`CharacterDailyMemoriesStorage.getSettings()`; normalize missing or malformed
-values against the shared character-memory defaults. Do not use the generic
-`memory-recall` service for this feature; it searches a different corpus.
+This is a tool-boundary and retrieval-policy parity change. It uses the
+existing `createCharacterDailyMemoryRetrievalService({ db, storage })` and its
+`searchForCharacter({ characterId, query, caller, signal })` method as the
+canonical boundary. It does not add a new search algorithm, schema migration,
+or Conversation prompt-history integration.
 
-The current persisted settings contain semantic weight, importance weight,
-recency weight, minimum rank, and chat query message count. Recency half-life
-is the retrieval service's existing fixed default (30 days), and is not a
-separate persisted control. There is no persisted result limit. Remove the
-retrieval service's current default top-10 slice; no caller may introduce a
-hidden limit. Results are all eligible indexed Daily Memories after thresholding
-and deterministic ranking.
+The prior CR047 commit (`f6d017398`) added a Daily Memory adapter to
+`prepareConversationPromptHistory` and inserted a `dailyMemoryBlock` in
+`generate.routes.ts`. Remove those changes. `prepareConversationPromptHistory`
+must remain responsible for existing history/summary assembly only; it must
+not retrieve or inject Character Daily Memories.
 
-## 2. Shared contract
+## 2. Shared retrieval contract
 
-`searchForCharacter({ characterId, query, signal? })` is the sole retrieval
-boundary. It must:
+`searchForCharacter` is the only retrieval boundary for Preview, Chat, and
+Briefing. It must:
 
-1. read the character's persisted settings and resolve its configured
-   embedding source;
-2. embed the caller-provided query with that source;
-3. read only active-run Daily Memory rows owned by `characterId` with usable,
-   same-space embeddings;
-4. compute semantic, importance, and recency scores using normalized settings;
-5. reject records below `minimumRankPercent`;
-6. sort deterministically by ranking score and stable recency/ID tie-breakers;
-   and
-7. return every selected result with no caller-specific truncation.
+1. load the owning character's persisted Character Daily Memory settings;
+2. normalize missing or malformed semantic, importance, recency, and
+   minimum-rank values through the shared defaults;
+3. resolve the configured embedding source and embed the caller-provided query;
+4. read active Daily Memory rows owned by `characterId` with usable embeddings
+   in the same embedding space;
+5. calculate the configured semantic/importance/recency ranking;
+6. reject records below the configured minimum rank; and
+7. sort deterministically and return every eligible result, without a hidden
+   caller-specific limit.
 
-Callers provide only the character scope and query. They do not provide
-weights, thresholds, limits, or an alternate corpus.
-`extensions.characterMemories` is never read here.
+Callers provide only character scope, query, caller label, and cancellation
+signal. They cannot provide weights, threshold, result limit, user scope, or
+an alternate corpus. `extensions.characterMemories` and Scene summaries are
+not read here.
 
-Missing settings, empty queries, no active memories, missing/mismatched
-embeddings, or unavailable embedding providers preserve the existing
-`{ available, results }` contract. A disabled character is skipped by the Chat
-adapter and does not fall back to an unconstrained database read.
+Preserve the existing `{ available, results }` semantics, including safe
+empty/unavailable outcomes. Additional diagnostics may identify caller,
+character scope kind, availability, and candidate/eligible/returned counts,
+but must not contain raw queries, memory text, embeddings, names, or complete
+scope identifiers.
 
-## 3. Caller adapters
+## 3. Preview adapter
 
-### Preview Retrieval
+In `packages/server/src/routes/character-daily-memories.routes.ts`, retain the
+existing Preview route behavior:
 
-`character-daily-memories.routes.ts` continues to validate the selected
-Conversation and select its visible recent messages. Its existing
-`previewRetriever` callback is the adapter seam: it passes the character ID,
-selected chat ID, recent messages, and persisted settings to the shared
-retrieval service, then maps the ranked results to the current preview response.
-The Preview query is the configured last `N` visible messages from the selected
-Conversation; it does not use an LLM query.
+- validate the selected Conversation and owning character membership;
+- load the character's persisted `retrievalMessageCount`;
+- filter hidden/empty/non-visible messages;
+- select the last configured `N` messages in chronological order;
+- format the Preview query; and
+- call `searchForCharacter({ characterId, query, caller: "preview" })`.
 
-### Conversation
+Preserve the current Preview response shape and diagnostics mapping.
 
-Staging currently has no Character Daily Memory Chat adapter. Add a thin
-adapter at `prepareConversationPromptHistory` in
-`routes/generate/conversation-history-runtime.ts`, invoked by the Conversation
-branch in `routes/generate.routes.ts`, where `allCharacterIds`, scoped current
-messages, and prompt assembly are already available. For each enabled
-character in the Conversation, select the last configured `N` visible
-Conversation messages in chronological order, format speaker-attributed query
-text, and call `searchForCharacter({ characterId, query, signal })`. Inject
-separate character-labelled Daily Memory blocks into the prompt. Retrieval
-failure remains optional and must not block generation. The existing generic
-`injectMemoryRecallContext` / `recallMemories` path remains independent.
+## 4. Chat tool adapter
 
-### Character Briefing
+Retain the existing Chat custom-tool path and its host callback. Its adapter
+must:
 
-`character-briefing.service.ts` keeps asking the generation model for a
-dedicated natural-language query per briefing instruction. The host—not the
-model—passes the owning character ID to
-`searchForCharacter({ characterId, query, signal })`. The
-`search_character_daily_memories` manifest remains a single `query` argument;
-weights, threshold, limit, user scope, and character scope are not exposed.
-The adapter maps the shared ranked result to the existing tool output and
-retains its `available`/empty/error contract. Character ID is the actual
-Daily Memory ownership key; no synthetic chat ID is permitted.
+- receive the model's query request through the existing
+  `search_character_daily_memories` tool contract;
+- derive the query from the current Conversation's last configured `N`
+  visible messages, in chronological order, using the existing visibility
+  rules;
+- pass the owning character ID and derived query to
+  `searchForCharacter({ characterId, query, caller: "conversation" })`; and
+- map the shared result using the existing Chat tool response contract.
 
-## 4. Diagnostics and privacy
+If the current staging code has this logic in
+`conversation-history-runtime.ts`, move/revert it to the existing Chat tool
+host surface rather than extending prompt-history preparation. Do not add a
+Daily Memory block to `finalMessages`.
 
-Add structured, privacy-safe diagnostics at the shared boundary or adapter
-boundary: caller (`preview`, `conversation`, `briefing`), scope identifier
-type (not a character name), availability, candidate count, eligible count,
-and returned count. Do not log raw queries, memory text, embeddings, persona
-data, or full scope identifiers. Phoenix traces may therefore distinguish
-wrong scope, unavailable embedding, no indexed rows, and threshold rejection
-without leaking content.
+## 5. Character Briefing adapter
 
-## 5. Files and ownership
+In `packages/server/src/services/character-briefing.service.ts`, preserve the
+existing per-instruction LLM tool loop. The model calls
+`search_character_daily_memories` with a natural-language `query`; the host
+callback supplies the owning `characterId` and invokes:
+
+```ts
+retrieval.searchForCharacter({ characterId, query, caller: "briefing" })
+```
+
+The generation model remains responsible for creating the dedicated Briefing
+query. The shared tool manifest and `tool-executor.ts` must continue to expose
+and validate only the non-empty `query` argument. Retrieval settings and scope
+remain host-controlled.
+
+## 6. Files and ownership
 
 - `packages/server/src/services/character-daily-memories/retrieval.service.ts`:
-  shared settings loading, embedding, active-memory scope, ranking,
-  threshold, and no-cap result selection.
-- `packages/server/src/services/storage/character-daily-memories.storage.ts`:
-  persisted settings and active-run memory ownership used by the boundary.
+  shared settings normalization, embedding, scope, ranking, threshold, no-cap
+  selection, and diagnostics.
 - `packages/server/src/routes/character-daily-memories.routes.ts`: Preview
-  `previewRetriever` adapter and response mapping.
-- `packages/server/src/routes/generate/conversation-history-runtime.ts`:
-  Conversation adapter/query derivation and character-labelled prompt blocks;
-  `packages/server/src/routes/generate.routes.ts` supplies its existing call
-  site/context.
-- `packages/server/src/services/character-briefing.service.ts` and
-  `packages/server/src/services/tools/tool-executor.ts`: Briefing callback and
-  existing tool response contract.
-- `packages/shared/src/features/function-calls/tools/search-character-daily-memories/manifest.ts`:
-  verify the model-facing schema remains query-only.
-- Focused server tests adjacent to each adapter plus shared retrieval tests.
+  query construction and adapter mapping.
+- Existing Chat generation/tool host surface: last-visible-message query
+  construction and Chat callback wiring; exact path must be confirmed during
+  implementation.
+- `packages/server/src/services/character-briefing.service.ts`: Briefing LLM
+  tool callback and owning-character binding.
+- `packages/server/src/services/tools/tool-executor.ts` and
+  `packages/shared/src/features/function-calls/tools/search-character-daily-memories/manifest.ts`:
+  query-only model-facing contract.
+- `packages/server/src/routes/generate/conversation-history-runtime.ts` and
+  `packages/server/src/routes/generate.routes.ts`: remove prior CR047 Daily
+  Memory retrieval/injection additions; no replacement retrieval behavior.
+- Focused server tests for shared scoring and each adapter.
 
-No client behavior, database migration, legacy character-memory behavior, or
-E2E test is required by this design. Focused API/server regression coverage is
-required; Playwright remains optional and is not part of the agreed scope.
+No client, database, legacy character-memory, or E2E changes are required.
 
-## 6. Invariants and acceptance criteria
+## 7. Invariants and acceptance criteria
 
-- Equivalent queries for the same owning scope return identical IDs, order,
-  threshold behavior, and count from Preview, Chat, and Briefing.
-- Changing any persisted retrieval weight or threshold changes all three
-  callers consistently; the fixed 30-day recency half-life is shared by all
-  callers.
-- Chat and Preview use only their last configured N visible messages; Briefing
-  uses its generated query.
-- No caller can override policy, scope, corpus, or an undocumented limit.
-- Empty, missing-embedding, disabled, and unavailable cases preserve the
-  existing safe-degradation/tool response contracts.
-- Legacy `extensions.characterMemories` never appears in Daily Memory search.
-- Tests prove the Chat adapter uses the character scope and last-N query, and
-  the Jace-equivalent scope no longer returns an empty result when Preview
-  finds eligible Daily Memories.
+- Equivalent queries for the same owning character return identical IDs,
+  ordering, threshold behavior, and counts through Preview, Chat, and Briefing.
+- Chat uses only the last configured `N` visible messages; Briefing uses its
+  LLM-generated query; Preview retains its selected Conversation query.
+- All callers use the same persisted weights, threshold, corpus, character
+  scope, embedding-space validation, and no-cap result selection.
+- No model-facing argument can override retrieval policy or scope.
+- `prepareConversationPromptHistory` performs no Character Daily Memory
+  retrieval and injects no Daily Memory context.
+- Legacy `extensions.characterMemories` never appears in these results.
+- Disabled, empty, missing-embedding, unavailable-provider, and no-result
+  cases preserve safe degradation.
+- Tests cover the Jace-equivalent Preview/Briefing scenario that originally
+  exposed the empty-result discrepancy.
 
-## 7. Verification and rollback
+## 8. Verification and rollback
 
-Run focused server/unit tests for shared scoring, settings normalization,
-scope parity, adapter response mapping, privacy-safe diagnostics, and failure
-paths. Then run the repository's proportionate `pnpm check` and staging
-production build. No `pnpm db:push` is expected because the design adds no
-schema changes.
+Run focused server/unit tests for settings normalization, shared scoring,
+tool adapters, query derivation, no-cap behavior, scope, unavailable/empty
+paths, and prompt-history non-injection. Then run proportionate repository
+checks and the staging production build; no `pnpm db:push` is expected.
 
-Rollback is a revert of the CR047 application commit(s). It does not modify
-stored Daily Memories or persisted settings.
+Rollback is a revert of the corrected CR047 application commit(s). Stored
+Daily Memories and persisted settings remain untouched.
