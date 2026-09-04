@@ -2,7 +2,7 @@
 
 ## Status
 
-Original implementation completed and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; fast-forwarded into local `staging`. The staging production build passed. Focused Playwright E2E was declined by the user. The Issue #14 picker-correctness amendment was implemented in application commit `736e9873b`, fast-forwarded into local `staging`, and its staging production build passed. A parser-boundary correction is now active on application branch `change/CR044-instruction-token-boundary`; local `staging` remains unpushed.
+Original implementation completed and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; fast-forwarded into local `staging`. The staging production build passed. Focused Playwright E2E was declined by the user. The Issue #14 picker-correctness amendment was implemented in application commit `736e9873b`, fast-forwarded into local `staging`, and its staging production build passed. The instruction-boundary parser correction was implemented in application commit `b1316bd71`, fast-forwarded into local `staging`, and its staging production build passed. Local `staging` remains unpushed.
 
 ## 1. Objective
 

@@ -1,6 +1,6 @@
 # CR044 — Character Briefing
 
-_Status: Original implementation completed and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; the Issue #14 picker-correctness amendment is implemented in application commit `736e9873b` and fast-forwarded into local `staging`. A parser-boundary correction is active on application branch `change/CR044-instruction-token-boundary`; staging remains local and unpushed._
+_Status: Original implementation completed and validated in application commit `9f9d5041f96780ce67fdfda299d0a7d7cef146b0`; the Issue #14 picker-correctness amendment is implemented in application commit `736e9873b` and fast-forwarded into local `staging`. The instruction-boundary parser correction is implemented in application commit `b1316bd71` and fast-forwarded into local `staging`; the staging branch remains local and unpushed._
 
 ## 1. Purpose
 
