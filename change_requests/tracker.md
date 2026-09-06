@@ -1,6 +1,6 @@
 # Change Request Tracker
 
-Last updated: 2026-09-05
+Last updated: 2026-09-06
 
 ## Repository Branch Alignment
 
@@ -88,3 +88,4 @@ Last updated: 2026-09-05
 | CR053 | merged into main | Streamed Provider Error Diagnostics | Preserves sanitized OpenAI-compatible streaming error payloads for Phoenix and Character Briefing diagnostics without changing retry policy. | CR052 | Implemented on `change/CR053-streamed-provider-error-diagnostics` at `5f0ab6499`, with focused parser/Phoenix and Character Briefing atomic-publication regressions passing; integrated into the nested application `main` as merge commit `eb53f1a4d` on 2026-09-05. Primary `pnpm build` passed. Full `pnpm check` remains limited by pre-existing repository formatting failures. |
 | CR054 | merged into main | Character Briefing Connection Reasoning Settings | Carries the selected connection's persisted reasoning effort into every Character Briefing model request so GLM/NanoGPT receives its configured thinking mode. | CR044 | Implemented on `change/CR054-briefing-reasoning-settings` at `e1fa68f9d`; integrated into local application `main` as merge commit `ab286489a7` on 2026-09-05. Focused reasoning-settings regression, server TypeScript/lint, diff checks, and primary-checkout build passed. Full `pnpm check` remains limited by pre-existing repository formatting failures. |
 | CR055 | standalone | Character Briefing Finalization | Ensures a plain-text model response after Daily Memory retrieval is followed by one dedicated tools-disabled structured final request before replacement validation. | CR044, CR052, CR054 | Application implementation validated and integrated into local nested app `main` at `899d61a51`. Preserves bounded tool rounds, reasoning settings, provider streaming policy, and atomic publication. |
+| CR056 | standalone | Character Briefing Roleplay Injection | Extends Character Briefing's additive Latest Briefing context from Conversation generation to applicable Roleplay responses while preserving CR044 Conversation behavior. | CR044 | Parent intake opened for a standalone Roleplay follow-up. Application base is local `main`; planned branch `change/CR056-roleplay-character-briefing`. Implementation, review, validation, and integration remain pending. |
