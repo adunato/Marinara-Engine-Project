@@ -1,6 +1,6 @@
 # Change Request Tracker
 
-Last updated: 2026-09-06
+Last updated: 2026-09-09
 
 ## Repository Branch Alignment
 
@@ -89,3 +89,4 @@ Last updated: 2026-09-06
 | CR054 | merged into main | Character Briefing Connection Reasoning Settings | Carries the selected connection's persisted reasoning effort into every Character Briefing model request so GLM/NanoGPT receives its configured thinking mode. | CR044 | Implemented on `change/CR054-briefing-reasoning-settings` at `e1fa68f9d`; integrated into local application `main` as merge commit `ab286489a7` on 2026-09-05. Focused reasoning-settings regression, server TypeScript/lint, diff checks, and primary-checkout build passed. Full `pnpm check` remains limited by pre-existing repository formatting failures. |
 | CR055 | standalone | Character Briefing Finalization | Ensures a plain-text model response after Daily Memory retrieval is followed by one dedicated tools-disabled structured final request before replacement validation. | CR044, CR052, CR054 | Application implementation validated and integrated into local nested app `main` at `899d61a51`. Preserves bounded tool rounds, reasoning settings, provider streaming policy, and atomic publication. |
 | CR056 | standalone | Character Briefing Roleplay Injection | Extends Character Briefing's additive Latest Briefing context from Conversation generation to applicable Roleplay responses while preserving CR044 Conversation behavior. | CR044 | Parent intake opened for a standalone Roleplay follow-up. Application base is local `main`; planned branch `change/CR056-roleplay-character-briefing`. Implementation, review, validation, and integration remain pending. |
+| CR057 | standalone | Character Daily Memory Retrieval in Roleplay Sessions | Extends character-owned Daily Memory retrieval into ordinary Roleplay sessions without assuming the user-facing generic Tool Use loop is enabled; exact prompt/tool boundary and character scope remain for planning. | CR042, CR047 | Parent intake opened for a standalone Roleplay retrieval follow-up. Application base is local `main`; planned branch `change/CR057-character-daily-memory-roleplay`. HLD and implementation plan are Draft; planning approval, design decisions, implementation, review, validation, and integration remain pending. |
