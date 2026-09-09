@@ -1,6 +1,6 @@
 # CR057 - Character Daily Memory Retrieval in Roleplay Sessions
 
-_Status: Draft; planning required._
+_Status: Approved; implementation pending._
 
 ## 1. Goal
 
@@ -37,50 +37,44 @@ Roleplay Tool Use.
 - Parent CR documentation remains in this repository; implementation must use
   a dedicated nested application worktree.
 
-## 4. Current behavior and design question
+## 4. Current behavior
 
 Character Daily Memories are character-owned and can be retrieved through the
 shared deterministic retrieval service. Existing Chat and Character Briefing
 adapters expose `search_character_daily_memories` as a model-invoked tool.
 Ordinary Roleplay sessions generally do not enable the generic tool loop, so
-those sessions currently receive no Daily Memory retrieval unless a separate
-caller path is activated.
+they currently receive no Character Daily Memory retrieval. The approved
+integration is host-managed retrieval before the normal response request. It
+must not depend on model tool invocation, expose unrelated tools, or require a
+new client setting. Existing per-character Daily Memory enablement governs
+eligibility.
 
-The exact Roleplay behavior is intentionally unresolved for planning. The
-design must decide whether Roleplay should:
 
-1. perform host-managed retrieval before the normal response request and add a
-   clearly delimited Daily Memories context block;
-2. register a Roleplay-specific memory tool in an internal, bounded tool loop
-   without enabling unrelated tools or requiring the user-facing Tool Use
-   setting; or
-3. offer an explicit per-character/session opt-in that chooses between those
-   behaviors.
+## 5. Proposed solution
 
-The likely default direction is host-managed retrieval because it works in the
-normal session path and keeps model tool invocation optional, but this is a
-planning recommendation rather than an approved implementation contract.
+Add a dedicated server-side pre-generation stage to the normal Roleplay
+generation path. After the responding character is resolved and the latest
+user message is available, the stage runs only when there is exactly one
+prompted character, that character's Daily Memory setting is enabled, and the
+latest user message is non-empty. The latest user message is the retrieval
+query.
 
-## 5. Proposed solution direction
+The stage reuses the CR047 retrieval service and all of its existing
+character-owned authorization/filtering, ranking, threshold, embedding-space,
+and result-limit policy. Results are added transiently to the model context as
+a clearly delimited block of untrusted reference data. They are not persisted
+as chat messages and are not displayed in the conversation. No match, empty
+input, or retrieval failure is a silent no-op; it must not block an otherwise
+valid Roleplay response.
 
-During planning, trace Roleplay target resolution, current-turn message
-availability, prompt assembly, and any existing internal tool-loop seam. Select
-one bounded integration point that calls the CR047 retrieval service with the
-same character-owned corpus, persisted ranking policy, embedding-space checks,
-threshold behavior, and safe degradation already used by other callers.
+The memory block must be placed at the approved prompt boundary without
+changing existing Roleplay cards, summaries, session memories, scene/source
+context, trackers, emotions, recent dialogue, or other prompt sources.
 
-The selected design must define how the query is built from Roleplay context,
-where retrieved memories are placed or returned, and how the model is told
-that the content is reference context rather than dialogue. It must preserve
-existing Roleplay cards, summaries, session memories, scene/source context,
-trackers, emotions, and other prompt sources.
-
-The design must also explicitly decide whether retrieval applies to one
-responding character or every eligible character in a multi-character
-Roleplay. If multiple characters are supported, each character's results must
-be independently scoped, deterministically ordered, labelled, and emitted at
-most once. If the feature remains single-target, non-target group members must
-be excluded and the limitation must be visible in the settings/documentation.
+Retrieval is intentionally limited to the single prompted character. A
+multi-character Roleplay is skipped because memory attribution is ambiguous;
+non-target characters must never receive or disclose another character's
+memories. Generic Tool Use remains independent and unchanged.
 
 ## 6. Invariants and boundaries
 
@@ -111,9 +105,9 @@ be excluded and the limitation must be visible in the settings/documentation.
 - **Tool-loop coupling:** enabling an internal memory tool may accidentally
   expose unrelated tools, add extra provider rounds, or change latency/error
   behavior in normal sessions.
-- **Feature compatibility:** existing per-character settings and older records
-  may lack any Roleplay-specific switch. Defaults, migration needs, and user
-  control must be decided before implementation.
+- **Feature compatibility:** existing per-character Daily Memory enablement
+  remains the sole eligibility control; no Roleplay-specific client setting or
+  persistence migration is introduced.
 - **Prompt ordering:** placing memory context at the wrong boundary may make it
   look like user/character dialogue or weaken existing instructions.
 
@@ -122,9 +116,8 @@ be excluded and the limitation must be visible in the settings/documentation.
 - Add focused Roleplay generation/prompt regressions proving retrieval for an
   enabled character with eligible memories and no retrieval for a disabled or
   empty corpus.
-- Cover the selected single- versus multi-character policy, including stable
-  target attribution, duplicate suppression, and exclusion of non-target
-  characters.
+- Cover the single-character policy and prove multi-character sessions are
+  skipped, with no cross-character leakage or duplicate memory block.
 - Prove normal Roleplay works with generic Tool Use disabled and that unrelated
   tools are not exposed or invoked by the change.
 - Cover empty queries, unavailable/mismatched embeddings, retrieval errors,
@@ -138,6 +131,9 @@ be excluded and the limitation must be visible in the settings/documentation.
   planning identifies a migration or release-surface change.
 - Because this changes user-visible Roleplay behavior, agree during or after
   implementation whether focused Playwright E2E coverage is required.
+
+Focused Playwright E2E coverage remains a validation-stage decision; the
+server-side regressions above are required regardless.
 
 ## 9. Acceptance criteria
 
