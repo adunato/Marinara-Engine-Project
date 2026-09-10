@@ -1,0 +1,4 @@
+interface:
+  display_name: "Marinara Upstream Alignment"
+  short_description: "Replay fork CRs onto latest Pasta-Devs main"
+  default_prompt: "Use $marinara-upstream-alignment to refresh the Pasta-Devs main baseline and replay the maintained fork change-request stack onto it one CR at a time."

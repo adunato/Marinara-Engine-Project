@@ -1,0 +1,4 @@
+interface:
+  display_name: "Marinara CR Housekeeping"
+  short_description: "Normalize fork history into replayable CR units"
+  default_prompt: "Use $marinara-change-request-housekeeping to inventory the fork history, map commits to change requests, maintain ALIGNMENT.md replay contracts, and reconstruct a canonical CR patch stack."
