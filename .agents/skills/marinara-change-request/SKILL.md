@@ -17,9 +17,17 @@ Use this index only in `Marinara-Engine-Project/`. It is the entry point for one
 | Implement approved application work | [`$marinara-change-request-implementation`](../marinara-change-request-implementation/SKILL.md) |
 | Independently inspect completed work | [`$marinara-change-request-review`](../marinara-change-request-review/SKILL.md) |
 | Run proportionate checks and E2E work | [`$marinara-change-request-validation`](../marinara-change-request-validation/SKILL.md) |
-| Prepare local integration, release, or upstream contribution | [`$marinara-change-request-ship`](../marinara-change-request-ship/SKILL.md) |
+| Prepare canonical fork integration or release | [`$marinara-change-request-ship`](../marinara-change-request-ship/SKILL.md) |
 | Close, supersede, or archive a CR | [`$marinara-change-request-close`](../marinara-change-request-close/SKILL.md) |
 
 Use only the stages needed for the request. For an explicitly directed trivial change, use the fast path in the shared contract: combine minimal CR bookkeeping with implementation rather than creating a separate approval or documentation checkpoint.
+
+## Repository Maintenance Skills
+
+These are separate from the per-CR lifecycle:
+
+- [`$marinara-change-request-housekeeping`](../marinara-change-request-housekeeping/SKILL.md): normalize existing fork history into documented, replayable CR units.
+- [`$marinara-upstream-alignment`](../marinara-upstream-alignment/SKILL.md): periodically replay the retained CR stack onto a newer Pasta-Devs `main` baseline.
+- [`$marinara-branch-maintenance`](../marinara-branch-maintenance/SKILL.md): maintain the clean `upstream-main` mirror and branch/tracking invariants.
 
 Kangentic loads the committed parent-root [`kangentic.json`](../../../kangentic.json) as this workflow's shared board source. Use [KANGENTIC_STAGE_MAPPING.md](KANGENTIC_STAGE_MAPPING.md) with it for lifecycle authority and the documented schema limits. Runtime `.kangentic/config.json` is machine-local and ignored; do not edit it to change the shared workflow.

@@ -1,6 +1,6 @@
 ---
 name: marinara-coderabbit-review
-description: Use when working in the Marinara Engine repo with CodeRabbit PR review comments, especially when the user asks to triage, plan, summarize, or address CodeRabbit observations. Produces a structured review-response plan that maps each CodeRabbit observation and recommendation to a verified proposed solution before implementation.
+description: Use when working in the Marinara Engine fork with CodeRabbit PR review comments, especially when the user asks to triage, plan, summarize, or address CodeRabbit observations. Produces a structured review-response plan that maps each CodeRabbit observation and recommendation to a verified proposed solution before implementation.
 ---
 
 # Marinara CodeRabbit Review
@@ -51,7 +51,7 @@ When the user asks to implement the approved plan:
 - Make the review-response changes from a dedicated temporary nested app `git worktree` checked out to the reviewed branch.
 - Keep edits scoped to the reviewed branch and comments.
 - Do not treat CodeRabbit suggestions as automatically correct; preserve current behavior where the comment is stale or wrong.
-- Prefer small, behavior-focused commits that clearly correspond to the review response.
+- Prefer small, behavior-focused commits that clearly correspond to the review response while development is active; Ship later decides whether they remain separate canonical replay units.
 - Update CR docs when the review comment is about documented behavior or when implementation semantics changed.
 - Run formatting only on files you touched.
 - Run validation before committing.
@@ -64,4 +64,4 @@ When the user asks to implement the approved plan:
 - Metadata writes: document and implement clear merge semantics. Prefer shallow top-level patching unless the reviewed requirement explicitly needs deeper behavior.
 - Agent cadence: keep labels, ranges, parsing, and `Every run` behavior shared across agent editor and chat settings surfaces.
 - Tool execution: keep main assistant and agent tool contexts aligned so built-in tools receive the same required context.
-- CR branches: implementation fixes belong on the active nested app `change/CRXXX-*` branch. Local workflow skills or repo-maintenance artifacts belong in the parent repo, not upstream PR branches.
+- CR branches: implementation fixes belong on the active nested app `change/CRXXX-*` branch. Local workflow skills and CR documentation belong in the parent repository and must not leak into the nested application patch stack.

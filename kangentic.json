@@ -133,7 +133,7 @@
       "name": "Start Ship Agent",
       "type": "spawn_agent",
       "config": {
-        "promptTemplate": "Run the $marinara-change-request-ship skill for the Ship stage. Use the top-level Codex worker role with the Luna I agent parameter. Prepare only the authorized local integration, release, or upstream-ready artifacts. Do not push, publish, open or merge pull requests, or change release state without explicit user authority. {{task_xml}}{{attachments}}"
+        "promptTemplate": "Run the $marinara-change-request-ship skill for the Ship stage. Use the top-level Codex worker role with the Luna I agent parameter. Normalize validated CR work into canonical replay units and prepare only the authorized fork integration or release artifacts. Maintain the CR ALIGNMENT.md replay contract. Do not perform periodic upstream alignment here; use $marinara-upstream-alignment for that. Do not push, publish, rewrite shared history, open or merge pull requests, or change release state without explicit user authority. {{task_xml}}{{attachments}}"
       }
     },
     {
@@ -141,7 +141,7 @@
       "name": "Start Close and Archive Agent",
       "type": "spawn_agent",
       "config": {
-        "promptTemplate": "Run the $marinara-change-request-close skill for the Close & Archive stage. Use the top-level Codex worker role with the Luna I agent parameter. Update tracker state or close, supersede, or archive CR records only when explicitly authorized; do not claim user validation or archive active work. {{task_xml}}{{attachments}}"
+        "promptTemplate": "Run the $marinara-change-request-close skill for the Close & Archive stage. Use the top-level Codex worker role with the Luna I agent parameter. Update tracker state or close, supersede, or archive CR records only when explicitly authorized; preserve replay documentation for retained fork behavior, do not claim user validation, and do not archive active work. {{task_xml}}{{attachments}}"
       }
     }
   ],
