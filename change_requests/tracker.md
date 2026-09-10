@@ -1,6 +1,6 @@
 # Change Request Tracker
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 ## Repository Branch Alignment
 
@@ -90,3 +90,4 @@ Last updated: 2026-09-09
 | CR055 | standalone | Character Briefing Finalization | Ensures a plain-text model response after Daily Memory retrieval is followed by one dedicated tools-disabled structured final request before replacement validation. | CR044, CR052, CR054 | Application implementation validated and integrated into local nested app `main` at `899d61a51`. Preserves bounded tool rounds, reasoning settings, provider streaming policy, and atomic publication. |
 | CR056 | standalone | Character Briefing Roleplay Injection | Extends Character Briefing's additive Latest Briefing context from Conversation generation to applicable Roleplay responses while preserving CR044 Conversation behavior. | CR044 | Parent intake opened for a standalone Roleplay follow-up. Application base is local `main`; planned branch `change/CR056-roleplay-character-briefing`. Implementation, review, validation, and integration remain pending. |
 | CR057 | merged into main | Character Daily Memory Retrieval in Roleplay Sessions | Extends character-owned Daily Memory retrieval into ordinary Roleplay sessions through host-managed pre-generation context, without assuming the user-facing generic Tool Use loop is enabled. | CR042, CR047 | Implemented on `change/CR057-character-daily-memory-roleplay` at `a6886412c` and fast-forwarded into local application `main` on 2026-09-09. Focused build, server TypeScript, regression, formatting, and diff checks passed. Full `pnpm check` remains limited by pre-existing repository formatting drift (1,335 files) before lint/type stages. |
+| CR058 | standalone | Character Daily Memory Context Parity | Automatically injects eligible character-owned Daily Memories into both Conversation and Roleplay generation while preserving the explicit `search_character_daily_memories` tool. | CR042, CR047, CR057 | Parent intake opened for the user-authorized both-mode injection follow-up. Application base is local `main`; planned branch `change/CR058-character-daily-memory-context-parity`. Implementation, review, validation, and integration remain pending. |
